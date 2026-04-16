@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
-import { formatCurrency, formatPercent, formatDate } from "@/lib/formatters";
+import { formatCurrency, formatPercent, formatDate, todayLocalISO } from "@/lib/formatters";
 import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Ruler, Flame, Target,
@@ -74,8 +74,9 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     const [configRes, allTransRes, recentTransRes, etapasRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
       supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
-      // All paid transactions for accurate totals (no limit)
-      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id").is("deleted_at", null).eq("status" as any, "pago"),
+      // BUG-001/003: Total Gasto = todas as transacoes (pagas + pendentes),
+      // alinhado com Previsao/Curva ABC/Relatorios/Comissao
+      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id, status" as any).is("deleted_at", null).neq("status" as any, "cancelado"),
       // Recent 5 for display (all statuses)
       supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at" as any).is("deleted_at", null).order("data", { ascending: false }).limit(5),
       supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao, fim_previsto"),
@@ -127,7 +128,7 @@ export default function DashboardPage() {
 
     if (pendentesRes.data) {
       const pRows = pendentesRes.data as unknown as { valor: number; data_vencimento: string | null }[];
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = todayLocalISO();
       setContasPagar({
         total: pRows.reduce((s, r) => s + Number(r.valor), 0),
         count: pRows.length,

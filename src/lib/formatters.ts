@@ -5,10 +5,28 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+// BUG-004: datas YYYY-MM-DD precisam ser interpretadas como local,
+// nao UTC — senao em fuso UTC-3 mostram 1 dia a menos.
+export function parseLocalDate(date: string): Date {
+  if (!date) return new Date(NaN);
+  const dateOnly = date.length === 10 ? date : date.split("T")[0];
+  const [y, m, d] = dateOnly.split("-").map(Number);
+  if (!y || !m || !d) return new Date(date);
+  return new Date(y, m - 1, d);
+}
+
+export function todayLocalISO(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function formatDate(date: string): string {
   if (!date) return "-";
   try {
-    return new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+    return new Intl.DateTimeFormat("pt-BR").format(parseLocalDate(date));
   } catch {
     return date;
   }

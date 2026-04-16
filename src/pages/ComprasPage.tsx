@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
-import { formatCurrency, formatDate, CATEGORIAS_PADRAO } from "@/lib/formatters";
+import { formatCurrency, formatDate, CATEGORIAS_PADRAO, todayLocalISO } from "@/lib/formatters";
 import { Plus, Search, Package, Truck, Clock, RefreshCw, CreditCard, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,7 @@ export default function ComprasPage() {
     descricao: "",
     categoria: "Material",
     valor_total: "",
-    data: new Date().toISOString().split("T")[0],
+    data: todayLocalISO(),
     status_entrega: "Pedido",
     forma_pagamento: "PIX",
     tipo_compra: "Única" as TipoCompra,
@@ -98,7 +98,7 @@ export default function ComprasPage() {
 
   const resetForm = () => setForm({
     fornecedor: "", descricao: "", categoria: "Material", valor_total: "",
-    data: new Date().toISOString().split("T")[0], status_entrega: "Pedido",
+    data: todayLocalISO(), status_entrega: "Pedido",
     forma_pagamento: "PIX", tipo_compra: "Única", numero_parcelas: "3",
     periodicidade: "Mensal", observacoes: "", conta_id: "",
   });

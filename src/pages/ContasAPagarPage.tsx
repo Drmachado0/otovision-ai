@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
-import { formatCurrency, formatDate } from "@/lib/formatters";
+import { formatCurrency, formatDate, todayLocalISO } from "@/lib/formatters";
 import { processRecurrences } from "@/lib/recurrenceEngine";
 import {
   Clock, AlertTriangle, DollarSign, CalendarCheck, Search,
@@ -59,7 +59,7 @@ export default function ContasAPagarPage() {
   // Cancel dialog
   const [cancelTarget, setCancelTarget] = useState<ContaPagar | null>(null);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayLocalISO();
 
   const fetchData = useCallback(async () => {
     // KPIs query (all pending)

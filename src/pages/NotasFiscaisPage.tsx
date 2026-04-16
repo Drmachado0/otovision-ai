@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate } from "@/lib/formatters";
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import {
   FileText, Search, CreditCard, Trash2, Eye, AlertCircle,
-  CheckCircle2, Clock, DollarSign,
+  CheckCircle2, Clock, DollarSign, Upload, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import PagamentoDialog from "@/components/PagamentoDialog";
@@ -107,11 +108,17 @@ export default function NotasFiscaisPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Notas Fiscais</h1>
           <p className="text-sm text-muted-foreground">Gerencie notas fiscais e registre pagamentos</p>
         </div>
+        <Button asChild className="gap-2">
+          <Link to="/leitor-ia">
+            <Sparkles className="w-4 h-4" />
+            Importar NF
+          </Link>
+        </Button>
       </div>
 
       {/* Summary cards */}
@@ -157,9 +164,27 @@ export default function NotasFiscaisPage() {
               <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-12 space-y-3">
               <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
-              <p>Nenhuma nota fiscal encontrada</p>
+              <p className="text-muted-foreground">
+                {nfs.length === 0
+                  ? "Nenhuma nota fiscal cadastrada"
+                  : "Nenhuma nota fiscal encontrada"}
+              </p>
+              {nfs.length === 0 && (
+                <>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    Envie um XML, PDF ou foto da NF pelo <strong>Leitor IA</strong> e
+                    a extração automática cria a nota com fornecedor, valor e vencimento.
+                  </p>
+                  <Button asChild size="sm" variant="outline" className="gap-2 mt-2">
+                    <Link to="/leitor-ia">
+                      <Upload className="w-4 h-4" />
+                      Importar primeira NF
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <div className="rounded-lg border border-border overflow-hidden">

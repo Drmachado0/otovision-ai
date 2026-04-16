@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
-import { formatCurrency, formatDate, CATEGORIAS_PADRAO } from "@/lib/formatters";
+import { formatCurrency, formatDate, CATEGORIAS_PADRAO, todayLocalISO } from "@/lib/formatters";
 import {
   Plus, ArrowUpRight, ArrowDownRight, Search, X,
   ChevronLeft, ChevronRight, Filter, CreditCard,
@@ -36,6 +36,8 @@ export default function FluxoCaixaPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalEntradas, setTotalEntradas] = useState(0);
   const [totalSaidas, setTotalSaidas] = useState(0);
+  const [saidasPagas, setSaidasPagas] = useState(0);
+  const [saidasPendentes, setSaidasPendentes] = useState(0);
 
   const [selectedTransacao, setSelectedTransacao] = useState<TransacaoFull | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -49,8 +51,8 @@ export default function FluxoCaixaPage() {
   const [form, setForm] = useState({
     tipo: "Saída",
     valor: "",
-    data: new Date().toISOString().split("T")[0],
-    data_vencimento: new Date().toISOString().split("T")[0],
+    data: todayLocalISO(),
+    data_vencimento: todayLocalISO(),
     categoria: "Material",
     descricao: "",
     forma_pagamento: "PIX",
@@ -62,12 +64,12 @@ export default function FluxoCaixaPage() {
   });
 
   const fetchData = useCallback(async () => {
-    // Global totals query (only paid transactions)
+    // BUG-006: Totais incluem pagas + pendentes (excluindo canceladas)
     const totalsQuery = supabase
       .from("obra_transacoes_fluxo")
-      .select("tipo, valor")
+      .select("tipo, valor, status" as any)
       .is("deleted_at", null)
-      .eq("status" as any, "pago");
+      .neq("status" as any, "cancelado");
 
     let query = supabase
       .from("obra_transacoes_fluxo")
@@ -90,9 +92,12 @@ export default function FluxoCaixaPage() {
     if (data) setTransacoes(data as unknown as TransacaoFull[]);
     if (count !== null) setTotalCount(count);
     if (allData) {
-      const rows = allData as { tipo: string; valor: number }[];
+      const rows = allData as unknown as { tipo: string; valor: number; status?: string }[];
+      const saidas = rows.filter(t => t.tipo === "Saída");
       setTotalEntradas(rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0));
-      setTotalSaidas(rows.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0));
+      setTotalSaidas(saidas.reduce((s, t) => s + Number(t.valor), 0));
+      setSaidasPagas(saidas.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.valor), 0));
+      setSaidasPendentes(saidas.filter(t => t.status === "pendente" || !t.status).reduce((s, t) => s + Number(t.valor), 0));
     }
     setLoading(false);
   }, [page, filterTipo, filterCategoria, filterStatus, dateFrom, dateTo, search]);
@@ -217,7 +222,7 @@ export default function FluxoCaixaPage() {
         toast.success(isSaida ? "Lancamento criado! Confirme o pagamento em Contas a Pagar." : "Entrada registrada!");
       }
       setShowForm(false);
-      setForm({ tipo: "Saída", valor: "", data: new Date().toISOString().split("T")[0], data_vencimento: new Date().toISOString().split("T")[0], categoria: "Material", descricao: "", forma_pagamento: "PIX", observacoes: "", conta_id: "", recorrencia_tipo: "Única", numero_parcelas: "3", periodicidade: "Mensal" });
+      setForm({ tipo: "Saída", valor: "", data: todayLocalISO(), data_vencimento: todayLocalISO(), categoria: "Material", descricao: "", forma_pagamento: "PIX", observacoes: "", conta_id: "", recorrencia_tipo: "Única", numero_parcelas: "3", periodicidade: "Mensal" });
       fetchData();
     } catch (err: any) {
       toast.error("Erro ao salvar: " + (err?.message || "Erro desconhecido"));
@@ -246,16 +251,23 @@ export default function FluxoCaixaPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { cls: "stat-card-success", label: "Entradas", value: formatCurrency(totalEntradas), color: "text-success" },
-          { cls: "stat-card-danger", label: "Saídas", value: formatCurrency(totalSaidas), color: "text-destructive" },
-          { cls: "stat-card-info", label: "Saldo", value: formatCurrency(totalEntradas - totalSaidas), color: totalEntradas - totalSaidas >= 0 ? "text-success" : "text-destructive" },
-        ].map((c, i) => (
-          <div key={i} className={`${c.cls} p-4`} style={{ animationDelay: `${i * 100}ms` }}>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-            <p className={`text-lg font-bold mt-1 ${c.color}`}>{c.value}</p>
-          </div>
-        ))}
+        <div className="stat-card-success p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Entradas</p>
+          <p className="text-lg font-bold mt-1 text-success">{formatCurrency(totalEntradas)}</p>
+        </div>
+        <div className="stat-card-danger p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Saídas</p>
+          <p className="text-lg font-bold mt-1 text-destructive">{formatCurrency(totalSaidas)}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Pagas: {formatCurrency(saidasPagas)} · Pendentes: {formatCurrency(saidasPendentes)}
+          </p>
+        </div>
+        <div className="stat-card-info p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Saldo</p>
+          <p className={`text-lg font-bold mt-1 ${totalEntradas - totalSaidas >= 0 ? "text-success" : "text-destructive"}`}>
+            {formatCurrency(totalEntradas - totalSaidas)}
+          </p>
+        </div>
       </div>
 
       {/* Filters */}

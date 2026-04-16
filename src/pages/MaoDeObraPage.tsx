@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
-import { formatCurrency, formatDate } from "@/lib/formatters";
+import { formatCurrency, formatDate, todayLocalISO } from "@/lib/formatters";
 import {
   Plus,
   Users,
@@ -70,12 +70,12 @@ const EMPTY_FORM = {
   valor_diaria: "",
   valor_hora: "",
   tipo_contrato: "Di\u00e1ria",
-  data_inicio: new Date().toISOString().split("T")[0],
+  data_inicio: todayLocalISO(),
   observacoes: "",
 };
 
 const EMPTY_REGISTRO = {
-  data: new Date().toISOString().split("T")[0],
+  data: todayLocalISO(),
   horas: "",
   observacoes: "",
 };
@@ -162,7 +162,7 @@ export default function MaoDeObraPage() {
       valor_diaria: String(t.valor_diaria ?? ""),
       valor_hora: String(t.valor_hora ?? ""),
       tipo_contrato: t.tipo_contrato ?? "Di\u00e1ria",
-      data_inicio: t.data_inicio ?? new Date().toISOString().split("T")[0],
+      data_inicio: t.data_inicio ?? todayLocalISO(),
       observacoes: t.observacoes ?? "",
     });
     setShowForm(true);

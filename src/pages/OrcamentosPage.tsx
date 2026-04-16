@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
-import { formatCurrency, formatDate, CATEGORIAS_PADRAO } from "@/lib/formatters";
+import { formatCurrency, formatDate, CATEGORIAS_PADRAO, todayLocalISO } from "@/lib/formatters";
 import { Plus, FileText, Check, X, Clock, AlertTriangle, ShoppingCart, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,7 @@ export default function OrcamentosPage() {
     descricao: "",
     categoria: "Material",
     valor_total: "",
-    data: new Date().toISOString().split("T")[0],
+    data: todayLocalISO(),
     validade: "",
     condicoes_pagamento: "",
     observacoes: "",
@@ -120,7 +120,7 @@ export default function OrcamentosPage() {
   const resetForm = () => {
     setForm({
       fornecedor: "", descricao: "", categoria: "Material", valor_total: "",
-      data: new Date().toISOString().split("T")[0], validade: "",
+      data: todayLocalISO(), validade: "",
       condicoes_pagamento: "", observacoes: "",
     });
     setFormItens([{ ...EMPTY_ITEM }]);
@@ -210,7 +210,7 @@ export default function OrcamentosPage() {
       descricao: `[Orçamento] ${orcamento.descricao}`,
       categoria: orcamento.categoria,
       valor_total: orcamento.valor_total,
-      data: new Date().toISOString().split("T")[0],
+      data: todayLocalISO(),
       status_entrega: "Pedido",
       forma_pagamento: orcamento.condicoes_pagamento || "PIX",
       observacoes: `Convertido do orçamento de ${formatDate(orcamento.data)} - ${orcamento.fornecedor}`,

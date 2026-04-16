@@ -124,6 +124,7 @@ export default function EquipePage() {
       updated_at: new Date().toISOString(),
     };
 
+    let success = false;
     if (editingId) {
       const { error } = await supabase
         .from("obra_funcionarios")
@@ -133,6 +134,7 @@ export default function EquipePage() {
         toast.error("Erro ao atualizar funcionário");
       } else {
         toast.success("Funcionário atualizado");
+        success = true;
       }
     } else {
       payload.user_id = user!.id;
@@ -144,12 +146,17 @@ export default function EquipePage() {
         toast.error("Erro ao criar funcionário");
       } else {
         toast.success("Funcionário adicionado");
+        success = true;
       }
     }
 
     setSaving(false);
-    setShowForm(false);
-    resetForm();
+    if (success) {
+      setShowForm(false);
+      resetForm();
+      // BUG-005: refetch imediato (realtime subscription e fallback, nao garantia)
+      fetchData();
+    }
   };
 
   // ---------- toggle status ----------
@@ -163,6 +170,7 @@ export default function EquipePage() {
       toast.error("Erro ao alterar status");
     } else {
       toast.success(`Funcionário ${newStatus === "ativo" ? "ativado" : "desativado"}`);
+      fetchData();
     }
   };
 
@@ -177,6 +185,7 @@ export default function EquipePage() {
       toast.error("Erro ao excluir funcionário");
     } else {
       toast.success("Funcionário excluído");
+      fetchData();
     }
     setDeleteTarget(null);
   };
