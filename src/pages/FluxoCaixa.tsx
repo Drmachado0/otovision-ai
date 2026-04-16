@@ -76,7 +76,7 @@ export default function FluxoCaixa() {
   const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const filtered = transacoes.filter((t) =>
-    t.descricao.toLowerCase().includes(search.toLowerCase()) || t.categoria.toLowerCase().includes(search.toLowerCase())
+    (t.descricao ?? "").toLowerCase().includes(search.toLowerCase()) || t.categoria.toLowerCase().includes(search.toLowerCase())
   );
 
   return (

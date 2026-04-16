@@ -417,12 +417,30 @@ export default function ConfiguracoesPage() {
           <Download className="w-5 h-5 text-primary" /> Backup de Dados
         </h2>
         <p className="text-sm text-muted-foreground">
-          Exporte todos os seus dados em formato JSON.
+          Exporte ou importe todos os seus dados em formato JSON.
         </p>
-        <Button onClick={handleExportBackup} disabled={exporting} className="gap-2">
-          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          {exporting ? "Exportando..." : "Exportar Backup (JSON)"}
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={handleExportBackup} disabled={exporting} className="gap-2">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exporting ? "Exportando..." : "Exportar Backup (JSON)"}
+          </Button>
+          <input
+            type="file"
+            accept=".json"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="gap-2"
+          >
+            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {importing ? "Importando..." : "Importar Backup (JSON)"}
+          </Button>
+        </div>
       </section>
 
       {/* Danger Zone */}
