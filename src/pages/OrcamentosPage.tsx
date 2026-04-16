@@ -80,6 +80,7 @@ export default function OrcamentosPage() {
   const [saving, setSaving] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<StatusFilter>("Todos");
   const [selectedOrcamento, setSelectedOrcamento] = useState<Orcamento | null>(null);
+  const [pagamentoOrcamento, setPagamentoOrcamento] = useState<Orcamento | null>(null);
 
   const [form, setForm] = useState({
     fornecedor: "",
