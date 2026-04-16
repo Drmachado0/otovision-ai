@@ -44,32 +44,40 @@ export default function FluxoCaixaPage() {
 
   const [valorError, setValorError] = useState("");
 
+  const [filterStatus, setFilterStatus] = useState("todos");
+
   const [form, setForm] = useState({
     tipo: "Saída",
     valor: "",
     data: new Date().toISOString().split("T")[0],
+    data_vencimento: new Date().toISOString().split("T")[0],
     categoria: "Material",
     descricao: "",
     forma_pagamento: "PIX",
     observacoes: "",
     conta_id: "",
+    recorrencia_tipo: "Única" as "Única" | "Parcelada" | "Recorrente",
+    numero_parcelas: "3",
+    periodicidade: "Mensal",
   });
 
   const fetchData = useCallback(async () => {
-    // Global totals query (all transactions, no pagination/filters)
+    // Global totals query (only paid transactions)
     const totalsQuery = supabase
       .from("obra_transacoes_fluxo")
       .select("tipo, valor")
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      .eq("status", "pago");
 
     let query = supabase
       .from("obra_transacoes_fluxo")
-      .select("id, tipo, valor, data, categoria, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at", { count: "exact" })
+      .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at, status, parcela_numero, parcela_total", { count: "exact" })
       .is("deleted_at", null)
       .order("data", { ascending: false });
 
     if (filterTipo !== "todos") query = query.eq("tipo", filterTipo);
     if (filterCategoria !== "todos") query = query.eq("categoria", filterCategoria);
+    if (filterStatus !== "todos") query = query.eq("status", filterStatus);
     if (dateFrom) query = query.gte("data", dateFrom);
     if (dateTo) query = query.lte("data", dateTo);
     if (search) query = query.or(`descricao.ilike.%${search}%,categoria.ilike.%${search}%`);
@@ -87,7 +95,7 @@ export default function FluxoCaixaPage() {
       setTotalSaidas(rows.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0));
     }
     setLoading(false);
-  }, [page, filterTipo, filterCategoria, dateFrom, dateTo, search]);
+  }, [page, filterTipo, filterCategoria, filterStatus, dateFrom, dateTo, search]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -119,34 +127,102 @@ export default function FluxoCaixaPage() {
       toast.error("Informe um valor válido");
       return;
     }
-    if (contas.length > 0 && !form.conta_id) {
+    // Entradas precisam de conta; Saidas pendentes nao (conta sera escolhida no pagamento)
+    const isEntrada = form.tipo === "Entrada";
+    if (isEntrada && contas.length > 0 && !form.conta_id) {
       toast.error("Selecione uma conta");
       return;
     }
     setValorError("");
     setSaving(true);
-    const { error } = await supabase.from("obra_transacoes_fluxo").insert({
-      user_id: user!.id,
-      tipo: form.tipo,
-      valor: Number(form.valor),
-      data: form.data,
-      categoria: form.categoria,
-      descricao: form.descricao,
-      forma_pagamento: form.forma_pagamento,
-      observacoes: form.observacoes,
-      recorrencia: "Única",
-      referencia: "",
-      conta_id: form.conta_id,
-    } as any);
-    setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar: " + error.message);
-    } else {
-      toast.success("Transação registrada!");
+
+    const isSaida = form.tipo === "Saída";
+    const statusBase = isSaida ? "pendente" : "pago";
+    const grupoId = (form.recorrencia_tipo !== "Única") ? crypto.randomUUID() : null;
+
+    try {
+      if (form.recorrencia_tipo === "Parcelada" && isSaida) {
+        // Gerar N parcelas
+        const nParcelas = Math.max(1, parseInt(form.numero_parcelas) || 3);
+        const valorParcela = Math.round((numVal / nParcelas) * 100) / 100;
+        const parcelas = [];
+        for (let i = 0; i < nParcelas; i++) {
+          const venc = new Date(form.data_vencimento);
+          venc.setMonth(venc.getMonth() + i);
+          parcelas.push({
+            user_id: user!.id,
+            tipo: form.tipo,
+            valor: i === nParcelas - 1 ? numVal - valorParcela * (nParcelas - 1) : valorParcela,
+            data: form.data,
+            data_vencimento: venc.toISOString().split("T")[0],
+            categoria: form.categoria,
+            descricao: form.descricao,
+            forma_pagamento: form.forma_pagamento,
+            observacoes: form.observacoes,
+            recorrencia: "Parcelada",
+            recorrencia_grupo_id: grupoId,
+            parcela_numero: i + 1,
+            parcela_total: nParcelas,
+            referencia: "",
+            conta_id: form.conta_id || null,
+            status: "pendente",
+          });
+        }
+        const { error } = await supabase.from("obra_transacoes_fluxo").insert(parcelas as any);
+        if (error) throw error;
+        toast.success(`${nParcelas} parcelas criadas!`);
+      } else if (form.recorrencia_tipo === "Recorrente" && isSaida) {
+        // Criar transacao mae recorrente
+        const { error } = await supabase.from("obra_transacoes_fluxo").insert({
+          user_id: user!.id,
+          tipo: form.tipo,
+          valor: numVal,
+          data: form.data,
+          data_vencimento: form.data_vencimento,
+          categoria: form.categoria,
+          descricao: form.descricao,
+          forma_pagamento: form.forma_pagamento,
+          observacoes: form.observacoes,
+          recorrencia: form.periodicidade,
+          recorrencia_ativa: true,
+          recorrencia_mae: true,
+          recorrencia_grupo_id: grupoId,
+          recorrencia_frequencia: form.periodicidade,
+          recorrencia_ocorrencias_criadas: 1,
+          referencia: "",
+          conta_id: form.conta_id || null,
+          status: "pendente",
+        } as any);
+        if (error) throw error;
+        toast.success("Lancamento recorrente criado!");
+      } else {
+        // Unica
+        const { error } = await supabase.from("obra_transacoes_fluxo").insert({
+          user_id: user!.id,
+          tipo: form.tipo,
+          valor: numVal,
+          data: form.data,
+          data_vencimento: isSaida ? form.data_vencimento : null,
+          categoria: form.categoria,
+          descricao: form.descricao,
+          forma_pagamento: form.forma_pagamento,
+          observacoes: form.observacoes,
+          recorrencia: "Única",
+          referencia: "",
+          conta_id: isEntrada ? form.conta_id : (form.conta_id || null),
+          status: statusBase,
+          data_pagamento: isEntrada ? new Date().toISOString() : null,
+        } as any);
+        if (error) throw error;
+        toast.success(isSaida ? "Lancamento criado! Confirme o pagamento em Contas a Pagar." : "Entrada registrada!");
+      }
       setShowForm(false);
-      setForm({ tipo: "Saída", valor: "", data: new Date().toISOString().split("T")[0], categoria: "Material", descricao: "", forma_pagamento: "PIX", observacoes: "", conta_id: "" });
+      setForm({ tipo: "Saída", valor: "", data: new Date().toISOString().split("T")[0], data_vencimento: new Date().toISOString().split("T")[0], categoria: "Material", descricao: "", forma_pagamento: "PIX", observacoes: "", conta_id: "", recorrencia_tipo: "Única", numero_parcelas: "3", periodicidade: "Mensal" });
       fetchData();
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + (err?.message || "Erro desconhecido"));
     }
+    setSaving(false);
   };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -210,6 +286,16 @@ export default function FluxoCaixaPage() {
           <option value="todos">Categoria</option>
           {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        <select
+          value={filterStatus}
+          onChange={e => { setFilterStatus(e.target.value); setPage(0); }}
+          className="px-4 py-2.5 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="todos">Status</option>
+          <option value="pendente">Pendente</option>
+          <option value="pago">Pago</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
       </div>
 
       {/* Date range */}
@@ -244,6 +330,7 @@ export default function FluxoCaixaPage() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Categoria</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase hidden md:table-cell">Pagamento</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase hidden lg:table-cell">Origem</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase hidden md:table-cell">Status</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Valor</th>
                 </tr>
               </thead>
@@ -273,6 +360,12 @@ export default function FluxoCaixaPage() {
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <OrigemBadge origem={t.origem_tipo} compact />
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {t.status === "pago" && <span className="badge-success text-[10px]">Pago</span>}
+                      {t.status === "pendente" && <span className="badge-warning text-[10px]">Pendente</span>}
+                      {t.status === "cancelado" && <span className="badge-muted text-[10px]">Cancelado</span>}
+                      {!t.status && <span className="badge-success text-[10px]">Pago</span>}
                     </td>
                     <td className={`px-4 py-3 text-right font-semibold ${
                       t.tipo === "Entrada" ? "text-success" : "text-destructive"
@@ -349,18 +442,66 @@ export default function FluxoCaixaPage() {
               <Label className="text-xs text-muted-foreground">Descrição</Label>
               <Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Cimento CP-II" className="mt-1" />
             </div>
+            {/* Tipo de Lancamento (so para Saidas) */}
+            {form.tipo === "Saída" && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Tipo de Lancamento</Label>
+                <div className="flex gap-1 mt-1">
+                  {(["Única", "Parcelada", "Recorrente"] as const).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, recorrencia_tipo: t }))}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        form.recorrencia_tipo === t ? "bg-primary text-primary-foreground" : "bg-accent/50 text-muted-foreground hover:bg-accent"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Vencimento */}
+            {form.tipo === "Saída" && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
+                <Input type="date" value={form.data_vencimento} onChange={e => setForm(f => ({ ...f, data_vencimento: e.target.value }))} className="mt-1" />
+              </div>
+            )}
+            {/* Parcelas */}
+            {form.tipo === "Saída" && form.recorrencia_tipo === "Parcelada" && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Numero de Parcelas</Label>
+                <Input type="number" min="2" max="48" value={form.numero_parcelas} onChange={e => setForm(f => ({ ...f, numero_parcelas: e.target.value }))} className="mt-1" />
+                <p className="text-[10px] text-muted-foreground mt-1">Valor por parcela: {formatCurrency(Number(form.valor) / (parseInt(form.numero_parcelas) || 1))}</p>
+              </div>
+            )}
+            {/* Periodicidade */}
+            {form.tipo === "Saída" && form.recorrencia_tipo === "Recorrente" && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Periodicidade</Label>
+                <select value={form.periodicidade} onChange={e => setForm(f => ({ ...f, periodicidade: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1">
+                  <option value="Mensal">Mensal</option>
+                  <option value="Trimestral">Trimestral</option>
+                  <option value="Anual">Anual</option>
+                </select>
+              </div>
+            )}
             <div>
               <Label className="text-xs text-muted-foreground">Forma de Pagamento</Label>
               <select value={form.forma_pagamento} onChange={e => setForm(f => ({ ...f, forma_pagamento: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1">
                 {FORMAS_PAGAMENTO.map(f => <option key={f}>{f}</option>)}
               </select>
             </div>
+            {/* Conta - obrigatoria so para Entradas */}
             <div>
-              <Label className="text-xs text-muted-foreground">Conta {contas.length > 0 && <span className="text-destructive">*</span>}</Label>
-              <select value={form.conta_id} onChange={e => setForm(f => ({ ...f, conta_id: e.target.value }))} className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1 ${contas.length > 0 && !form.conta_id ? "border-destructive" : "border-input"}`}>
-                <option value="">{contas.length > 0 ? "Selecione uma conta" : "Sem conta vinculada"}</option>
+              <Label className="text-xs text-muted-foreground">Conta {form.tipo === "Entrada" && contas.length > 0 && <span className="text-destructive">*</span>}</Label>
+              <select value={form.conta_id} onChange={e => setForm(f => ({ ...f, conta_id: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1">
+                <option value="">{form.tipo === "Saída" ? "Definir no pagamento" : "Selecione uma conta"}</option>
                 {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
+              {form.tipo === "Saída" && <p className="text-[10px] text-muted-foreground mt-1">Para saidas, a conta sera selecionada ao confirmar o pagamento</p>}
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Observações</Label>

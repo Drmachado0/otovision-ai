@@ -7,7 +7,7 @@ import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Ruler, Flame, Target,
   ShieldAlert, ArrowRight, CreditCard, ShoppingCart,
-  Landmark, Receipt, Calendar,
+  Landmark, Receipt, Calendar, Clock,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -66,21 +66,24 @@ export default function DashboardPage() {
   const [contas, setContas] = useState<ContaRow[]>([]);
   const [allTransForContas, setAllTransForContas] = useState<{ tipo: string; valor: number; conta_id?: string }[]>([]);
   const [gastosPorCategoria, setGastosPorCategoria] = useState<{ categoria: string; total: number }[]>([]);
+  const [contasPagar, setContasPagar] = useState<{ total: number; count: number; vencidas: number }>({ total: 0, count: 0, vencidas: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedTransacao, setSelectedTransacao] = useState<TransacaoFull | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
-    const [configRes, allTransRes, recentTransRes, etapasRes, comprasRes, comissoesRes, contasRes] = await Promise.all([
+    const [configRes, allTransRes, recentTransRes, etapasRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
       supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
-      // All transactions for accurate totals (no limit)
-      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id").is("deleted_at", null),
-      // Recent 5 for display
-      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at").is("deleted_at", null).order("data", { ascending: false }).limit(5),
+      // All paid transactions for accurate totals (no limit)
+      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id").is("deleted_at", null).eq("status", "pago"),
+      // Recent 5 for display (all statuses)
+      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at, status").is("deleted_at", null).order("data", { ascending: false }).limit(5),
       supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao, fim_previsto"),
       supabase.from("obra_compras").select("valor_total, status_entrega").is("deleted_at", null),
       supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null),
       supabase.from("obra_contas_financeiras").select("id, nome, tipo, cor, saldo_inicial, ativa").eq("ativa", true),
+      // Contas a pagar (pending)
+      supabase.from("obra_transacoes_fluxo").select("valor, data_vencimento").is("deleted_at", null).eq("status", "pendente").eq("tipo", "Saída"),
     ]);
 
     if (configRes.data) setConfig(configRes.data as ConfigRow);
@@ -121,6 +124,16 @@ export default function DashboardPage() {
     }
 
     if (contasRes.data) setContas(contasRes.data as ContaRow[]);
+
+    if (pendentesRes.data) {
+      const pRows = pendentesRes.data as { valor: number; data_vencimento: string | null }[];
+      const todayStr = new Date().toISOString().split("T")[0];
+      setContasPagar({
+        total: pRows.reduce((s, r) => s + Number(r.valor), 0),
+        count: pRows.length,
+        vencidas: pRows.filter(r => r.data_vencimento && r.data_vencimento < todayStr).length,
+      });
+    }
 
     setLoading(false);
   }, []);
@@ -240,6 +253,23 @@ export default function DashboardPage() {
           <p className="text-[10px] text-muted-foreground">{kpis.progressoGeral.toFixed(1)}% concluído</p>
         </div>
       </div>
+
+      {/* Contas a Pagar highlight */}
+      {contasPagar.count > 0 && (
+        <Link to="/contas-pagar" className="glass-card p-4 hover:bg-accent/30 transition-colors animate-fade-in-up border-l-2 border-warning" style={{ animationDelay: "720ms" }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="w-4 h-4 text-warning" />
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Contas a Pagar</span>
+              </div>
+              <p className="text-xl font-bold text-warning">{formatCurrency(contasPagar.total)}</p>
+              <p className="text-xs text-muted-foreground">{contasPagar.count} pendente(s){contasPagar.vencidas > 0 && <span className="text-destructive"> · {contasPagar.vencidas} vencida(s)</span>}</p>
+            </div>
+            <ArrowRight className="w-5 h-5 text-muted-foreground" />
+          </div>
+        </Link>
+      )}
 
       {/* Compras, Comissões, Contas row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -15,6 +15,7 @@ import NotFound from "@/pages/NotFound";
 
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const FluxoCaixaPage = lazy(() => import("@/pages/FluxoCaixaPage"));
+const ContasAPagarPage = lazy(() => import("@/pages/ContasAPagarPage"));
 const ComprasPage = lazy(() => import("@/pages/ComprasPage"));
 const LeitorIAPage = lazy(() => import("@/pages/LeitorIAPage"));
 const ComissaoPage = lazy(() => import("@/pages/ComissaoPage"));
@@ -119,6 +120,7 @@ function AuthenticatedApp() {
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/fluxo" element={<FluxoCaixaPage />} />
+            <Route path="/contas-pagar" element={<ContasAPagarPage />} />
             <Route path="/compras" element={<ComprasPage />} />
             <Route path="/leitor-ia" element={<LeitorIAPage />} />
             <Route path="/comissao" element={<ComissaoPage />} />

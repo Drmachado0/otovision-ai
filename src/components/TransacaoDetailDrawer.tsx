@@ -43,6 +43,13 @@ export interface TransacaoFull {
   conta_id?: string;
   referencia?: string;
   created_at?: string;
+  status?: string;
+  data_vencimento?: string;
+  data_pagamento?: string;
+  comprovante_path?: string;
+  parcela_numero?: number;
+  parcela_total?: number;
+  recorrencia_grupo_id?: string;
 }
 
 interface Props {
@@ -148,12 +155,18 @@ export default function TransacaoDetailDrawer({ transacao, open, onOpenChange, o
             {/* Badges row */}
             <div className="flex flex-wrap gap-2">
               <OrigemBadge origem={t.origem_tipo} />
-              {t.conciliado ? (
+              {t.status === "pendente" && <span className="badge-warning"><Clock className="w-3 h-3 mr-1" />Pendente</span>}
+              {t.status === "pago" && <span className="badge-success"><CheckCircle2 className="w-3 h-3 mr-1" />Pago</span>}
+              {t.status === "cancelado" && <span className="badge-muted">Cancelado</span>}
+              {!t.status && (t.conciliado ? (
                 <span className="badge-success"><CheckCircle2 className="w-3 h-3 mr-1" />Conciliado</span>
               ) : (
                 <span className="badge-muted"><Clock className="w-3 h-3 mr-1" />Não conciliado</span>
-              )}
+              ))}
               <Badge variant="outline">{t.tipo}</Badge>
+              {t.parcela_numero && t.parcela_total && (
+                <Badge variant="outline" className="text-xs">Parcela {t.parcela_numero}/{t.parcela_total}</Badge>
+              )}
             </div>
 
             <Separator />
@@ -192,6 +205,16 @@ export default function TransacaoDetailDrawer({ transacao, open, onOpenChange, o
                   value={t.observacoes || "-"} />
               )}
 
+              {t.data_vencimento && (
+                <DetailField icon={<Calendar className="w-4 h-4" />} label="Vencimento" editing={false}
+                  value={formatDate(t.data_vencimento)} />
+              )}
+
+              {t.data_pagamento && (
+                <DetailField icon={<Calendar className="w-4 h-4" />} label="Data Pagamento" editing={false}
+                  value={formatDate(t.data_pagamento)} />
+              )}
+
               {t.created_at && (
                 <div className="text-xs text-muted-foreground pt-2">
                   Criado em: {formatDate(t.created_at)}
@@ -202,7 +225,7 @@ export default function TransacaoDetailDrawer({ transacao, open, onOpenChange, o
             <Separator />
 
             {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {editing ? (
                 <>
                   <Button onClick={handleSave} disabled={saving} className="flex-1 gap-2">
@@ -210,6 +233,18 @@ export default function TransacaoDetailDrawer({ transacao, open, onOpenChange, o
                   </Button>
                   <Button variant="outline" onClick={cancelEdit} className="gap-2">
                     <X className="w-4 h-4" /> Cancelar
+                  </Button>
+                </>
+              ) : t.status === "pendente" ? (
+                <>
+                  <Button className="flex-1 gap-2" onClick={() => { onOpenChange(false); window.location.href = "/contas-pagar"; }}>
+                    <CreditCard className="w-4 h-4" /> Pagar
+                  </Button>
+                  <Button variant="outline" onClick={startEdit} className="gap-2">
+                    <Edit2 className="w-4 h-4" /> Editar
+                  </Button>
+                  <Button variant="destructive" onClick={() => setShowDelete(true)} className="gap-2">
+                    <Trash2 className="w-4 h-4" /> Cancelar
                   </Button>
                 </>
               ) : (

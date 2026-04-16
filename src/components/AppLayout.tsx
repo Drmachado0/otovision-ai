@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText, Percent,
   Menu, X, Building2, History, Calendar, TrendingUp, Lightbulb,
   BarChart3, FolderSync, Landmark, ChevronRight, Wallet, Settings,
-  ClipboardList, Ruler, Users, PieChart,
+  ClipboardList, Ruler, Users, PieChart, Receipt,
 } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import NotificationBell from "@/components/NotificationBell";
@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { path: "/medicao", label: "Medicao", icon: Ruler },
   { path: "/equipe", label: "Equipe", icon: Users },
   { path: "/fluxo", label: "Fluxo de Caixa", icon: ArrowLeftRight, allowedRoles: ["admin", "financeiro"] },
+  { path: "/contas-pagar", label: "Contas a Pagar", icon: Receipt, allowedRoles: ["admin", "financeiro"] },
   { path: "/contas", label: "Contas", icon: Wallet, allowedRoles: ["admin", "financeiro"] },
   { path: "/compras", label: "Compras", icon: ShoppingCart, allowedRoles: ["admin", "financeiro"] },
   { path: "/notas-fiscais", label: "Notas Fiscais", icon: FileText, allowedRoles: ["admin", "financeiro"] },

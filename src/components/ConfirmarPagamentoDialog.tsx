@@ -10,22 +10,9 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 import { toast } from "sonner";
-import { Upload, Loader2, CreditCard, Wallet, Receipt } from "lucide-react";
-
-interface PagamentoDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  tipo: "nf" | "compra";
-  id: string;
-  fornecedor: string;
-  valor: number;
-  categoria: string;
-  descricao?: string;
-  userId: string;
-}
+import { Upload, Loader2, CreditCard, Wallet, Receipt, Calendar, Tag } from "lucide-react";
 
 interface ContaFinanceira {
   id: string;
@@ -34,9 +21,27 @@ interface ContaFinanceira {
   cor: string;
 }
 
-export default function PagamentoDialog({
-  open, onClose, onSuccess, tipo, id, fornecedor, valor, categoria, descricao, userId,
-}: PagamentoDialogProps) {
+interface ConfirmarPagamentoDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  transacao: {
+    id: string;
+    descricao: string;
+    valor: number;
+    categoria: string;
+    data_vencimento?: string;
+    conta_id?: string;
+    forma_pagamento?: string;
+    parcela_numero?: number;
+    parcela_total?: number;
+  } | null;
+  userId: string;
+}
+
+export default function ConfirmarPagamentoDialog({
+  open, onClose, onSuccess, transacao, userId,
+}: ConfirmarPagamentoDialogProps) {
   const [contas, setContas] = useState<ContaFinanceira[]>([]);
   const [contaId, setContaId] = useState("");
   const [metodo, setMetodo] = useState("PIX");
@@ -48,7 +53,6 @@ export default function PagamentoDialog({
     supabase
       .from("obra_contas_financeiras")
       .select("id, nome, tipo, cor")
-      .eq("user_id", userId)
       .eq("ativa", true)
       .then(({ data }) => {
         if (data) {
@@ -56,11 +60,15 @@ export default function PagamentoDialog({
           if (data.length === 1) setContaId(data[0].id);
         }
       });
-  }, [open, userId]);
+    // Pre-fill from transacao
+    if (transacao?.conta_id) setContaId(transacao.conta_id);
+    if (transacao?.forma_pagamento) setMetodo(transacao.forma_pagamento);
+  }, [open, transacao]);
 
-  const comissaoValor = Number(valor) * 0.08;
+  const comissaoValor = transacao ? Number(transacao.valor) * 0.08 : 0;
 
   const handleConfirmar = async () => {
+    if (!transacao) return;
     if (!contaId) {
       toast.error("Selecione uma conta");
       return;
@@ -69,86 +77,47 @@ export default function PagamentoDialog({
     try {
       let storagePath = "";
 
-      // Upload receipt if provided
+      // Upload comprovante if provided
       if (arquivo) {
         const ext = arquivo.name.split(".").pop();
-        const path = `${userId}/recibos/${id}/${Date.now()}.${ext}`;
+        const path = `${userId}/comprovantes/${transacao.id}/${Date.now()}.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from("documentos")
           .upload(path, arquivo);
-        if (uploadErr) throw new Error("Erro ao enviar recibo: " + uploadErr.message);
+        if (uploadErr) throw new Error("Erro ao enviar comprovante: " + uploadErr.message);
         storagePath = path;
       }
 
-      if (tipo === "nf") {
-        // Use the atomic RPC
-        const mes = new Date().toISOString().slice(0, 7);
-        const { error } = await supabase.rpc("pagar_nf_atomica", {
-          p_nf_id: id,
-          p_conta_id: contaId,
-          p_metodo: metodo,
-          p_transacao: {
-            descricao: `NF ${descricao || fornecedor}`,
-            categoria,
-            valor,
-            forma_pagamento: metodo,
-            metodo_pagamento: metodo,
-            observacoes: `Fornecedor: ${fornecedor}`,
-            status: "pago",
-            data_pagamento: new Date().toISOString(),
-          },
-          p_comissao: {
-            mes,
-            valor: comissaoValor,
-            pago: false,
-            observacoes: `Comissão automática NF - ${fornecedor}`,
-          },
-        });
-        if (error) throw error;
-      } else {
-        // For compras: create transaction directly
-        const { error } = await supabase.from("obra_transacoes_fluxo").insert({
-          user_id: userId,
-          tipo: "Saída",
-          valor,
-          data: new Date().toISOString(),
-          categoria,
-          descricao: `Compra - ${descricao || fornecedor}`,
-          forma_pagamento: metodo,
-          conta_id: contaId,
-          recorrencia: "Única",
-          referencia: `COMPRA-${id}`,
-          metodo_pagamento: metodo,
-          observacoes: `Fornecedor: ${fornecedor}`,
-          origem_tipo: "compra",
-          origem_id: id,
-          status: "pago",
-          data_pagamento: new Date().toISOString(),
-        } as any);
-        if (error) throw error;
+      // Update transaction to paid
+      const updateData: Record<string, unknown> = {
+        status: "pago",
+        data_pagamento: new Date().toISOString(),
+        conta_id: contaId,
+        forma_pagamento: metodo,
+      };
+      if (storagePath) updateData.comprovante_path = storagePath;
 
-        // Update compra status
-        await supabase
-          .from("obra_compras")
-          .update({ status_entrega: "Entregue" })
-          .eq("id", id);
+      const { error } = await supabase
+        .from("obra_transacoes_fluxo")
+        .update(updateData)
+        .eq("id", transacao.id);
+      if (error) throw error;
 
-        // Create commission for compra (same as NF flow)
-        const mesCompra = new Date().toISOString().slice(0, 7);
-        await supabase.from("obra_comissao_pagamentos").insert({
-          user_id: userId,
-          mes: mesCompra,
-          valor: comissaoValor,
-          pago: false,
-          auto: true,
-          observacoes: `Compra - ${fornecedor}`,
-          fornecedor,
-          categoria,
-          forma_pagamento: metodo,
-        } as any);
-      }
+      // Create commission (8%)
+      const mes = new Date().toISOString().slice(0, 7);
+      await supabase.from("obra_comissao_pagamentos").insert({
+        user_id: userId,
+        mes,
+        valor: comissaoValor,
+        pago: false,
+        auto: true,
+        observacoes: `Pagamento - ${transacao.descricao || transacao.categoria}`,
+        fornecedor: "",
+        categoria: transacao.categoria,
+        forma_pagamento: metodo,
+      } as any);
 
-      // Register receipt as processed document in Pasta Sync
+      // Register comprovante as document
       if (storagePath && arquivo) {
         await supabase.from("obra_documentos_processados").insert({
           user_id: userId,
@@ -156,35 +125,38 @@ export default function PagamentoDialog({
           tipo_arquivo: arquivo.type || "application/pdf",
           storage_path: storagePath,
           caminho_origem: storagePath,
-          hash_arquivo: `${id}-${Date.now()}`,
+          hash_arquivo: `${transacao.id}-${Date.now()}`,
           status_processamento: "processado",
-          tipo_documento: "recibo",
+          tipo_documento: "comprovante",
           confianca_extracao: 100,
           origem_arquivo: "pagamento",
           payload_normalizado: {
-            tipo_documento: "recibo",
-            fornecedor_ou_origem: fornecedor,
-            valor_total: valor,
-            descricao: `Recibo de pagamento - ${descricao || fornecedor}`,
+            tipo_documento: "comprovante",
+            valor_total: transacao.valor,
+            descricao: `Comprovante - ${transacao.descricao}`,
             data_documento: new Date().toISOString().slice(0, 10),
-            categoria,
+            categoria: transacao.categoria,
             metodo_pagamento: metodo,
           },
         } as any);
       }
 
-      toast.success("Pagamento registrado com sucesso!");
+      toast.success("Pagamento confirmado!");
       setArquivo(null);
       setContaId("");
       setMetodo("PIX");
       onSuccess();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao registrar pagamento");
+      toast.error(err instanceof Error ? err.message : "Erro ao confirmar pagamento");
     } finally {
       setLoading(false);
     }
   };
+
+  if (!transacao) return null;
+
+  const isVencida = transacao.data_vencimento && new Date(transacao.data_vencimento) < new Date();
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -195,7 +167,7 @@ export default function PagamentoDialog({
             Confirmar Pagamento
           </DialogTitle>
           <DialogDescription>
-            Registre o pagamento e anexe o comprovante
+            Confirme os dados e registre o pagamento
           </DialogDescription>
         </DialogHeader>
 
@@ -203,28 +175,43 @@ export default function PagamentoDialog({
           {/* Summary */}
           <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-1.5">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Fornecedor</span>
-              <span className="font-medium">{fornecedor}</span>
+              <span className="text-muted-foreground">Descricao</span>
+              <span className="font-medium truncate max-w-[200px]">{transacao.descricao || "-"}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Valor</span>
-              <span className="font-bold text-lg">{formatCurrency(valor)}</span>
+              <span className="font-bold text-lg">{formatCurrency(Number(transacao.valor))}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Comissão (8%)</span>
-              <Badge variant="outline" className="text-xs">{formatCurrency(comissaoValor)}</Badge>
-            </div>
-            {categoria && (
+            {transacao.data_vencimento && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Categoria</span>
-                <span>{categoria}</span>
+                <span className="text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" />Vencimento</span>
+                <span className={isVencida ? "text-destructive font-medium" : ""}>
+                  {formatDate(transacao.data_vencimento)}
+                  {isVencida && <Badge variant="destructive" className="ml-1 text-[9px]">Vencida</Badge>}
+                </span>
               </div>
             )}
+            {transacao.categoria && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1"><Tag className="w-3 h-3" />Categoria</span>
+                <span>{transacao.categoria}</span>
+              </div>
+            )}
+            {transacao.parcela_numero && transacao.parcela_total && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Parcela</span>
+                <Badge variant="outline" className="text-xs">{transacao.parcela_numero} de {transacao.parcela_total}</Badge>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Comissao (8%)</span>
+              <Badge variant="outline" className="text-xs">{formatCurrency(comissaoValor)}</Badge>
+            </div>
           </div>
 
           {/* Conta */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Conta de débito</Label>
+            <Label className="text-xs">Conta de debito <span className="text-destructive">*</span></Label>
             <Select value={contaId} onValueChange={setContaId}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a conta" />
@@ -242,7 +229,7 @@ export default function PagamentoDialog({
             </Select>
           </div>
 
-          {/* Método */}
+          {/* Metodo */}
           <div className="space-y-1.5">
             <Label className="text-xs">Forma de pagamento</Label>
             <Select value={metodo} onValueChange={setMetodo}>
@@ -251,17 +238,17 @@ export default function PagamentoDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="PIX"><div className="flex items-center gap-2"><Wallet className="w-3 h-3" />PIX</div></SelectItem>
-                <SelectItem value="Cartão"><div className="flex items-center gap-2"><CreditCard className="w-3 h-3" />Cartão</div></SelectItem>
+                <SelectItem value="Cartao"><div className="flex items-center gap-2"><CreditCard className="w-3 h-3" />Cartao</div></SelectItem>
                 <SelectItem value="Boleto"><div className="flex items-center gap-2"><Receipt className="w-3 h-3" />Boleto</div></SelectItem>
-                <SelectItem value="Transferência">Transferência</SelectItem>
+                <SelectItem value="Transferencia">Transferencia</SelectItem>
                 <SelectItem value="Dinheiro">Dinheiro</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Receipt upload */}
+          {/* Comprovante upload */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Comprovante / Recibo (opcional)</Label>
+            <Label className="text-xs">Comprovante (opcional)</Label>
             <div className="relative">
               <Input
                 type="file"
@@ -272,7 +259,7 @@ export default function PagamentoDialog({
               {arquivo && (
                 <p className="text-xs text-muted-foreground mt-1">
                   <Upload className="w-3 h-3 inline mr-1" />
-                  {arquivo.name} — será salvo na Pasta Sync como recibo
+                  {arquivo.name}
                 </p>
               )}
             </div>
