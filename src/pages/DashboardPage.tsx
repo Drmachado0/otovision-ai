@@ -111,9 +111,13 @@ export default function DashboardPage() {
     if (comissoesRes.data) {
       const comRows = comissoesRes.data as { valor: number; pago: boolean }[];
       const pagas = comRows.filter(x => x.pago).reduce((s, x) => s + Number(x.valor), 0);
-      const pendentes = comRows.filter(x => !x.pago).reduce((s, x) => s + Number(x.valor), 0);
       setComissoesPagas(pagas);
-      setComissoesPendentes(pendentes);
+      // Comissão total = 8% dos gastos (mesma lógica da ComissaoPage)
+      const gastos = allTransRes.data
+        ? (allTransRes.data as { tipo: string; valor: number }[]).filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0)
+        : 0;
+      const comissaoTotal = gastos * 0.08;
+      setComissoesPendentes(Math.max(comissaoTotal - pagas, 0));
     }
 
     if (contasRes.data) setContas(contasRes.data as ContaRow[]);
