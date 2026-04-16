@@ -1,37 +1,58 @@
 
 
-# Fix Build Errors + Add Import Backup
+# Fix: Transações Não Descontam no Saldo + Build Errors
 
-## Build Error Fixes
+## Diagnóstico
 
-### 1. AppSidebar.tsx — `signOut` not on useAuth
-The `useAuth` hook doesn't expose `signOut`. Fix: call `supabase.auth.signOut()` directly instead of destructuring `signOut` from useAuth.
+O arquivo `src/integrations/supabase/types.ts` está **desatualizado** — faltam 6 colunas que existem no banco:
+- `status` (default: 'pendente')
+- `data_vencimento` (date, nullable)
+- `data_pagamento` (timestamp, nullable)
+- `comprovante_path` (text, nullable)
+- `parcela_numero` (integer, nullable)
+- `parcela_total` (integer, nullable)
 
-### 2. Compras.tsx — `create_compra_atomica` not in types
-The generated types only have `pagar_nf_atomica`. The RPC exists in the DB but not in the type file (which we can't edit). Fix: cast supabase to `any` for this RPC call, e.g. `(supabase as any).rpc("create_compra_atomica", ...)`.
+Isso causa **todos** os build errors listados: queries com `.eq("status", ...)` e `.select("data_vencimento, ...")` falham na compilação TypeScript. Como o build falha, as queries não executam, e o saldo nunca é calculado corretamente.
 
-### 3. FluxoCaixa.tsx — nullable fields mismatch
-The DB returns `descricao: string | null` but the `Transacao` type expects `string`. Fix: make nullable fields optional in the `Transacao` type (`descricao: string | null`, `forma_pagamento: string | null`).
+## Solução
 
-## New Feature: Import Backup
+Como não podemos editar `types.ts` diretamente, a solução é usar **type assertion (`as any`)** em todas as queries que referenciam essas colunas.
 
-### Edge Function: `importar-backup`
-- New file: `supabase/functions/importar-backup/index.ts`
-- Accepts POST with JSON body matching the export format (`{ version, tables: { table_name: rows[] } }`)
-- Authenticates user via Authorization header
-- For each table in the backup, upserts rows (using the service role client) with the authenticated user's `user_id`
-- Uses `upsert` to avoid duplicates (matching on `id`)
-- Returns summary of imported rows per table
+### Arquivos a corrigir (8 arquivos):
 
-### UI: Add Import Button in ConfiguracoesPage
-- Add file input (hidden) + "Importar Backup (JSON)" button next to the export button
-- On file select: read JSON, validate structure, call `supabase.functions.invoke("importar-backup")` with the parsed data
-- Show loading state and success/error toast
+1. **`src/pages/DashboardPage.tsx`** — Cast queries com `status` e `data_vencimento` usando `as any`
+2. **`src/pages/FluxoCaixaPage.tsx`** — Cast query com `status` e `data_vencimento`
+3. **`src/pages/ContasAPagarPage.tsx`** — Cast queries com `status`, `data_vencimento`; fix `ContaPagar` type (`data_vencimento: string | null | undefined`)
+4. **`src/pages/ContasBancariasPage.tsx`** — Cast query com `status`
+5. **`src/components/ConfirmarPagamentoDialog.tsx`** — Cast `.update(updateData)` com `as any`
+6. **`src/components/TransacaoDetailDrawer.tsx`** — Fix `conta_id` null vs undefined: use `(form.conta_id ?? "") as any`
+7. **`src/lib/recurrenceEngine.ts`** — Cast `mothers` e `latest` queries; fix `data_vencimento` access
 
-### Files Changed
-1. `src/components/AppSidebar.tsx` — fix signOut
-2. `src/pages/FluxoCaixa.tsx` — fix Transacao type nullability
-3. `src/pages/Compras.tsx` — cast rpc call
-4. `supabase/functions/importar-backup/index.ts` — new edge function
-5. `src/pages/ConfiguracoesPage.tsx` — add import button + handler
+### Padrão de fix
+
+Para cada query que usa colunas ausentes nos types:
+```typescript
+// Antes (erro TS):
+.eq("status", "pago")
+
+// Depois:
+.eq("status" as any, "pago")
+```
+
+Para selects:
+```typescript
+// Cast o resultado:
+const rows = data as unknown as MyLocalType[];
+```
+
+Para inserts/updates com campos extras:
+```typescript
+.update({ status: "pago", ... } as any)
+```
+
+### Resultado esperado
+- Build compila sem erros
+- Queries executam corretamente no runtime
+- Dashboard calcula saldo = orçamento - gastos pagos
+- ContasBancarias mostra saldo = saldo_inicial + entradas - saídas (somente status="pago")
 
