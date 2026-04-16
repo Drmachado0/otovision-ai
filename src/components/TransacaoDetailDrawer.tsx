@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate, CATEGORIAS_PADRAO } from "@/lib/formatters";
+import CategoriaSelect from "@/components/CategoriaSelect";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -177,11 +178,17 @@ export default function TransacaoDetailDrawer({ transacao, open, onOpenChange, o
                 value={formatDate(t.data)} editValue={form?.data || ""}
                 onChange={(v) => setForm(f => f ? { ...f, data: v } : f)} type="date" />
 
-              <DetailField icon={<Tag className="w-4 h-4" />} label="Categoria" editing={editing}
-                value={t.categoria || "-"} editValue={form?.categoria || ""}
-                onChange={(v) => setForm(f => f ? { ...f, categoria: v } : f)}
-                options={CATEGORIAS} />
-
+              {editing ? (
+                <div>
+                  <Label className="text-xs text-muted-foreground flex items-center gap-2 mb-1.5">
+                    <Tag className="w-4 h-4" /> Categoria
+                  </Label>
+                  <CategoriaSelect value={form?.categoria || ""} onChange={(v) => setForm(f => f ? { ...f, categoria: v } : f)} />
+                </div>
+              ) : (
+                <DetailField icon={<Tag className="w-4 h-4" />} label="Categoria" editing={false}
+                  value={t.categoria || "-"} />
+              )}
               <DetailField icon={<CreditCard className="w-4 h-4" />} label="Forma de Pagamento" editing={editing}
                 value={t.forma_pagamento || "-"} editValue={form?.forma_pagamento || ""}
                 onChange={(v) => setForm(f => f ? { ...f, forma_pagamento: v } : f)}
