@@ -168,7 +168,7 @@ export default function OrcamentosPage() {
       categoria: form.categoria,
       valor_total: Number(form.valor_total),
       data: form.data,
-      validade: form.validade || null,
+      validade: form.validade || "",
       status: "Pendente",
       condicoes_pagamento: form.condicoes_pagamento,
       observacoes: form.observacoes,
