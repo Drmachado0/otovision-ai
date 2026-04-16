@@ -323,7 +323,7 @@ export default function DashboardPage() {
               const movs = allTransForContas.filter(t => t.conta_id === c.id);
               const entradas = movs.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
               const saidas = movs.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0);
-              const saldoConta = c.saldo_inicial + entradas - saidas;
+              const saldoConta = Number(c.saldo_inicial) + entradas - saidas;
               return (
                 <div key={c.id} className="flex items-center justify-between">
                   <span className="text-xs flex items-center gap-1.5">
