@@ -100,7 +100,13 @@ export default function FluxoCaixaPage() {
   }, [transacoes]);
   useEffect(() => {
     supabase.from("obra_contas_financeiras").select("id, nome").eq("ativa", true).then(({ data }) => {
-      if (data) setContas(data);
+      if (data) {
+        setContas(data);
+        // Auto-selecionar a primeira conta se houver apenas uma, ou se nenhuma foi selecionada
+        if (data.length === 1) {
+          setForm(f => ({ ...f, conta_id: data[0].id }));
+        }
+      }
     });
   }, []);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
@@ -111,6 +117,10 @@ export default function FluxoCaixaPage() {
     if (!form.valor || isNaN(numVal) || numVal <= 0) {
       setValorError("Informe um valor maior que zero");
       toast.error("Informe um valor válido");
+      return;
+    }
+    if (contas.length > 0 && !form.conta_id) {
+      toast.error("Selecione uma conta");
       return;
     }
     setValorError("");
@@ -346,9 +356,9 @@ export default function FluxoCaixaPage() {
               </select>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Conta</Label>
-              <select value={form.conta_id} onChange={e => setForm(f => ({ ...f, conta_id: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1">
-                <option value="">Sem conta vinculada</option>
+              <Label className="text-xs text-muted-foreground">Conta {contas.length > 0 && <span className="text-destructive">*</span>}</Label>
+              <select value={form.conta_id} onChange={e => setForm(f => ({ ...f, conta_id: e.target.value }))} className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1 ${contas.length > 0 && !form.conta_id ? "border-destructive" : "border-input"}`}>
+                <option value="">{contas.length > 0 ? "Selecione uma conta" : "Sem conta vinculada"}</option>
                 {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
