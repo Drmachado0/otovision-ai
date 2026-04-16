@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAutoNotifications } from "@/hooks/useAutoNotifications";
 import AppLayout from "@/components/AppLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Building2 } from "lucide-react";
@@ -33,6 +34,10 @@ const DiarioObraPage = lazy(() => import("@/pages/DiarioObraPage"));
 const MedicaoObraPage = lazy(() => import("@/pages/MedicaoObraPage"));
 const EquipePage = lazy(() => import("@/pages/EquipePage"));
 const CurvaABCPage = lazy(() => import("@/pages/CurvaABCPage"));
+const FornecedoresPage = lazy(() => import("@/pages/FornecedoresPage"));
+const MaoDeObraPage = lazy(() => import("@/pages/MaoDeObraPage"));
+const OrcamentosPage = lazy(() => import("@/pages/OrcamentosPage"));
+const ResumoMensalPage = lazy(() => import("@/pages/ResumoMensalPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +61,7 @@ function PageLoader() {
 
 function AuthenticatedApp() {
   const { user, loading } = useAuth();
+  useAutoNotifications();
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -137,6 +143,10 @@ function AuthenticatedApp() {
             <Route path="/conciliacao" element={<ConciliacaoPage />} />
             <Route path="/contas" element={<ContasBancariasPage />} />
             <Route path="/notas-fiscais" element={<NotasFiscaisPage />} />
+            <Route path="/fornecedores" element={<FornecedoresPage />} />
+            <Route path="/mao-de-obra" element={<MaoDeObraPage />} />
+            <Route path="/orcamentos" element={<OrcamentosPage />} />
+            <Route path="/resumo-mensal" element={<ResumoMensalPage />} />
             <Route path="/configuracoes" element={<ConfiguracoesPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

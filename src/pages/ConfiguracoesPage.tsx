@@ -419,10 +419,42 @@ export default function ConfiguracoesPage() {
         <p className="text-sm text-muted-foreground">
           Exporte todos os seus dados em formato JSON.
         </p>
-        <Button onClick={handleExportBackup} disabled={exporting} className="gap-2">
-          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          {exporting ? "Exportando..." : "Exportar Backup (JSON)"}
-        </Button>
+        <div className="flex gap-3 flex-wrap">
+          <Button onClick={handleExportBackup} disabled={exporting} className="gap-2">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exporting ? "Exportando..." : "Exportar Backup (JSON)"}
+          </Button>
+          <div>
+            <Input
+              type="file"
+              accept=".json"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const text = await file.text();
+                  const data = JSON.parse(text);
+                  if (!data || typeof data !== "object") throw new Error("Formato inválido");
+                  // Import each table's data
+                  const tables = Object.keys(data);
+                  let imported = 0;
+                  for (const table of tables) {
+                    if (Array.isArray(data[table]) && data[table].length > 0) {
+                      const { error } = await supabase.from(table).upsert(data[table] as any, { onConflict: "id" });
+                      if (!error) imported += data[table].length;
+                    }
+                  }
+                  toast.success(`Backup importado! ${imported} registros restaurados de ${tables.length} tabelas.`);
+                } catch (err) {
+                  toast.error("Erro ao importar: " + (err instanceof Error ? err.message : "Arquivo inválido"));
+                }
+                e.target.value = "";
+              }}
+              className="text-xs max-w-[250px]"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">Importar backup JSON exportado anteriormente</p>
+          </div>
+        </div>
       </section>
 
       {/* Danger Zone */}
