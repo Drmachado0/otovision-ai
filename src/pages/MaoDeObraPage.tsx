@@ -96,11 +96,11 @@ export default function MaoDeObraPage() {
 
   // ---------- fetch trabalhadores ----------
   const fetchTrabalhadores = useCallback(async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("obra_mao_de_obra")
       .select("*")
       .is("deleted_at", null)
-      .order("nome", { ascending: true }) as any;
+      .order("nome", { ascending: true });
 
     if (error) {
       toast.error("Erro ao carregar trabalhadores");
@@ -115,11 +115,11 @@ export default function MaoDeObraPage() {
   const fetchRegistros = useCallback(async () => {
     const now = new Date();
     const inicioMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("obra_mao_obra_registros")
       .select("*")
       .gte("data", inicioMes)
-      .order("data", { ascending: false }) as any;
+      .order("data", { ascending: false });
     setRegistros(data ?? []);
   }, []);
 
@@ -133,12 +133,12 @@ export default function MaoDeObraPage() {
 
   // ---------- fetch worker registros ----------
   const fetchWorkerRegistros = useCallback(async (trabalhadorId: string) => {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("obra_mao_obra_registros")
       .select("*")
       .eq("trabalhador_id", trabalhadorId)
       .order("data", { ascending: false })
-      .limit(50) as any;
+      .limit(50);
     setWorkerRegistros(data ?? []);
   }, []);
 
@@ -195,9 +195,9 @@ export default function MaoDeObraPage() {
     };
 
     if (editingId) {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("obra_mao_de_obra")
-        .update(payload as any)
+        .update(payload)
         .eq("id", editingId);
       if (error) {
         toast.error("Erro ao atualizar trabalhador");
@@ -207,9 +207,9 @@ export default function MaoDeObraPage() {
     } else {
       payload.user_id = user!.id;
       payload.ativo = true;
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("obra_mao_de_obra")
-        .insert(payload as any);
+        .insert(payload);
       if (error) {
         toast.error("Erro ao criar trabalhador");
       } else {
@@ -226,9 +226,9 @@ export default function MaoDeObraPage() {
   // ---------- toggle ativo ----------
   const toggleAtivo = async (t: Trabalhador) => {
     const novoAtivo = !t.ativo;
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("obra_mao_de_obra")
-      .update({ ativo: novoAtivo } as any)
+      .update({ ativo: novoAtivo })
       .eq("id", t.id);
     if (error) {
       toast.error("Erro ao alterar status");
@@ -256,7 +256,7 @@ export default function MaoDeObraPage() {
       valor = selectedTrabalhador.valor_diaria || 0;
     }
 
-    const { error } = await supabase.from("obra_mao_obra_registros").insert({
+    const { error } = await (supabase as any).from("obra_mao_obra_registros").insert({
       user_id: user!.id,
       trabalhador_id: selectedTrabalhador.id,
       data: registroForm.data,
@@ -264,7 +264,7 @@ export default function MaoDeObraPage() {
       valor,
       etapa: selectedTrabalhador.funcao || "",
       observacoes: registroForm.observacoes,
-    } as any);
+    });
 
     setSavingRegistro(false);
     if (error) {

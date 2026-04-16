@@ -440,7 +440,7 @@ export default function ConfiguracoesPage() {
                   let imported = 0;
                   for (const table of tables) {
                     if (Array.isArray(data[table]) && data[table].length > 0) {
-                      const { error } = await supabase.from(table).upsert(data[table] as any, { onConflict: "id" });
+                      const { error } = await (supabase as any).from(table).upsert(data[table] as any, { onConflict: "id" });
                       if (!error) imported += data[table].length;
                     }
                   }
