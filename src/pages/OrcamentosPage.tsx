@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate, CATEGORIAS_PADRAO, todayLocalISO } from "@/lib/formatters";
-import { Plus, FileText, Check, X, Clock, AlertTriangle, ShoppingCart, Trash2, Search } from "lucide-react";
+import { Plus, FileText, Check, X, Clock, AlertTriangle, ShoppingCart, Trash2, Search, CreditCard } from "lucide-react";
 import FornecedorCombobox from "@/components/FornecedorCombobox";
 import CategoriaSelect from "@/components/CategoriaSelect";
+import PagamentoDialog from "@/components/PagamentoDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +80,7 @@ export default function OrcamentosPage() {
   const [saving, setSaving] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<StatusFilter>("Todos");
   const [selectedOrcamento, setSelectedOrcamento] = useState<Orcamento | null>(null);
+  const [pagamentoOrcamento, setPagamentoOrcamento] = useState<Orcamento | null>(null);
 
   const [form, setForm] = useState({
     fornecedor: "",
@@ -480,9 +482,17 @@ export default function OrcamentosPage() {
                       </div>
                     )}
                     {selectedOrcamento.status === "Aprovado" && (
-                      <Button variant="outline" className="gap-2" onClick={() => handleConvertToCompra(selectedOrcamento)}>
-                        <ShoppingCart className="w-4 h-4" /> Converter em Compra
-                      </Button>
+                      <>
+                        <Button className="gap-2" onClick={() => { setPagamentoOrcamento(selectedOrcamento); }}>
+                          <CreditCard className="w-4 h-4" /> Pagar Orçamento
+                        </Button>
+                        <Button variant="outline" className="gap-2" onClick={() => handleConvertToCompra(selectedOrcamento)}>
+                          <ShoppingCart className="w-4 h-4" /> Converter em Compra
+                        </Button>
+                      </>
+                    )}
+                    {selectedOrcamento.status === "Pago" && (
+                      <Badge className="badge-success self-start">✓ Pago</Badge>
                     )}
                     <Button variant="ghost" className="gap-2 text-destructive hover:text-destructive" onClick={() => handleDelete(selectedOrcamento.id)}>
                       <Trash2 className="w-4 h-4" /> Excluir Orçamento
@@ -616,6 +626,30 @@ export default function OrcamentosPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Pagamento do Orçamento */}
+      {pagamentoOrcamento && user && (
+        <PagamentoDialog
+          open={!!pagamentoOrcamento}
+          onClose={() => setPagamentoOrcamento(null)}
+          onSuccess={async () => {
+            await supabase
+              .from("obra_orcamentos")
+              .update({ status: "Pago" } as any)
+              .eq("id", pagamentoOrcamento.id);
+            setPagamentoOrcamento(null);
+            setSelectedOrcamento(null);
+            fetchData();
+          }}
+          tipo="compra"
+          id={pagamentoOrcamento.id}
+          fornecedor={pagamentoOrcamento.fornecedor}
+          valor={Number(pagamentoOrcamento.valor_total)}
+          categoria={pagamentoOrcamento.categoria}
+          descricao={pagamentoOrcamento.descricao}
+          userId={user.id}
+        />
+      )}
     </div>
   );
 }
