@@ -106,7 +106,14 @@ export default function FornecedoresPage() {
         .is("deleted_at", null)
         .eq("tipo", "Saída"),
     ]);
-    if (fornRes.data) setFornecedores(fornRes.data as Fornecedor[]);
+    if (fornRes.data) {
+      const rows = (fornRes.data as unknown as Omit<Fornecedor, "ativo" | "tipo_pix">[]).map(f => ({
+        ...f,
+        ativo: !f.deleted_at,
+        tipo_pix: "",
+      })) as Fornecedor[];
+      setFornecedores(rows);
+    }
     if (transRes.data) setTransacoes(transRes.data as Transacao[]);
     setLoading(false);
   }, []);
@@ -184,7 +191,6 @@ export default function FornecedoresPage() {
       agencia: form.agencia,
       conta: form.conta,
       pix: form.pix,
-      tipo_pix: form.tipo_pix,
       avaliacao: form.avaliacao,
       observacoes: form.observacoes,
     };
@@ -194,7 +200,7 @@ export default function FornecedoresPage() {
       if (error) toast.error("Erro: " + error.message);
       else toast.success("Fornecedor atualizado!");
     } else {
-      const { error } = await supabase.from("obra_fornecedores").insert({ ...payload, user_id: user!.id, ativo: true } as any);
+      const { error } = await supabase.from("obra_fornecedores").insert({ ...payload, user_id: user!.id });
       if (error) toast.error("Erro: " + error.message);
       else toast.success("Fornecedor cadastrado!");
     }
@@ -207,7 +213,11 @@ export default function FornecedoresPage() {
   };
 
   const toggleAtivo = async (f: Fornecedor) => {
-    const { error } = await supabase.from("obra_fornecedores").update({ ativo: !f.ativo }).eq("id", f.id);
+    // "ativo" é derivado de deleted_at — toggle = soft delete / restore
+    const { error } = await supabase
+      .from("obra_fornecedores")
+      .update({ deleted_at: f.ativo ? new Date().toISOString() : null })
+      .eq("id", f.id);
     if (error) toast.error("Erro ao atualizar");
     else { toast.success(f.ativo ? "Fornecedor desativado" : "Fornecedor reativado"); fetchData(); }
   };

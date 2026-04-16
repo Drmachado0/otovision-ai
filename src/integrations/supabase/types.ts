@@ -1672,6 +1672,107 @@ export type Database = {
         }
         Relationships: []
       }
+      obra_mao_de_obra: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          data_fim: string | null
+          data_inicio: string | null
+          deleted_at: string | null
+          etapa_id: string | null
+          funcao: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+          tipo_contrato: string | null
+          updated_at: string
+          user_id: string
+          valor_diaria: number
+          valor_hora: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          deleted_at?: string | null
+          etapa_id?: string | null
+          funcao?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+          tipo_contrato?: string | null
+          updated_at?: string
+          user_id: string
+          valor_diaria?: number
+          valor_hora?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          deleted_at?: string | null
+          etapa_id?: string | null
+          funcao?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+          tipo_contrato?: string | null
+          updated_at?: string
+          user_id?: string
+          valor_diaria?: number
+          valor_hora?: number | null
+        }
+        Relationships: []
+      }
+      obra_mao_obra_registros: {
+        Row: {
+          created_at: string
+          data: string
+          etapa: string | null
+          horas: number
+          id: string
+          observacoes: string | null
+          trabalhador_id: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          etapa?: string | null
+          horas?: number
+          id?: string
+          observacoes?: string | null
+          trabalhador_id: string
+          user_id: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          etapa?: string | null
+          horas?: number
+          id?: string
+          observacoes?: string | null
+          trabalhador_id?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obra_mao_obra_registros_trabalhador_id_fkey"
+            columns: ["trabalhador_id"]
+            isOneToOne: false
+            referencedRelation: "obra_mao_de_obra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       obra_medicoes: {
         Row: {
           created_at: string
@@ -2148,7 +2249,7 @@ export type Database = {
           comprovante_path: string | null
           conciliado: boolean
           conciliado_em: string | null
-          conta_id: string
+          conta_id: string | null
           created_at: string
           data: string
           data_pagamento: string | null
@@ -2185,7 +2286,7 @@ export type Database = {
           comprovante_path?: string | null
           conciliado?: boolean
           conciliado_em?: string | null
-          conta_id?: string
+          conta_id?: string | null
           created_at?: string
           data?: string
           data_pagamento?: string | null
@@ -2222,7 +2323,7 @@ export type Database = {
           comprovante_path?: string | null
           conciliado?: boolean
           conciliado_em?: string | null
-          conta_id?: string
+          conta_id?: string | null
           created_at?: string
           data?: string
           data_pagamento?: string | null

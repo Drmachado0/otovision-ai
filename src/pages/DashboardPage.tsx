@@ -90,7 +90,7 @@ export default function DashboardPage() {
     if (configRes.data) setConfig(configRes.data as ConfigRow);
 
     if (allTransRes.data) {
-      const rows = allTransRes.data as { tipo: string; valor: number; categoria: string; conta_id?: string }[];
+      const rows = allTransRes.data as unknown as { tipo: string; valor: number; categoria: string; conta_id?: string }[];
       setAllTransForContas(rows);
       const saidas = rows.filter(t => t.tipo === "Saída");
       setTotalGasto(saidas.reduce((s, t) => s + Number(t.valor), 0));
@@ -118,7 +118,7 @@ export default function DashboardPage() {
       setComissoesPagas(pagas);
       // Comissão total = 8% dos gastos (mesma lógica da ComissaoPage)
       const gastos = allTransRes.data
-        ? (allTransRes.data as { tipo: string; valor: number }[]).filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0)
+        ? (allTransRes.data as unknown as { tipo: string; valor: number }[]).filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0)
         : 0;
       const comissaoTotal = gastos * 0.08;
       setComissoesPendentes(Math.max(comissaoTotal - pagas, 0));
