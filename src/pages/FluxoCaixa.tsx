@@ -13,11 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 type Transacao = {
   id: string;
   tipo: string;
-  descricao: string;
+  descricao: string | null;
   categoria: string;
   valor: number;
   data: string;
-  forma_pagamento: string;
+  forma_pagamento: string | null;
   origem_tipo: string | null;
 };
 
@@ -76,7 +76,7 @@ export default function FluxoCaixa() {
   const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const filtered = transacoes.filter((t) =>
-    t.descricao.toLowerCase().includes(search.toLowerCase()) || t.categoria.toLowerCase().includes(search.toLowerCase())
+    (t.descricao ?? "").toLowerCase().includes(search.toLowerCase()) || t.categoria.toLowerCase().includes(search.toLowerCase())
   );
 
   return (

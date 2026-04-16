@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
-  Settings, Shield, Download, Trash2, Users, Info, AlertTriangle,
+  Settings, Shield, Download, Upload, Trash2, Users, Info, AlertTriangle,
   Loader2, Check, Building2, Save,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -55,6 +55,8 @@ export default function ConfiguracoesPage() {
   const [dangerConfirm, setDangerConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [comissaoRate, setComissaoRate] = useState("8");
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Obra config state
   const [obraConfig, setObraConfig] = useState<ObraConfig>(defaultObraConfig);
@@ -210,6 +212,34 @@ export default function ConfiguracoesPage() {
 
   const updateObraField = (field: keyof ObraConfig, value: string | number) => {
     setObraConfig(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed?.tables) throw new Error("Formato inválido: campo 'tables' não encontrado");
+
+      const { data, error } = await supabase.functions.invoke("importar-backup", {
+        method: "POST",
+        body: parsed,
+      });
+
+      if (error) throw new Error(error.message || "Erro na importação");
+      if (data?.errors?.length) {
+        toast.warning(`Importado com avisos: ${data.errors.join("; ")}`);
+      } else {
+        const total = Object.values(data?.summary || {}).reduce((a: number, b: any) => a + (b as number), 0);
+        toast.success(`Backup importado! ${total} registros restaurados.`);
+      }
+    } catch (err) {
+      toast.error("Erro ao importar: " + (err instanceof Error ? err.message : "Erro desconhecido"));
+    }
+    setImporting(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   return (
@@ -417,12 +447,30 @@ export default function ConfiguracoesPage() {
           <Download className="w-5 h-5 text-primary" /> Backup de Dados
         </h2>
         <p className="text-sm text-muted-foreground">
-          Exporte todos os seus dados em formato JSON.
+          Exporte ou importe todos os seus dados em formato JSON.
         </p>
-        <Button onClick={handleExportBackup} disabled={exporting} className="gap-2">
-          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          {exporting ? "Exportando..." : "Exportar Backup (JSON)"}
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={handleExportBackup} disabled={exporting} className="gap-2">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exporting ? "Exportando..." : "Exportar Backup (JSON)"}
+          </Button>
+          <input
+            type="file"
+            accept=".json"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="gap-2"
+          >
+            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {importing ? "Importando..." : "Importar Backup (JSON)"}
+          </Button>
+        </div>
       </section>
 
       {/* Danger Zone */}
