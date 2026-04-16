@@ -917,6 +917,33 @@ export type Database = {
         }
         Relationships: []
       }
+      obra_categorias: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          nome: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       obra_comissao_pagamentos: {
         Row: {
           auto: boolean
