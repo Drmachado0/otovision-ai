@@ -13,11 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 type Transacao = {
   id: string;
   tipo: string;
-  descricao: string;
+  descricao: string | null;
   categoria: string;
   valor: number;
   data: string;
-  forma_pagamento: string;
+  forma_pagamento: string | null;
   origem_tipo: string | null;
 };
 

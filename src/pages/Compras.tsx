@@ -53,7 +53,7 @@ export default function Compras() {
       recorrencia: "Única",
     };
 
-    const { error } = await supabase.rpc("create_compra_atomica", {
+    const { error } = await (supabase as any).rpc("create_compra_atomica", {
       p_compra: compraData,
       p_transacao: transacaoData,
     });
