@@ -132,22 +132,53 @@ export default function ComprasPage() {
       conta_id: form.conta_id,
     } as any);
 
-    // For única and recorrente, create transaction immediately
+    // For única and recorrente, create pending transaction (goes to Contas a Pagar)
     if (!error && !isParcelada) {
       await supabase.from("obra_transacoes_fluxo").insert({
         user_id: user!.id,
         tipo: "Saída",
         valor,
         data: form.data,
+        data_vencimento: form.data,
         categoria: form.categoria,
         descricao: isRecorrente ? `Assinatura: ${form.descricao || form.fornecedor}` : `Compra: ${form.descricao || form.fornecedor}`,
         forma_pagamento: form.forma_pagamento,
         recorrencia: isRecorrente ? form.periodicidade : "Única",
+        recorrencia_ativa: isRecorrente,
+        recorrencia_mae: isRecorrente,
+        recorrencia_frequencia: isRecorrente ? form.periodicidade : null,
+        recorrencia_grupo_id: isRecorrente ? crypto.randomUUID() : null,
+        recorrencia_ocorrencias_criadas: isRecorrente ? 1 : 0,
         referencia: "",
-        conta_id: form.conta_id,
+        conta_id: form.conta_id || null,
         observacoes: `Fornecedor: ${form.fornecedor}`,
         origem_tipo: "compra",
+        status: "pendente",
       } as any);
+    }
+    // For parcelada, create N pending transactions
+    if (!error && isParcelada) {
+      const grupoId = crypto.randomUUID();
+      const transacoesParcelas = parcelas.map((p, i) => ({
+        user_id: user!.id,
+        tipo: "Saída",
+        valor: p.valor,
+        data: form.data,
+        data_vencimento: p.data_vencimento,
+        categoria: form.categoria,
+        descricao: `Compra: ${form.descricao || form.fornecedor}`,
+        forma_pagamento: form.forma_pagamento,
+        recorrencia: "Parcelada",
+        recorrencia_grupo_id: grupoId,
+        parcela_numero: p.numero,
+        parcela_total: numParcelas,
+        referencia: "",
+        conta_id: form.conta_id || null,
+        observacoes: `Fornecedor: ${form.fornecedor}`,
+        origem_tipo: "compra",
+        status: "pendente",
+      }));
+      await supabase.from("obra_transacoes_fluxo").insert(transacoesParcelas as any);
     }
 
     setSaving(false);
