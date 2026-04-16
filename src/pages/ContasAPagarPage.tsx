@@ -146,7 +146,7 @@ export default function ContasAPagarPage() {
     if (error) {
       toast.error("Erro ao cancelar");
     } else {
-      toast.success("Lancamento cancelado");
+      toast.success("Lançamento cancelado");
       fetchData();
     }
   };
@@ -219,11 +219,11 @@ export default function ContasAPagarPage() {
               <thead>
                 <tr className="border-b border-border/50">
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Vencimento</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Descricao</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Descrição</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Categoria</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase hidden md:table-cell">Parcela</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Valor</th>
-                  <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Acoes</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -308,9 +308,9 @@ export default function ContasAPagarPage() {
       {/* Cancel Dialog */}
       <ConfirmDialog
         open={!!cancelTarget}
-        title="Cancelar Lancamento"
+        title="Cancelar Lançamento"
         message={`Deseja cancelar "${cancelTarget?.descricao || ""}" de ${cancelTarget ? formatCurrency(Number(cancelTarget.valor)) : ""}?`}
-        confirmLabel="Cancelar Lancamento"
+        confirmLabel="Cancelar Lançamento"
         variant="danger"
         onConfirm={handleCancelar}
         onCancel={() => setCancelTarget(null)}

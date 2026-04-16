@@ -398,7 +398,7 @@ export default function DiarioObraPage() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">
-                          Observacoes
+                          Observações
                         </p>
                         <p className="text-sm whitespace-pre-wrap">
                           {entry.observacoes || "-"}
@@ -568,13 +568,13 @@ export default function DiarioObraPage() {
               />
             </div>
 
-            {/* Observacoes */}
+            {/* Observações */}
             <div className="space-y-1.5">
-              <Label htmlFor="diario-obs">Observacoes</Label>
+              <Label htmlFor="diario-obs">Observações</Label>
               <Textarea
                 id="diario-obs"
                 rows={2}
-                placeholder="Observacoes gerais..."
+                placeholder="Observações gerais..."
                 value={form.observacoes}
                 onChange={(e) =>
                   setForm({ ...form, observacoes: e.target.value })

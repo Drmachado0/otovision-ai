@@ -48,7 +48,7 @@ export default function FluxoCaixaPage() {
 
   const [filterStatus, setFilterStatus] = useState("todos");
 
-  const [form, setForm] = useState({
+  const makeEmptyForm = () => ({
     tipo: "Saída",
     valor: "",
     data: todayLocalISO(),
@@ -62,6 +62,8 @@ export default function FluxoCaixaPage() {
     numero_parcelas: "3",
     periodicidade: "Mensal",
   });
+
+  const [form, setForm] = useState(makeEmptyForm);
 
   const fetchData = useCallback(async () => {
     // BUG-006: Totais incluem pagas + pendentes (excluindo canceladas)
@@ -199,7 +201,7 @@ export default function FluxoCaixaPage() {
           status: "pendente",
         } as any);
         if (error) throw error;
-        toast.success("Lancamento recorrente criado!");
+        toast.success("Lançamento recorrente criado!");
       } else {
         // Unica
         const { error } = await supabase.from("obra_transacoes_fluxo").insert({
@@ -219,10 +221,10 @@ export default function FluxoCaixaPage() {
           data_pagamento: isEntrada ? new Date().toISOString() : null,
         } as any);
         if (error) throw error;
-        toast.success(isSaida ? "Lancamento criado! Confirme o pagamento em Contas a Pagar." : "Entrada registrada!");
+        toast.success(isSaida ? "Lançamento criado! Confirme o pagamento em Contas a Pagar." : "Entrada registrada!");
       }
       setShowForm(false);
-      setForm({ tipo: "Saída", valor: "", data: todayLocalISO(), data_vencimento: todayLocalISO(), categoria: "Material", descricao: "", forma_pagamento: "PIX", observacoes: "", conta_id: "", recorrencia_tipo: "Única", numero_parcelas: "3", periodicidade: "Mensal" });
+      setForm(makeEmptyForm());
       fetchData();
     } catch (err: any) {
       toast.error("Erro ao salvar: " + (err?.message || "Erro desconhecido"));
@@ -418,7 +420,11 @@ export default function FluxoCaixaPage() {
       />
 
       {/* New Transaction Dialog */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(open) => {
+        setShowForm(open);
+        // UX-2: reset form ao fechar para evitar estado antigo ao reabrir
+        if (!open) { setForm(makeEmptyForm()); setValorError(""); }
+      }}>
         <DialogContent className="sm:max-w-lg bg-card border-border">
           <DialogHeader>
             <DialogTitle>Nova Transação</DialogTitle>
@@ -454,10 +460,10 @@ export default function FluxoCaixaPage() {
               <Label className="text-xs text-muted-foreground">Descrição</Label>
               <Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Cimento CP-II" className="mt-1" />
             </div>
-            {/* Tipo de Lancamento (so para Saidas) */}
+            {/* Tipo de Lançamento (so para Saidas) */}
             {form.tipo === "Saída" && (
               <div>
-                <Label className="text-xs text-muted-foreground">Tipo de Lancamento</Label>
+                <Label className="text-xs text-muted-foreground">Tipo de Lançamento</Label>
                 <div className="flex gap-1 mt-1">
                   {(["Única", "Parcelada", "Recorrente"] as const).map(t => (
                     <button
@@ -484,7 +490,7 @@ export default function FluxoCaixaPage() {
             {/* Parcelas */}
             {form.tipo === "Saída" && form.recorrencia_tipo === "Parcelada" && (
               <div>
-                <Label className="text-xs text-muted-foreground">Numero de Parcelas</Label>
+                <Label className="text-xs text-muted-foreground">Número de Parcelas</Label>
                 <Input type="number" min="2" max="48" value={form.numero_parcelas} onChange={e => setForm(f => ({ ...f, numero_parcelas: e.target.value }))} className="mt-1" />
                 <p className="text-[10px] text-muted-foreground mt-1">Valor por parcela: {formatCurrency(Number(form.valor) / (parseInt(form.numero_parcelas) || 1))}</p>
               </div>
@@ -513,7 +519,7 @@ export default function FluxoCaixaPage() {
                 <option value="">{form.tipo === "Saída" ? "Definir no pagamento" : "Selecione uma conta"}</option>
                 {contas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
-              {form.tipo === "Saída" && <p className="text-[10px] text-muted-foreground mt-1">Para saidas, a conta sera selecionada ao confirmar o pagamento</p>}
+              {form.tipo === "Saída" && <p className="text-[10px] text-muted-foreground mt-1">Para saídas, a conta será selecionada ao confirmar o pagamento</p>}
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Observações</Label>

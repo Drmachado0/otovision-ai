@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
-import { formatCurrency, formatPercent, formatDate, todayLocalISO } from "@/lib/formatters";
+import { formatCurrency, formatPercent, formatDate, todayLocalISO, parseLocalDate } from "@/lib/formatters";
 import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Ruler, Flame, Target,
@@ -212,6 +212,16 @@ export default function DashboardPage() {
             ? `${formatDate(config.data_inicio)} → ${formatDate(config.data_termino)}`
             : "Visão macro da obra"}
           {config.area_construida > 0 && ` · ${config.area_construida} m²`}
+          {(() => {
+            if (!config.data_termino) return null;
+            const fim = parseLocalDate(config.data_termino);
+            const hoje = parseLocalDate(todayLocalISO());
+            const dias = Math.round((fim.getTime() - hoje.getTime()) / 86400000);
+            if (isNaN(dias)) return null;
+            if (dias < 0) return <span className="text-destructive"> · {Math.abs(dias)} dias em atraso</span>;
+            if (dias === 0) return <span className="text-warning"> · termina hoje</span>;
+            return <span> · {dias} {dias === 1 ? "dia restante" : "dias restantes"}</span>;
+          })()}
         </p>
       </div>
 

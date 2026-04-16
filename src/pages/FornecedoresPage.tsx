@@ -429,7 +429,7 @@ export default function FornecedoresPage() {
 
                 {detalheFornecedor.observacoes && (
                   <div className="p-3 rounded-lg bg-secondary/30">
-                    <p className="text-xs text-muted-foreground mb-1">Observacoes</p>
+                    <p className="text-xs text-muted-foreground mb-1">Observações</p>
                     <p className="text-sm">{detalheFornecedor.observacoes}</p>
                   </div>
                 )}
@@ -546,7 +546,7 @@ export default function FornecedoresPage() {
             </div>
 
             <div>
-              <Label className="text-xs text-muted-foreground">Observacoes</Label>
+              <Label className="text-xs text-muted-foreground">Observações</Label>
               <Textarea value={form.observacoes} onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))} rows={2} className="mt-1" />
             </div>
 

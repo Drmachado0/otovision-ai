@@ -175,7 +175,7 @@ export default function ConfirmarPagamentoDialog({
           {/* Summary */}
           <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-1.5">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Descricao</span>
+              <span className="text-muted-foreground">Descrição</span>
               <span className="font-medium truncate max-w-[200px]">{transacao.descricao || "-"}</span>
             </div>
             <div className="flex justify-between text-sm">

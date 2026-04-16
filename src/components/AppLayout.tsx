@@ -22,8 +22,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
   { path: "/cronograma", label: "Cronograma", icon: Calendar },
-  { path: "/diario", label: "Diario de Obra", icon: ClipboardList },
-  { path: "/medicao", label: "Medicao", icon: Ruler },
+  { path: "/diario", label: "Diário de Obra", icon: ClipboardList },
+  { path: "/medicao", label: "Medição", icon: Ruler },
   { path: "/equipe", label: "Equipe", icon: Users },
   { path: "/mao-de-obra", label: "Mão de Obra", icon: Users, allowedRoles: ["admin", "construtor"] },
   { path: "/fluxo", label: "Fluxo de Caixa", icon: ArrowLeftRight, allowedRoles: ["admin", "financeiro"] },

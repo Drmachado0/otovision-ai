@@ -26,8 +26,8 @@ export default function OnboardingWizard({ onComplete }: Props) {
 
   const steps = [
     { title: "Bem-vindo ao ObraFlow!", desc: "Vamos configurar sua obra em poucos passos." },
-    { title: "Dados da Obra", desc: "Informacoes basicas do projeto." },
-    { title: "Orcamento e Prazos", desc: "Defina valores e datas." },
+    { title: "Dados da Obra", desc: "Informações básicas do projeto." },
+    { title: "Orçamento e Prazos", desc: "Defina valores e datas." },
   ];
 
   const handleFinish = async () => {
