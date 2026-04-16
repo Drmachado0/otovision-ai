@@ -128,6 +128,20 @@ export default function PagamentoDialog({
           .from("obra_compras")
           .update({ status_entrega: "Entregue" })
           .eq("id", id);
+
+        // Create commission for compra (same as NF flow)
+        const mesCompra = new Date().toISOString().slice(0, 7);
+        await supabase.from("obra_comissao_pagamentos").insert({
+          user_id: userId,
+          mes: mesCompra,
+          valor: comissaoValor,
+          pago: false,
+          auto: true,
+          observacoes: `Compra - ${fornecedor}`,
+          fornecedor,
+          categoria,
+          forma_pagamento: metodo,
+        } as any);
       }
 
       // Register receipt as processed document in Pasta Sync

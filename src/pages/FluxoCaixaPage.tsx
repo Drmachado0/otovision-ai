@@ -54,6 +54,12 @@ export default function FluxoCaixaPage() {
   });
 
   const fetchData = useCallback(async () => {
+    // Global totals query (all transactions, no pagination/filters)
+    const totalsQuery = supabase
+      .from("obra_transacoes_fluxo")
+      .select("tipo, valor")
+      .is("deleted_at", null);
+
     let query = supabase
       .from("obra_transacoes_fluxo")
       .select("id, tipo, valor, data, categoria, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at", { count: "exact" })
@@ -70,9 +76,14 @@ export default function FluxoCaixaPage() {
     const to = from + PAGE_SIZE - 1;
     query = query.range(from, to);
 
-    const { data, count } = await query;
+    const [{ data, count }, { data: allData }] = await Promise.all([query, totalsQuery]);
     if (data) setTransacoes(data as TransacaoFull[]);
     if (count !== null) setTotalCount(count);
+    if (allData) {
+      const rows = allData as { tipo: string; valor: number }[];
+      setTotalEntradas(rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0));
+      setTotalSaidas(rows.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0));
+    }
     setLoading(false);
   }, [page, filterTipo, filterCategoria, dateFrom, dateTo, search]);
 
@@ -126,8 +137,8 @@ export default function FluxoCaixaPage() {
     }
   };
 
-  const totalEntradas = transacoes.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
-  const totalSaidas = transacoes.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0);
+  const [totalEntradas, setTotalEntradas] = useState(0);
+  const [totalSaidas, setTotalSaidas] = useState(0);
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const openDetail = (t: TransacaoFull) => {

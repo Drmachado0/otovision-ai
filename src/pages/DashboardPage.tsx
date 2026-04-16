@@ -62,7 +62,9 @@ export default function DashboardPage() {
   const [comprasPendentes, setComprasPendentes] = useState(0);
   const [comprasTotal, setComprasTotal] = useState(0);
   const [comissoesPendentes, setComissoesPendentes] = useState(0);
+  const [comissoesPagas, setComissoesPagas] = useState(0);
   const [contas, setContas] = useState<ContaRow[]>([]);
+  const [allTransForContas, setAllTransForContas] = useState<{ tipo: string; valor: number; conta_id?: string }[]>([]);
   const [gastosPorCategoria, setGastosPorCategoria] = useState<{ categoria: string; total: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTransacao, setSelectedTransacao] = useState<TransacaoFull | null>(null);
@@ -72,19 +74,20 @@ export default function DashboardPage() {
     const [configRes, allTransRes, recentTransRes, etapasRes, comprasRes, comissoesRes, contasRes] = await Promise.all([
       supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
       // All transactions for accurate totals (no limit)
-      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria").is("deleted_at", null),
+      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id").is("deleted_at", null),
       // Recent 5 for display
       supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at").is("deleted_at", null).order("data", { ascending: false }).limit(5),
       supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao, fim_previsto"),
       supabase.from("obra_compras").select("valor_total, status_entrega").is("deleted_at", null),
-      supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null).eq("pago", false),
+      supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null),
       supabase.from("obra_contas_financeiras").select("id, nome, tipo, cor, saldo_inicial, ativa").eq("ativa", true),
     ]);
 
     if (configRes.data) setConfig(configRes.data as ConfigRow);
 
     if (allTransRes.data) {
-      const rows = allTransRes.data as { tipo: string; valor: number; categoria: string }[];
+      const rows = allTransRes.data as { tipo: string; valor: number; categoria: string; conta_id?: string }[];
+      setAllTransForContas(rows);
       const saidas = rows.filter(t => t.tipo === "Saída");
       setTotalGasto(saidas.reduce((s, t) => s + Number(t.valor), 0));
       setTotalEntradas(rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0));
@@ -106,7 +109,11 @@ export default function DashboardPage() {
     }
 
     if (comissoesRes.data) {
-      setComissoesPendentes((comissoesRes.data as { valor: number }[]).reduce((s, x) => s + Number(x.valor), 0));
+      const comRows = comissoesRes.data as { valor: number; pago: boolean }[];
+      const pagas = comRows.filter(x => x.pago).reduce((s, x) => s + Number(x.valor), 0);
+      const pendentes = comRows.filter(x => !x.pago).reduce((s, x) => s + Number(x.valor), 0);
+      setComissoesPagas(pagas);
+      setComissoesPendentes(pendentes);
     }
 
     if (contasRes.data) setContas(contasRes.data as ContaRow[]);
@@ -115,11 +122,19 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Re-fetch when tab/window regains focus
+  useEffect(() => {
+    const onFocus = () => fetchData();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
   useRealtimeSubscription("obra_config", fetchData);
   useRealtimeSubscription("obra_cronograma", fetchData);
   useRealtimeSubscription("obra_compras", fetchData);
   useRealtimeSubscription("obra_comissao_pagamentos", fetchData);
+  useRealtimeSubscription("obra_contas_financeiras", fetchData);
 
   const orcamentoTotal = config.orcamento_total;
   const saldo = orcamentoTotal - totalGasto;
@@ -250,15 +265,21 @@ export default function DashboardPage() {
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Contas Ativas</span>
           </div>
           <div className="space-y-1">
-            {contas.slice(0, 3).map(c => (
-              <div key={c.id} className="flex items-center justify-between">
-                <span className="text-xs flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.cor }} />
-                  {c.nome}
-                </span>
-                <span className="text-xs text-muted-foreground">{c.tipo}</span>
-              </div>
-            ))}
+            {contas.slice(0, 3).map(c => {
+              const movs = allTransForContas.filter(t => t.conta_id === c.id);
+              const entradas = movs.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
+              const saidas = movs.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0);
+              const saldoConta = c.saldo_inicial + entradas - saidas;
+              return (
+                <div key={c.id} className="flex items-center justify-between">
+                  <span className="text-xs flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.cor }} />
+                    {c.nome}
+                  </span>
+                  <span className={`text-xs font-medium ${saldoConta >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(saldoConta)}</span>
+                </div>
+              );
+            })}
           </div>
         </Link>
       </div>

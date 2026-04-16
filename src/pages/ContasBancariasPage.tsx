@@ -78,7 +78,13 @@ export default function ContasBancariasPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const onFocus = () => fetchData();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchData]);
   useRealtimeSubscription("obra_contas_financeiras", fetchData);
+  useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
 
   const getSaldo = (conta: Conta) => {
     const movs = transacoes.filter(t => t.conta_id === conta.id);

@@ -86,6 +86,7 @@ export default function TransacaoDetailDrawer({ transacao, open, onOpenChange, o
         descricao: form.descricao,
         forma_pagamento: form.forma_pagamento,
         observacoes: form.observacoes,
+        conta_id: form.conta_id || null,
       })
       .eq("id", form.id);
     setSaving(false);
