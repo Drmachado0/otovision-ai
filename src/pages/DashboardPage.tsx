@@ -75,15 +75,15 @@ export default function DashboardPage() {
     const [configRes, allTransRes, recentTransRes, etapasRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
       supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
       // All paid transactions for accurate totals (no limit)
-      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id").is("deleted_at", null).eq("status", "pago"),
+      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id").is("deleted_at", null).eq("status" as any, "pago"),
       // Recent 5 for display (all statuses)
-      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at, status").is("deleted_at", null).order("data", { ascending: false }).limit(5),
+      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at" as any).is("deleted_at", null).order("data", { ascending: false }).limit(5),
       supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao, fim_previsto"),
       supabase.from("obra_compras").select("valor_total, status_entrega").is("deleted_at", null),
       supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null),
       supabase.from("obra_contas_financeiras").select("id, nome, tipo, cor, saldo_inicial, ativa").eq("ativa", true),
       // Contas a pagar (pending)
-      supabase.from("obra_transacoes_fluxo").select("valor, data_vencimento").is("deleted_at", null).eq("status", "pendente").eq("tipo", "Saída"),
+      supabase.from("obra_transacoes_fluxo").select("valor, data_vencimento" as any).is("deleted_at", null).eq("status" as any, "pendente").eq("tipo", "Saída"),
     ]);
 
     if (configRes.data) setConfig(configRes.data as ConfigRow);
@@ -102,7 +102,7 @@ export default function DashboardPage() {
       setGastosPorCategoria(sorted);
     }
 
-    if (recentTransRes.data) setTransacoes(recentTransRes.data as TransacaoRow[]);
+    if (recentTransRes.data) setTransacoes(recentTransRes.data as unknown as TransacaoRow[]);
     if (etapasRes.data) setEtapas(etapasRes.data as EtapaRow[]);
 
     if (comprasRes.data) {
@@ -126,7 +126,7 @@ export default function DashboardPage() {
     if (contasRes.data) setContas(contasRes.data as ContaRow[]);
 
     if (pendentesRes.data) {
-      const pRows = pendentesRes.data as { valor: number; data_vencimento: string | null }[];
+      const pRows = pendentesRes.data as unknown as { valor: number; data_vencimento: string | null }[];
       const todayStr = new Date().toISOString().split("T")[0];
       setContasPagar({
         total: pRows.reduce((s, r) => s + Number(r.valor), 0),

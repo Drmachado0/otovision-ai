@@ -65,19 +65,19 @@ export default function ContasAPagarPage() {
     // KPIs query (all pending)
     const kpiQuery = supabase
       .from("obra_transacoes_fluxo")
-      .select("valor, data_vencimento")
+      .select("valor, data_vencimento" as any)
       .is("deleted_at", null)
-      .eq("status", "pendente")
+      .eq("status" as any, "pendente")
       .eq("tipo", "Saída");
 
     // Paginated list query
     let query = supabase
       .from("obra_transacoes_fluxo")
-      .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, conta_id, status, parcela_numero, parcela_total, recorrencia, recorrencia_grupo_id, created_at", { count: "exact" })
+      .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, conta_id, status, parcela_numero, parcela_total, recorrencia, recorrencia_grupo_id, created_at" as any, { count: "exact" })
       .is("deleted_at", null)
-      .eq("status", "pendente")
+      .eq("status" as any, "pendente")
       .eq("tipo", "Saída")
-      .order("data_vencimento", { ascending: true, nullsFirst: false });
+      .order("data_vencimento" as any, { ascending: true, nullsFirst: false });
 
     if (search) query = query.or(`descricao.ilike.%${search}%,categoria.ilike.%${search}%`);
     if (filterCategoria !== "todos") query = query.eq("categoria", filterCategoria);
@@ -94,11 +94,11 @@ export default function ContasAPagarPage() {
 
     const [{ data, count }, { data: kpiData }] = await Promise.all([query, kpiQuery]);
 
-    if (data) setContas(data as ContaPagar[]);
+    if (data) setContas(data as unknown as ContaPagar[]);
     if (count !== null) setTotalCount(count);
 
     if (kpiData) {
-      const rows = kpiData as { valor: number; data_vencimento: string | null }[];
+      const rows = kpiData as unknown as { valor: number; data_vencimento: string | null }[];
       setTotalPendente(rows.reduce((s, r) => s + Number(r.valor), 0));
       const vencidas = rows.filter(r => r.data_vencimento && r.data_vencimento < today);
       setCountVencidas(vencidas.length);
@@ -140,7 +140,7 @@ export default function ContasAPagarPage() {
     if (!cancelTarget) return;
     const { error } = await supabase
       .from("obra_transacoes_fluxo")
-      .update({ status: "cancelado" })
+      .update({ status: "cancelado" } as any)
       .eq("id", cancelTarget.id);
     setCancelTarget(null);
     if (error) {
@@ -300,7 +300,7 @@ export default function ContasAPagarPage() {
           open={pagamentoOpen}
           onClose={() => { setPagamentoOpen(false); setPagamentoTarget(null); }}
           onSuccess={fetchData}
-          transacao={pagamentoTarget}
+          transacao={{...pagamentoTarget, data_vencimento: pagamentoTarget.data_vencimento ?? undefined}}
           userId={user.id}
         />
       )}

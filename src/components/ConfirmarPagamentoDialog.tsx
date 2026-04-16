@@ -99,7 +99,7 @@ export default function ConfirmarPagamentoDialog({
 
       const { error } = await supabase
         .from("obra_transacoes_fluxo")
-        .update(updateData)
+        .update(updateData as any)
         .eq("id", transacao.id);
       if (error) throw error;
 

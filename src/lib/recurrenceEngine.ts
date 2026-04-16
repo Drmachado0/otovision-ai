@@ -46,10 +46,10 @@ function addInterval(date: Date, freq: string): Date {
 export async function processRecurrences(): Promise<number> {
   const { data: mothers } = await supabase
     .from("obra_transacoes_fluxo")
-    .select("id, user_id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, recorrencia, recorrencia_ativa, recorrencia_grupo_id, recorrencia_frequencia, recorrencia_max_ocorrencias, recorrencia_ocorrencias_criadas, recorrencia_fim")
+    .select("id, user_id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, recorrencia, recorrencia_ativa, recorrencia_grupo_id, recorrencia_frequencia, recorrencia_max_ocorrencias, recorrencia_ocorrencias_criadas, recorrencia_fim" as any)
     .is("deleted_at", null)
-    .eq("recorrencia_mae", true)
-    .eq("recorrencia_ativa", true);
+    .eq("recorrencia_mae" as any, true)
+    .eq("recorrencia_ativa" as any, true);
 
   if (!mothers || mothers.length === 0) return 0;
 
@@ -57,7 +57,7 @@ export async function processRecurrences(): Promise<number> {
   today.setHours(0, 0, 0, 0);
   let created = 0;
 
-  for (const mom of mothers as RecurringTransaction[]) {
+  for (const mom of (mothers as unknown as RecurringTransaction[])) {
     const freq = mom.recorrencia_frequencia || mom.recorrencia || "Mensal";
     const grupoId = mom.recorrencia_grupo_id;
 
@@ -74,15 +74,16 @@ export async function processRecurrences(): Promise<number> {
     // Find the latest occurrence in this group
     const { data: latest } = await supabase
       .from("obra_transacoes_fluxo")
-      .select("data_vencimento")
-      .eq("recorrencia_grupo_id", grupoId)
+      .select("data_vencimento" as any)
+      .eq("recorrencia_grupo_id" as any, grupoId!)
       .is("deleted_at", null)
-      .order("data_vencimento", { ascending: false })
+      .order("data_vencimento" as any, { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const lastVencimento = latest?.data_vencimento
-      ? new Date(latest.data_vencimento)
+    const latestRow = latest as unknown as { data_vencimento?: string | null } | null;
+    const lastVencimento = latestRow?.data_vencimento
+      ? new Date(latestRow.data_vencimento)
       : (mom.data_vencimento ? new Date(mom.data_vencimento) : new Date(mom.data));
 
     // Calculate next due date

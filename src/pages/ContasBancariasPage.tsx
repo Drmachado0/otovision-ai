@@ -70,7 +70,7 @@ export default function ContasBancariasPage() {
   const fetchData = useCallback(async () => {
     const [contasRes, transRes] = await Promise.all([
       supabase.from("obra_contas_financeiras").select("*").order("created_at", { ascending: true }),
-      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, data, descricao, categoria, conta_id, status").is("deleted_at", null).eq("status", "pago").not("conta_id", "is", null).neq("conta_id", ""),
+      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, data, descricao, categoria, conta_id" as any).is("deleted_at", null).eq("status" as any, "pago").not("conta_id", "is", null).neq("conta_id", ""),
     ]);
     if (contasRes.data) setContas(contasRes.data as Conta[]);
     if (transRes.data) setTransacoes(transRes.data as Transacao[]);
