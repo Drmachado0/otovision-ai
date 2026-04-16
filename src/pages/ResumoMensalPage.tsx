@@ -107,9 +107,9 @@ export default function ResumoMensalPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
 
-  const totalEntradas = meses.reduce((s, m) => s + m.entradas, 0);
+  const totalEntradas = saldoInicialBase + meses.reduce((s, m) => s + m.entradas, 0);
   const totalSaidas = meses.reduce((s, m) => s + m.saidas, 0);
-  const saldoFinal = meses.length > 0 ? meses[meses.length - 1].saldoAcumulado : 0;
+  const saldoFinal = meses.length > 0 ? meses[meses.length - 1].saldoAcumulado : saldoInicialBase;
   const mediaMensal = meses.length > 0 ? totalSaidas / meses.length : 0;
 
   if (loading) {
