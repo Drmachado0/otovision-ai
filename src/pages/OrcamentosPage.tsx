@@ -626,6 +626,30 @@ export default function OrcamentosPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Pagamento do Orçamento */}
+      {pagamentoOrcamento && user && (
+        <PagamentoDialog
+          open={!!pagamentoOrcamento}
+          onClose={() => setPagamentoOrcamento(null)}
+          onSuccess={async () => {
+            await supabase
+              .from("obra_orcamentos")
+              .update({ status: "Pago" } as any)
+              .eq("id", pagamentoOrcamento.id);
+            setPagamentoOrcamento(null);
+            setSelectedOrcamento(null);
+            fetchData();
+          }}
+          tipo="compra"
+          id={pagamentoOrcamento.id}
+          fornecedor={pagamentoOrcamento.fornecedor}
+          valor={Number(pagamentoOrcamento.valor_total)}
+          categoria={pagamentoOrcamento.categoria}
+          descricao={pagamentoOrcamento.descricao}
+          userId={user.id}
+        />
+      )}
     </div>
   );
 }
