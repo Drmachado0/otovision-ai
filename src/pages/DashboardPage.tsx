@@ -72,6 +72,7 @@ export default function DashboardPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
+    try {
     const [configRes, allTransRes, recentTransRes, etapasRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
       supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
       // BUG-001/003: Total Gasto = todas as transacoes (pagas + pendentes),
