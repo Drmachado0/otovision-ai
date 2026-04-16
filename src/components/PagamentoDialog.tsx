@@ -58,7 +58,7 @@ export default function PagamentoDialog({
       });
   }, [open, userId]);
 
-  const comissaoValor = valor * 0.08;
+  const comissaoValor = Number(valor) * 0.08;
 
   const handleConfirmar = async () => {
     if (!contaId) {

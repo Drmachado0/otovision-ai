@@ -82,7 +82,7 @@ export default function NotasFiscaisPage() {
   const vencidas = ativas.filter(
     (n) => n.status !== "Paga" && n.data_vencimento && new Date(n.data_vencimento) < new Date()
   ).length;
-  const totalValor = ativas.reduce((s, n) => s + (n.valor_liquido || n.valor_bruto || 0), 0);
+  const totalValor = ativas.reduce((s, n) => s + (Number(n.valor_liquido) || Number(n.valor_bruto) || 0), 0);
 
   const handleDelete = async () => {
     if (!deleteNf || !user) return;

@@ -180,7 +180,7 @@ export default function ComprasPage() {
   const totalEntregue = filtered.filter(c => c.status_entrega === "Entregue").reduce((s, c) => s + Number(c.valor_total), 0);
   const totalPendente = totalCompras - totalEntregue;
   const parcelasPendentes = filtered.reduce((s, c) => {
-    return s + parseParcelas(c.parcelas).filter(p => p.status === "Pendente").reduce((a, p) => a + p.valor, 0);
+    return s + parseParcelas(c.parcelas).filter(p => p.status === "Pendente").reduce((a, p) => a + Number(p.valor), 0);
   }, 0);
 
   return (
