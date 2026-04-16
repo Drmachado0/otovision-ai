@@ -300,7 +300,7 @@ export default function ContasAPagarPage() {
           open={pagamentoOpen}
           onClose={() => { setPagamentoOpen(false); setPagamentoTarget(null); }}
           onSuccess={fetchData}
-          transacao={{...pagamentoTarget, data_vencimento: pagamentoTarget.data_vencimento ?? undefined}}
+          transacao={{...pagamentoTarget, data_vencimento: pagamentoTarget.data_vencimento ?? undefined, parcela_numero: pagamentoTarget.parcela_numero ?? undefined, parcela_total: pagamentoTarget.parcela_total ?? undefined}}
           userId={user.id}
         />
       )}

@@ -73,7 +73,7 @@ export default function ContasBancariasPage() {
       supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, data, descricao, categoria, conta_id" as any).is("deleted_at", null).eq("status" as any, "pago").not("conta_id", "is", null).neq("conta_id", ""),
     ]);
     if (contasRes.data) setContas(contasRes.data as Conta[]);
-    if (transRes.data) setTransacoes(transRes.data as Transacao[]);
+    if (transRes.data) setTransacoes(transRes.data as unknown as Transacao[]);
     setLoading(false);
   }, []);
 
