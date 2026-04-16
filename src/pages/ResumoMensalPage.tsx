@@ -31,16 +31,28 @@ export default function ResumoMensalPage() {
   const [meses, setMeses] = useState<MesData[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<"3" | "6" | "12" | "all">("6");
+  const [saldoInicialBase, setSaldoInicialBase] = useState(0);
 
   const fetchData = useCallback(async () => {
-    const { data } = await supabase
-      .from("obra_transacoes_fluxo")
-      .select("tipo, valor, categoria, data")
-      .is("deleted_at", null)
-      .eq("status", "pago")
-      .order("data", { ascending: true });
+    const [{ data }, { data: contas }] = await Promise.all([
+      supabase
+        .from("obra_transacoes_fluxo")
+        .select("tipo, valor, categoria, data")
+        .is("deleted_at", null)
+        .eq("status", "pago")
+        .order("data", { ascending: true }),
+      supabase
+        .from("obra_contas_financeiras")
+        .select("saldo_inicial")
+        .eq("ativa", true),
+    ]);
 
     if (!data) { setLoading(false); return; }
+
+    const saldoInicialTotal = (contas ?? []).reduce(
+      (s, c: { saldo_inicial: number | string }) => s + Number(c.saldo_inicial || 0),
+      0
+    );
 
     // Group by month
     const porMes: Record<string, { entradas: number; saidas: number; categorias: Record<string, number> }> = {};
@@ -60,7 +72,8 @@ export default function ResumoMensalPage() {
     const sorted = Object.entries(porMes).sort((a, b) => a[0].localeCompare(b[0]));
     const limited = periodo === "all" ? sorted : sorted.slice(-parseInt(periodo));
 
-    let acumulado = 0;
+    // Saldo inicial das contas é a base do acumulado
+    let acumulado = saldoInicialTotal;
     // Calculate accumulated balance from all months before the limited window
     if (periodo !== "all") {
       const before = sorted.slice(0, sorted.length - limited.length);
@@ -87,15 +100,16 @@ export default function ResumoMensalPage() {
     });
 
     setMeses(result);
+    setSaldoInicialBase(saldoInicialTotal);
     setLoading(false);
   }, [periodo]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
 
-  const totalEntradas = meses.reduce((s, m) => s + m.entradas, 0);
+  const totalEntradas = saldoInicialBase + meses.reduce((s, m) => s + m.entradas, 0);
   const totalSaidas = meses.reduce((s, m) => s + m.saidas, 0);
-  const saldoFinal = meses.length > 0 ? meses[meses.length - 1].saldoAcumulado : 0;
+  const saldoFinal = meses.length > 0 ? meses[meses.length - 1].saldoAcumulado : saldoInicialBase;
   const mediaMensal = meses.length > 0 ? totalSaidas / meses.length : 0;
 
   if (loading) {

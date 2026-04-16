@@ -89,12 +89,20 @@ export default function DashboardPage() {
 
     if (configRes.data) setConfig(configRes.data as ConfigRow);
 
+    // Saldo inicial total das contas ativas (base de caixa)
+    const saldoInicialTotal = (contasRes.data ?? []).reduce(
+      (s, c: { saldo_inicial: number | string }) => s + Number(c.saldo_inicial || 0),
+      0
+    );
+
     if (allTransRes.data) {
       const rows = allTransRes.data as unknown as { tipo: string; valor: number; categoria: string; conta_id?: string }[];
       setAllTransForContas(rows);
       const saidas = rows.filter(t => t.tipo === "Saída");
       setTotalGasto(saidas.reduce((s, t) => s + Number(t.valor), 0));
-      setTotalEntradas(rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0));
+      const entradasOp = rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
+      // Total Entradas inclui o saldo inicial das contas ativas
+      setTotalEntradas(saldoInicialTotal + entradasOp);
 
       // Top 5 categories by spending
       const catMap: Record<string, number> = {};
@@ -315,7 +323,7 @@ export default function DashboardPage() {
               const movs = allTransForContas.filter(t => t.conta_id === c.id);
               const entradas = movs.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
               const saidas = movs.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0);
-              const saldoConta = c.saldo_inicial + entradas - saidas;
+              const saldoConta = Number(c.saldo_inicial) + entradas - saidas;
               return (
                 <div key={c.id} className="flex items-center justify-between">
                   <span className="text-xs flex items-center gap-1.5">
