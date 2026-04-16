@@ -81,7 +81,8 @@ export default function ContasBancariasPage() {
   useEffect(() => {
     const onFocus = () => fetchData();
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    const interval = setInterval(fetchData, 30000);
+    return () => { window.removeEventListener("focus", onFocus); clearInterval(interval); };
   }, [fetchData]);
   useRealtimeSubscription("obra_contas_financeiras", fetchData);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);

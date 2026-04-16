@@ -127,11 +127,12 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Re-fetch when tab/window regains focus
+  // Re-fetch when tab/window regains focus + polling every 30s
   useEffect(() => {
     const onFocus = () => fetchData();
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    const interval = setInterval(fetchData, 30000);
+    return () => { window.removeEventListener("focus", onFocus); clearInterval(interval); };
   }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
   useRealtimeSubscription("obra_config", fetchData);
