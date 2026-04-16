@@ -268,6 +268,9 @@ export default function FluxoCaixaPage() {
         <div className="stat-card-success p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Entradas</p>
           <p className="text-lg font-bold mt-1 text-success">{formatCurrency(totalEntradas)}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Saldo inicial: {formatCurrency(saldoInicial)} · Operacionais: {formatCurrency(entradasOperacionais)}
+          </p>
         </div>
         <div className="stat-card-danger p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Saídas</p>
