@@ -24,12 +24,22 @@ export default function Dashboard() {
       try {
         const { data: config } = await supabase.from("obra_config").select("orcamento_total").limit(1).single();
         
-        const { data: transacoes } = await supabase
-          .from("obra_transacoes_fluxo")
-          .select("tipo, valor, categoria, data")
-          .is("deleted_at", null);
+        const [{ data: transacoes }, { data: contas }] = await Promise.all([
+          supabase
+            .from("obra_transacoes_fluxo")
+            .select("tipo, valor, categoria, data")
+            .is("deleted_at", null),
+          supabase
+            .from("obra_contas_financeiras")
+            .select("saldo_inicial")
+            .eq("ativa", true),
+        ]);
 
         const orcamento = config?.orcamento_total ?? 0;
+        const saldoInicialTotal = (contas ?? []).reduce(
+          (s, c: { saldo_inicial: number | string }) => s + Number(c.saldo_inicial || 0),
+          0
+        );
         let totalSaidas = 0;
         let totalEntradas = 0;
         const catMap: Record<string, number> = {};
@@ -51,7 +61,9 @@ export default function Dashboard() {
         });
 
         const gasto = totalSaidas;
-        const saldo = orcamento - gasto + totalEntradas;
+        // Inclui o saldo inicial das contas como entrada de caixa
+        const entradasComBase = saldoInicialTotal + totalEntradas;
+        const saldo = orcamento - gasto + entradasComBase;
         const percentual = orcamento > 0 ? (gasto / orcamento) * 100 : 0;
 
         const porCategoria = Object.entries(catMap)
