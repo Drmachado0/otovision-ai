@@ -482,9 +482,17 @@ export default function OrcamentosPage() {
                       </div>
                     )}
                     {selectedOrcamento.status === "Aprovado" && (
-                      <Button variant="outline" className="gap-2" onClick={() => handleConvertToCompra(selectedOrcamento)}>
-                        <ShoppingCart className="w-4 h-4" /> Converter em Compra
-                      </Button>
+                      <>
+                        <Button className="gap-2" onClick={() => { setPagamentoOrcamento(selectedOrcamento); }}>
+                          <CreditCard className="w-4 h-4" /> Pagar Orçamento
+                        </Button>
+                        <Button variant="outline" className="gap-2" onClick={() => handleConvertToCompra(selectedOrcamento)}>
+                          <ShoppingCart className="w-4 h-4" /> Converter em Compra
+                        </Button>
+                      </>
+                    )}
+                    {selectedOrcamento.status === "Pago" && (
+                      <Badge className="badge-success self-start">✓ Pago</Badge>
                     )}
                     <Button variant="ghost" className="gap-2 text-destructive hover:text-destructive" onClick={() => handleDelete(selectedOrcamento.id)}>
                       <Trash2 className="w-4 h-4" /> Excluir Orçamento
