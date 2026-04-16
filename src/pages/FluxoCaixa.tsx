@@ -44,7 +44,10 @@ export default function FluxoCaixa() {
   useEffect(() => { fetchData(); }, []);
 
   const handleCreate = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const { error } = await supabase.from("obra_transacoes_fluxo").insert({
+      user_id: user.id,
       tipo: form.tipo,
       descricao: form.descricao,
       categoria: form.categoria,
