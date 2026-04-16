@@ -34,6 +34,8 @@ export default function FluxoCaixaPage() {
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [totalEntradas, setTotalEntradas] = useState(0);
+  const [totalSaidas, setTotalSaidas] = useState(0);
 
   const [selectedTransacao, setSelectedTransacao] = useState<TransacaoFull | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -137,8 +139,6 @@ export default function FluxoCaixaPage() {
     }
   };
 
-  const [totalEntradas, setTotalEntradas] = useState(0);
-  const [totalSaidas, setTotalSaidas] = useState(0);
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const openDetail = (t: TransacaoFull) => {
