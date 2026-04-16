@@ -95,7 +95,7 @@ export default function OrcamentosPage() {
   const fetchData = useCallback(async () => {
     const { data } = await supabase
       .from("obra_orcamentos")
-      .select("id, user_id, fornecedor, descricao, categoria, valor_total, data, validade, status, condicoes_pagamento, observacoes, itens, aprovado_por, aprovado_em, created_at")
+      .select("id, user_id, fornecedor, descricao, categoria, valor_total, data, validade, status, condicoes_pagamento, observacoes, itens, created_at")
       .is("deleted_at", null)
       .order("data", { ascending: false })
       .limit(500);
@@ -109,8 +109,8 @@ export default function OrcamentosPage() {
         condicoes_pagamento: o.condicoes_pagamento || "",
         observacoes: o.observacoes || "",
         itens: parseItens(o.itens),
-        aprovado_por: o.aprovado_por || null,
-        aprovado_em: o.aprovado_em || null,
+        aprovado_por: null,
+        aprovado_em: null,
       })));
     }
     setLoading(false);
