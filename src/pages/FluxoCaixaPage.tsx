@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import OrigemBadge from "@/components/OrigemBadge";
 import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/TransacaoDetailDrawer";
 import CategoriaSelect from "@/components/CategoriaSelect";
+import { fetchSaldoInicialTotal } from "@/lib/saldoInicial";
 
 const CATEGORIAS = CATEGORIAS_PADRAO;
 
@@ -39,6 +40,8 @@ export default function FluxoCaixaPage() {
   const [totalSaidas, setTotalSaidas] = useState(0);
   const [saidasPagas, setSaidasPagas] = useState(0);
   const [saidasPendentes, setSaidasPendentes] = useState(0);
+  const [saldoInicial, setSaldoInicial] = useState(0);
+  const [entradasOperacionais, setEntradasOperacionais] = useState(0);
 
   const [selectedTransacao, setSelectedTransacao] = useState<TransacaoFull | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -91,13 +94,21 @@ export default function FluxoCaixaPage() {
     const to = from + PAGE_SIZE - 1;
     query = query.range(from, to);
 
-    const [{ data, count }, { data: allData }] = await Promise.all([query, totalsQuery]);
+    const [{ data, count }, { data: allData }, saldoBase] = await Promise.all([
+      query,
+      totalsQuery,
+      fetchSaldoInicialTotal(),
+    ]);
     if (data) setTransacoes(data as unknown as TransacaoFull[]);
     if (count !== null) setTotalCount(count);
     if (allData) {
       const rows = allData as unknown as { tipo: string; valor: number; status?: string }[];
       const saidas = rows.filter(t => t.tipo === "Saída");
-      setTotalEntradas(rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0));
+      const entradasOp = rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
+      setEntradasOperacionais(entradasOp);
+      setSaldoInicial(saldoBase);
+      // Entradas exibidas = saldo inicial das contas ativas + entradas registradas
+      setTotalEntradas(saldoBase + entradasOp);
       setTotalSaidas(saidas.reduce((s, t) => s + Number(t.valor), 0));
       setSaidasPagas(saidas.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.valor), 0));
       setSaidasPendentes(saidas.filter(t => t.status === "pendente" || !t.status).reduce((s, t) => s + Number(t.valor), 0));
