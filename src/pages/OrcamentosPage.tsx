@@ -188,8 +188,6 @@ export default function OrcamentosPage() {
   const handleApprove = async (orcamento: Orcamento) => {
     const { error } = await supabase.from("obra_orcamentos").update({
       status: "Aprovado",
-      aprovado_por: user?.email || "",
-      aprovado_em: new Date().toISOString(),
     } as any).eq("id", orcamento.id);
     if (error) toast.error("Erro ao aprovar");
     else { toast.success("Orçamento aprovado!"); setSelectedOrcamento(null); fetchData(); }
@@ -198,8 +196,6 @@ export default function OrcamentosPage() {
   const handleReject = async (orcamento: Orcamento) => {
     const { error } = await supabase.from("obra_orcamentos").update({
       status: "Rejeitado",
-      aprovado_por: user?.email || "",
-      aprovado_em: new Date().toISOString(),
     } as any).eq("id", orcamento.id);
     if (error) toast.error("Erro ao rejeitar");
     else { toast.success("Orçamento rejeitado"); setSelectedOrcamento(null); fetchData(); }
