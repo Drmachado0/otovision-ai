@@ -67,17 +67,17 @@ export default function FluxoCaixaPage() {
       .from("obra_transacoes_fluxo")
       .select("tipo, valor")
       .is("deleted_at", null)
-      .eq("status", "pago");
+      .eq("status" as any, "pago");
 
     let query = supabase
       .from("obra_transacoes_fluxo")
-      .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at, status, parcela_numero, parcela_total", { count: "exact" })
+      .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at, status, parcela_numero, parcela_total" as any, { count: "exact" })
       .is("deleted_at", null)
       .order("data", { ascending: false });
 
     if (filterTipo !== "todos") query = query.eq("tipo", filterTipo);
     if (filterCategoria !== "todos") query = query.eq("categoria", filterCategoria);
-    if (filterStatus !== "todos") query = query.eq("status", filterStatus);
+    if (filterStatus !== "todos") query = query.eq("status" as any, filterStatus);
     if (dateFrom) query = query.gte("data", dateFrom);
     if (dateTo) query = query.lte("data", dateTo);
     if (search) query = query.or(`descricao.ilike.%${search}%,categoria.ilike.%${search}%`);
@@ -87,7 +87,7 @@ export default function FluxoCaixaPage() {
     query = query.range(from, to);
 
     const [{ data, count }, { data: allData }] = await Promise.all([query, totalsQuery]);
-    if (data) setTransacoes(data as TransacaoFull[]);
+    if (data) setTransacoes(data as unknown as TransacaoFull[]);
     if (count !== null) setTotalCount(count);
     if (allData) {
       const rows = allData as { tipo: string; valor: number }[];

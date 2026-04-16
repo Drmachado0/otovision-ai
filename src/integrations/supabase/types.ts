@@ -2145,11 +2145,14 @@ export type Database = {
       obra_transacoes_fluxo: {
         Row: {
           categoria: string
+          comprovante_path: string | null
           conciliado: boolean
           conciliado_em: string | null
           conta_id: string
           created_at: string
           data: string
+          data_pagamento: string | null
+          data_vencimento: string | null
           deleted_at: string | null
           descricao: string
           extrato_arquivo: string | null
@@ -2160,6 +2163,8 @@ export type Database = {
           observacoes: string
           origem_id: string | null
           origem_tipo: string | null
+          parcela_numero: number | null
+          parcela_total: number | null
           recorrencia: string
           recorrencia_ativa: boolean
           recorrencia_fim: string | null
@@ -2169,6 +2174,7 @@ export type Database = {
           recorrencia_max_ocorrencias: number | null
           recorrencia_ocorrencias_criadas: number
           referencia: string
+          status: string
           tipo: string
           updated_at: string
           user_id: string
@@ -2176,11 +2182,14 @@ export type Database = {
         }
         Insert: {
           categoria?: string
+          comprovante_path?: string | null
           conciliado?: boolean
           conciliado_em?: string | null
           conta_id?: string
           created_at?: string
           data?: string
+          data_pagamento?: string | null
+          data_vencimento?: string | null
           deleted_at?: string | null
           descricao?: string
           extrato_arquivo?: string | null
@@ -2191,6 +2200,8 @@ export type Database = {
           observacoes?: string
           origem_id?: string | null
           origem_tipo?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
           recorrencia?: string
           recorrencia_ativa?: boolean
           recorrencia_fim?: string | null
@@ -2200,6 +2211,7 @@ export type Database = {
           recorrencia_max_ocorrencias?: number | null
           recorrencia_ocorrencias_criadas?: number
           referencia?: string
+          status?: string
           tipo?: string
           updated_at?: string
           user_id: string
@@ -2207,11 +2219,14 @@ export type Database = {
         }
         Update: {
           categoria?: string
+          comprovante_path?: string | null
           conciliado?: boolean
           conciliado_em?: string | null
           conta_id?: string
           created_at?: string
           data?: string
+          data_pagamento?: string | null
+          data_vencimento?: string | null
           deleted_at?: string | null
           descricao?: string
           extrato_arquivo?: string | null
@@ -2222,6 +2237,8 @@ export type Database = {
           observacoes?: string
           origem_id?: string | null
           origem_tipo?: string | null
+          parcela_numero?: number | null
+          parcela_total?: number | null
           recorrencia?: string
           recorrencia_ativa?: boolean
           recorrencia_fim?: string | null
@@ -2231,6 +2248,7 @@ export type Database = {
           recorrencia_max_ocorrencias?: number | null
           recorrencia_ocorrencias_criadas?: number
           referencia?: string
+          status?: string
           tipo?: string
           updated_at?: string
           user_id?: string
