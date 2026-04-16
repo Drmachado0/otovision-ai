@@ -1,0 +1,42 @@
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(222 30% 20%);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(222 30% 28%);
+}
+
+/* Selection */
+::selection {
+  background: hsl(165 82% 51% / 0.2);
+  color: hsl(165 82% 70%);
+}
+
+/* Focus ring global */
+*:focus-visible {
+  outline: 2px solid hsl(165 82% 51% / 0.5);
+  outline-offset: 2px;
+}
+
+/* Smooth page transitions */
+#root {
+  min-height: 100vh;
+}
+
+/* Number input remove arrows */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
