@@ -1,41 +1,68 @@
 
-The user uploaded an error screenshot: "Could not find the 'ativo' column of 'obra_fornecedores' in the schema cache" and the build errors show multiple type mismatches. Let me check the actual DB schema vs code expectations.
 
-Build errors fall into 3 groups:
+# Plano: Fornecedores no formulário + Categorias customizáveis
 
-1. **Tables missing from types.ts** (`obra_mao_de_obra`, `obra_mao_obra_registros`, `obra_fornecedores` partial, view in ConfiguracoesPage line 443) → cast `supabase` to `any` for these queries.
+## Diagnóstico
 
-2. **DashboardPage.tsx (lines 93, 121)** — using `as` cast on error result. Need `as unknown as` first.
+**1. Fornecedores não aparecem**: Em `OrcamentosPage.tsx` (linha 509) e `ComprasPage.tsx`, o campo "Fornecedor" é um `<Input>` de texto livre. Nunca consulta `obra_fornecedores`. Por isso a lista cadastrada em /fornecedores não aparece como sugestão.
 
-3. **FornecedoresPage.tsx** — using `tipo_pix` and `ativo` fields that don't exist in DB schema. From the screenshot the column `ativo` doesn't exist in `obra_fornecedores`. Need to either remove these fields from the form/insert payload or add them to the DB.
+**2. Categorias fixas**: As categorias vêm de `CATEGORIAS_PADRAO` em `src/lib/formatters.ts` (constante hardcoded). Usado em 4 telas: Orçamentos, Compras, Fluxo de Caixa, e drawer de transação. Não há tabela `categorias` no banco.
 
-Checking the runtime error from screenshot: the user IS hitting this in production — fornecedores page tries to insert/select `ativo` column. Best fix: remove `ativo` and `tipo_pix` from the code (since they don't exist in DB schema), OR add them via migration.
+## Solução
 
-Simplest, safest: remove the unsupported fields from `FornecedoresPage.tsx` to match the actual DB schema. For `tipo_pix`, fold it into the `pix` field as a label, or just drop it.
+### A) Nova tabela `obra_categorias` (migração)
+```
+id uuid PK
+user_id uuid (RLS por usuário)
+nome text unique-per-user
+created_at, deleted_at (soft delete)
+```
+- RLS: usuário só vê/edita as suas
+- Seed automático: ao criar usuário, inserir as categorias padrão (ou inserir on-demand na primeira leitura se vazio)
 
-# Plan: Fix Build Errors + Schema Mismatches
+### B) Novo hook `useCategorias`
+- Busca categorias do banco (filtra `deleted_at IS NULL`)
+- Faz fallback para `CATEGORIAS_PADRAO` se vazio
+- Expõe `addCategoria(nome)` para criar nova
+- Realtime via `useRealtimeSubscription("obra_categorias", ...)`
 
-## 1. FornecedoresPage.tsx — Remove non-existent columns
-- Remove `ativo` field (use `deleted_at IS NULL` for "active" filtering instead)
-- Remove `tipo_pix` field from insert/update payload and form (or keep in UI but don't persist)
-- Remove `as Fornecedor[]` cast issue by using `as unknown as Fornecedor[]`
+### C) Novo componente `CategoriaSelect`
+Dropdown reutilizável com:
+- Lista de categorias do hook
+- Opção final **"+ Nova categoria..."** que abre um mini-dialog/prompt
+- Após criar, seleciona automaticamente a nova
 
-## 2. MaoDeObraPage.tsx — Cast supabase to `any`
-Tables `obra_mao_de_obra` and `obra_mao_obra_registros` are not in generated types. Wrap all 7 queries (lines 100, 119, 137, 199, 211, 230, 259) with `(supabase as any).from(...)`.
+### D) Novo componente `FornecedorCombobox`
+Combobox (autocomplete) que:
+- Busca em `obra_fornecedores` (somente ativos: `deleted_at IS NULL`)
+- Permite digitar livremente (caso o fornecedor ainda não esteja cadastrado)
+- Mostra sugestões enquanto digita
+- Atalho "+ Cadastrar novo fornecedor" abre um mini-dialog (nome + telefone) que insere em `obra_fornecedores` e seleciona
 
-## 3. ConfiguracoesPage.tsx (line 443) — Cast `.from()` to `any`
-The table referenced isn't in types — use `(supabase as any).from(...)`.
+### E) Integração nas telas
+Substituir `<Input fornecedor>` por `<FornecedorCombobox>` e `<select categoria>` por `<CategoriaSelect>` em:
+- `src/pages/OrcamentosPage.tsx`
+- `src/pages/ComprasPage.tsx`
+- `src/pages/FluxoCaixaPage.tsx` (categoria)
+- `src/components/TransacaoDetailDrawer.tsx` (categoria)
 
-## 4. DashboardPage.tsx (lines 93, 121) — Fix error-result cast
-Change `data as { ... }[]` to `(data as unknown as { ... }[])` so TS accepts the conversion when the query result type union includes `GenericStringError[]`.
+## Arquivos
 
-## Files Changed
-- `src/pages/FornecedoresPage.tsx` — drop `ativo`/`tipo_pix` from payload, fix cast
-- `src/pages/MaoDeObraPage.tsx` — cast supabase to `any` on 7 queries
-- `src/pages/ConfiguracoesPage.tsx` — cast `.from()` to `any` on line 443
-- `src/pages/DashboardPage.tsx` — use `as unknown as` on lines 93 and 121
+**Novos:**
+- Migração SQL: tabela `obra_categorias` + RLS + trigger updated_at
+- `src/hooks/useCategorias.ts`
+- `src/hooks/useFornecedores.ts`
+- `src/components/CategoriaSelect.tsx`
+- `src/components/FornecedorCombobox.tsx`
 
-## Expected Result
-- Build passes
-- Fornecedores page stops throwing "Could not find 'ativo' column" runtime error
-- Mão de Obra page queries execute correctly at runtime (tables exist in DB even if missing from types)
+**Editados:**
+- `src/pages/OrcamentosPage.tsx`
+- `src/pages/ComprasPage.tsx`
+- `src/pages/FluxoCaixaPage.tsx`
+- `src/components/TransacaoDetailDrawer.tsx`
+
+## Resultado
+- Campo Fornecedor mostra a lista cadastrada com autocomplete + opção de cadastrar novo direto do formulário
+- Categoria mostra padrões + customizadas + opção "+ Nova categoria"
+- Categorias persistem no banco por usuário, sincronizadas via realtime
+
