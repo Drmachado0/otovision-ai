@@ -145,7 +145,11 @@ export default function DashboardPage() {
       });
     }
 
-    setLoading(false);
+    } catch (err) {
+      console.error("DashboardPage fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
