@@ -1,68 +1,64 @@
 
+## Plano: corrigir saldo inicial no Fluxo de Caixa
 
-# Plano: Fornecedores no formulário + Categorias customizáveis
+### Diagnóstico
+Confirmei o problema: o valor inicial da conta está correto em `ContasBancariasPage.tsx`, mas o `FluxoCaixaPage.tsx` calcula **Entradas / Saídas / Saldo** usando só `obra_transacoes_fluxo`.  
+Ou seja: o saldo inicial de `obra_contas_financeiras.saldo_inicial` nunca entra na conta.
 
-## Diagnóstico
+Isso explica exatamente seu caso:
+- Saldo inicial da conta: **R$ 230.000,00**
+- Saídas pagas: **R$ 9.367,80**
+- Saldo correto: **R$ 220.632,20**
+- Hoje o Fluxo mostra entrada **R$ 0,00** porque ignora o saldo inicial.
 
-**1. Fornecedores não aparecem**: Em `OrcamentosPage.tsx` (linha 509) e `ComprasPage.tsx`, o campo "Fornecedor" é um `<Input>` de texto livre. Nunca consulta `obra_fornecedores`. Por isso a lista cadastrada em /fornecedores não aparece como sugestão.
+### O que vou ajustar
+1. **Unificar a regra financeira**
+   - Considerar `saldo_inicial` das contas como base do caixa.
+   - Manter a mesma lógica entre telas para não haver números diferentes.
 
-**2. Categorias fixas**: As categorias vêm de `CATEGORIAS_PADRAO` em `src/lib/formatters.ts` (constante hardcoded). Usado em 4 telas: Orçamentos, Compras, Fluxo de Caixa, e drawer de transação. Não há tabela `categorias` no banco.
+2. **Corrigir `src/pages/FluxoCaixaPage.tsx`**
+   - Buscar também as contas financeiras ativas com `saldo_inicial`.
+   - Somar:
+     - `entradas_operacionais`
+     - `saldo_inicial_total`
+   - Exibir:
+     - **Entradas = saldo inicial + entradas registradas**
+     - **Saldo = saldo inicial + entradas - saídas**
+   - Isso fará o Fluxo refletir o mesmo total visto em Contas Bancárias.
 
-## Solução
+3. **Revisar telas relacionadas com a mesma falha**
+   - `src/pages/ResumoMensalPage.tsx`
+   - `src/pages/DashboardPage.tsx`
+   - `src/pages/Dashboard.tsx`  
+   Hoje elas também acumulam valores só a partir das transações, então o saldo inicial pode ficar fora dos totais e gráficos.
 
-### A) Nova tabela `obra_categorias` (migração)
-```
-id uuid PK
-user_id uuid (RLS por usuário)
-nome text unique-per-user
-created_at, deleted_at (soft delete)
-```
-- RLS: usuário só vê/edita as suas
-- Seed automático: ao criar usuário, inserir as categorias padrão (ou inserir on-demand na primeira leitura se vazio)
+4. **Criar helper compartilhado**
+   - Extrair a regra para um utilitário comum, evitando que uma tela some saldo inicial e outra não.
+   - Assim futuras mudanças ficam centralizadas.
 
-### B) Novo hook `useCategorias`
-- Busca categorias do banco (filtra `deleted_at IS NULL`)
-- Faz fallback para `CATEGORIAS_PADRAO` se vazio
-- Expõe `addCategoria(nome)` para criar nova
-- Realtime via `useRealtimeSubscription("obra_categorias", ...)`
-
-### C) Novo componente `CategoriaSelect`
-Dropdown reutilizável com:
-- Lista de categorias do hook
-- Opção final **"+ Nova categoria..."** que abre um mini-dialog/prompt
-- Após criar, seleciona automaticamente a nova
-
-### D) Novo componente `FornecedorCombobox`
-Combobox (autocomplete) que:
-- Busca em `obra_fornecedores` (somente ativos: `deleted_at IS NULL`)
-- Permite digitar livremente (caso o fornecedor ainda não esteja cadastrado)
-- Mostra sugestões enquanto digita
-- Atalho "+ Cadastrar novo fornecedor" abre um mini-dialog (nome + telefone) que insere em `obra_fornecedores` e seleciona
-
-### E) Integração nas telas
-Substituir `<Input fornecedor>` por `<FornecedorCombobox>` e `<select categoria>` por `<CategoriaSelect>` em:
-- `src/pages/OrcamentosPage.tsx`
-- `src/pages/ComprasPage.tsx`
-- `src/pages/FluxoCaixaPage.tsx` (categoria)
-- `src/components/TransacaoDetailDrawer.tsx` (categoria)
-
-## Arquivos
-
-**Novos:**
-- Migração SQL: tabela `obra_categorias` + RLS + trigger updated_at
-- `src/hooks/useCategorias.ts`
-- `src/hooks/useFornecedores.ts`
-- `src/components/CategoriaSelect.tsx`
-- `src/components/FornecedorCombobox.tsx`
-
-**Editados:**
-- `src/pages/OrcamentosPage.tsx`
-- `src/pages/ComprasPage.tsx`
+### Arquivos a editar
 - `src/pages/FluxoCaixaPage.tsx`
-- `src/components/TransacaoDetailDrawer.tsx`
+- `src/pages/ResumoMensalPage.tsx`
+- `src/pages/DashboardPage.tsx`
+- `src/pages/Dashboard.tsx`
+- possivelmente um novo utilitário em `src/lib/` para centralizar o cálculo
 
-## Resultado
-- Campo Fornecedor mostra a lista cadastrada com autocomplete + opção de cadastrar novo direto do formulário
-- Categoria mostra padrões + customizadas + opção "+ Nova categoria"
-- Categorias persistem no banco por usuário, sincronizadas via realtime
+### Regra que vou aplicar
+```text
+saldo_base = soma dos saldos_iniciais das contas ativas
+entradas_totais = saldo_base + soma das transações de entrada
+saldo_final = saldo_base + entradas - saídas
+```
 
+### Resultado esperado
+Para o seu cenário, o Fluxo de Caixa deve passar a mostrar algo equivalente a:
+- **Entradas:** R$ 230.000,00
+- **Saídas:** R$ 9.367,80
+- **Saldo:** R$ 220.632,20
+
+## Detalhe técnico
+Hoje a divergência está assim:
+- `ContasBancariasPage.tsx` usa `Number(conta.saldo_inicial) + entradas - saidas`
+- `FluxoCaixaPage.tsx` usa apenas `rows.filter(tipo === "Entrada")` e `rows.filter(tipo === "Saída")`
+
+Então o problema não é banco nem cadastro da conta: é a fórmula usada no front nessas páginas.
