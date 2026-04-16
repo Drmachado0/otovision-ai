@@ -91,7 +91,7 @@ export default function ContasBancariasPage() {
     const movs = transacoes.filter(t => t.conta_id === conta.id);
     const entradas = movs.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
     const saidas = movs.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0);
-    return conta.saldo_inicial + entradas - saidas;
+    return Number(conta.saldo_inicial) + entradas - saidas;
   };
 
   const saldoTotal = contas.filter(c => c.ativa).reduce((s, c) => s + getSaldo(c), 0);
