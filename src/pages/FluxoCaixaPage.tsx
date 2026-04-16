@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import OrigemBadge from "@/components/OrigemBadge";
 import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/TransacaoDetailDrawer";
+import CategoriaSelect from "@/components/CategoriaSelect";
 
 const CATEGORIAS = CATEGORIAS_PADRAO;
 
@@ -451,9 +452,9 @@ export default function FluxoCaixaPage() {
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Categoria</Label>
-                <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1">
-                  {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
-                </select>
+                <div className="mt-1">
+                  <CategoriaSelect value={form.categoria} onChange={(v) => setForm(f => ({ ...f, categoria: v }))} />
+                </div>
               </div>
             </div>
             <div>

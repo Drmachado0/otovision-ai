@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import CompraDetailDrawer, { getCompraType, parseParcelas, type CompraFull } from "@/components/CompraDetailDrawer";
+import FornecedorCombobox from "@/components/FornecedorCombobox";
+import CategoriaSelect from "@/components/CategoriaSelect";
 
 const STATUS_COLORS: Record<string, string> = {
   Pedido: "badge-warning",
@@ -361,7 +363,9 @@ export default function ComprasPage() {
 
             <div>
               <Label className="text-xs text-muted-foreground">Fornecedor</Label>
-              <Input value={form.fornecedor} onChange={e => setForm(f => ({ ...f, fornecedor: e.target.value }))} className="mt-1" />
+              <div className="mt-1">
+                <FornecedorCombobox value={form.fornecedor} onChange={(v) => setForm(f => ({ ...f, fornecedor: v }))} />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -403,9 +407,9 @@ export default function ComprasPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Categoria</Label>
-                <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1">
-                  {CATEGORIAS_PADRAO.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <div className="mt-1">
+                  <CategoriaSelect value={form.categoria} onChange={(v) => setForm(f => ({ ...f, categoria: v }))} />
+                </div>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Pagamento</Label>

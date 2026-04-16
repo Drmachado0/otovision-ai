@@ -4,6 +4,8 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate, CATEGORIAS_PADRAO, todayLocalISO } from "@/lib/formatters";
 import { Plus, FileText, Check, X, Clock, AlertTriangle, ShoppingCart, Trash2, Search } from "lucide-react";
+import FornecedorCombobox from "@/components/FornecedorCombobox";
+import CategoriaSelect from "@/components/CategoriaSelect";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -506,7 +508,9 @@ export default function OrcamentosPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label className="text-xs text-muted-foreground">Fornecedor</Label>
-              <Input value={form.fornecedor} onChange={e => setForm(f => ({ ...f, fornecedor: e.target.value }))} className="mt-1" />
+              <div className="mt-1">
+                <FornecedorCombobox value={form.fornecedor} onChange={(v) => setForm(f => ({ ...f, fornecedor: v }))} />
+              </div>
             </div>
 
             <div>
@@ -517,9 +521,9 @@ export default function OrcamentosPage() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Categoria</Label>
-                <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1">
-                  {CATEGORIAS_PADRAO.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <div className="mt-1">
+                  <CategoriaSelect value={form.categoria} onChange={(v) => setForm(f => ({ ...f, categoria: v }))} />
+                </div>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Data</Label>
