@@ -146,6 +146,10 @@ export default function ComissaoPage() {
           </span>
         </div>
         <Progress value={comissaoTotal > 0 ? Math.min((comissaoPaga / comissaoTotal) * 100, 100) : 0} className="h-3" />
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Referência: comissão teórica ({PERCENTUAL_COMISSAO}% sobre {formatCurrency(totalGasto)}) ={" "}
+          <span className="font-medium text-foreground">{formatCurrency(comissaoTeorica)}</span>
+        </p>
       </div>
 
       {/* Filtros + History */}
