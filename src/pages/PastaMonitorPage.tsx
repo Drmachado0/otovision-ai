@@ -5,10 +5,11 @@ import {
   Upload, FileText, CheckCircle2, AlertTriangle, XCircle, Clock, Loader2,
   Eye, RotateCcw, FolderSync, Search, ChevronDown, ChevronRight,
   FileCheck, FileClock, FileWarning, FileX, Copy,
-  Receipt, FileSpreadsheet, CreditCard, File
+  Receipt, FileSpreadsheet, CreditCard, File, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import DocumentoReviewPanel from "@/components/DocumentoReviewPanel";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 import type { IconComponent } from "@/lib/types";
 
