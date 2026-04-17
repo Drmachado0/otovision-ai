@@ -333,5 +333,5 @@ export function useDocumentos() {
     duplicados: documentos.filter((d) => d.duplicidade_status !== "unico").length,
   };
 
-  return { documentos, loading, stats, uploadEProcessar, reprocessar, aprovarMovimentacao, fetchDocumentos, registrarEvento };
+  return { documentos, loading, stats, uploadEProcessar, reprocessar, aprovarMovimentacao, excluirDocumento, fetchDocumentos, registrarEvento };
 }
