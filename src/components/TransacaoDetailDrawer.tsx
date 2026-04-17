@@ -95,6 +95,7 @@ export default function TransacaoDetailDrawer({ transacao, open, onOpenChange, o
         forma_pagamento: form.forma_pagamento,
         observacoes: form.observacoes,
         conta_id: form.conta_id || "",
+        data_vencimento: form.data_vencimento || null,
       } as any)
       .eq("id", form.id);
     setSaving(false);
@@ -212,9 +213,12 @@ export default function TransacaoDetailDrawer({ transacao, open, onOpenChange, o
                   value={t.observacoes || "-"} />
               )}
 
-              {t.data_vencimento && (
-                <DetailField icon={<Calendar className="w-4 h-4" />} label="Vencimento" editing={false}
-                  value={formatDate(t.data_vencimento)} />
+              {(editing || t.data_vencimento) && (
+                <DetailField icon={<Calendar className="w-4 h-4" />} label="Vencimento" editing={editing}
+                  value={t.data_vencimento ? formatDate(t.data_vencimento) : "-"}
+                  editValue={form?.data_vencimento || ""}
+                  onChange={(v) => setForm(f => f ? { ...f, data_vencimento: v } : f)}
+                  type="date" />
               )}
 
               {t.data_pagamento && (
