@@ -539,35 +539,49 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ variant, label, value, icon, sub, delay = 0 }: {
+function StatCard({ variant, label, value, icon, sub, delay = 0, to }: {
   variant: "success" | "danger" | "info" | "warning";
-  label: string; value: string; icon: React.ReactNode; sub?: string; delay?: number;
+  label: string; value: string; icon: React.ReactNode; sub?: string; delay?: number; to?: string;
 }) {
   const classes = { success: "stat-card-success", danger: "stat-card-danger", info: "stat-card-info", warning: "stat-card-warning" };
   const iconColor = { success: "text-success", danger: "text-destructive", info: "text-info", warning: "text-warning" };
-  return (
-    <div className={`${classes[variant]} p-5 animate-fade-in-up`} style={{ animationDelay: `${delay}ms` }}>
+  const inner = (
+    <>
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
         <div className={iconColor[variant]}>{icon}</div>
       </div>
       <p className="text-xl font-bold">{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-    </div>
+    </>
+  );
+  const className = `${classes[variant]} p-5 animate-fade-in-up ${to ? "hover:bg-accent/30 transition-colors block" : ""}`;
+  const style = { animationDelay: `${delay}ms` };
+  return to ? (
+    <Link to={to} className={className} style={style}>{inner}</Link>
+  ) : (
+    <div className={className} style={style}>{inner}</div>
   );
 }
 
-function MiniKPI({ cls, icon, label, value, sub, delay = 0 }: {
-  cls: string; icon: React.ReactNode; label: string; value: string; sub?: string; delay?: number;
+function MiniKPI({ cls, icon, label, value, sub, delay = 0, to }: {
+  cls: string; icon: React.ReactNode; label: string; value: string; sub?: string; delay?: number; to?: string;
 }) {
-  return (
-    <div className={`${cls} p-4 animate-fade-in-up`} style={{ animationDelay: `${delay}ms` }}>
+  const inner = (
+    <>
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
       </div>
       <p className="text-lg font-bold">{value}</p>
       {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
-    </div>
+    </>
+  );
+  const className = `${cls} p-4 animate-fade-in-up ${to ? "hover:bg-accent/30 transition-colors block" : ""}`;
+  const style = { animationDelay: `${delay}ms` };
+  return to ? (
+    <Link to={to} className={className} style={style}>{inner}</Link>
+  ) : (
+    <div className={className} style={style}>{inner}</div>
   );
 }
