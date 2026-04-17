@@ -1,32 +1,24 @@
 
 
-## Plano: botão "Excluir leitura" em cada documento
+## Plano: Conta obrigatória + padrão pré-selecionada no Leitor IA
 
 ### Diagnóstico
-Em `src/pages/PastaMonitorPage.tsx`, cada linha da tabela (Notas Fiscais / Outros) tem só dois botões em **Ações**: 👁 Visualizar e 🔄 Reprocessar (este último só aparece em erro/revisão). Não existe forma de **apagar** uma leitura para refazê-la do zero — por isso o usuário fica preso ao registro processado.
+No `LeitorIAPage.tsx` (após processar pela IA), o campo **Conta** existe mas:
+1. Vem vazio por padrão — usuário pode salvar sem escolher.
+2. Não há validação obrigando a seleção antes de Salvar.
 
 ### O que vou fazer
+1. Em `src/pages/LeitorIAPage.tsx`:
+   - Ao carregar contas (`obra_contas_bancarias`), identificar a conta marcada como padrão (`padrao = true` ou primeira ativa) e setar como valor inicial de `conta_id` no estado do formulário.
+   - Adicionar `*` visual no label "Conta".
+   - No handler de Salvar, validar `if (!conta_id)` → `toast.error("Selecione uma conta")` e abortar.
+   - Mesma validação aplicada para fluxo parcelado/recorrente.
 
-1. **Adicionar handler `excluirDocumento`** em `src/hooks/useDocumentos.ts`:
-   - Soft delete via `update({ deleted_at: ... })` em `obra_documentos_processados` (padrão do projeto).
-   - Se houver `storage_path`, remover do bucket também (opcional, manter por enquanto).
-   - Após sucesso, chamar `fetchDocumentos()` para atualizar a lista.
+2. Verificar se já existe campo `padrao` em `obra_contas_bancarias`. Se não, usar a primeira conta ativa como fallback.
 
-2. **Em `PastaMonitorPage.tsx`**:
-   - Importar ícone `Trash2`.
-   - Adicionar prop `onDelete` em `DocumentRow` e `DocumentGroup`.
-   - Renderizar botão de lixeira (vermelho discreto) ao lado de Visualizar/Reprocessar, **sempre** disponível.
-   - Ao clicar, abrir `ConfirmDialog` (já existe em `@/components/ConfirmDialog`) perguntando: *"Excluir leitura de {nome_arquivo}? Você poderá reenviar o arquivo depois."*
-   - Confirmar → chama `excluirDocumento(doc.id)` → toast de sucesso.
+### Arquivo a editar
+- `src/pages/LeitorIAPage.tsx`
 
-3. **Filtrar deletados** no fetch (`useDocumentos.fetchDocumentos`): adicionar `.is("deleted_at", null)` se a coluna existir; senão usar hard delete simples.
-
-4. **Verificar coluna `deleted_at`** em `obra_documentos_processados` antes de implementar — se não existir, faço hard delete (`.delete()`) com aviso de que é definitivo.
-
-### Arquivos a editar
-- `src/hooks/useDocumentos.ts` (nova função `excluirDocumento`, filtro)
-- `src/pages/PastaMonitorPage.tsx` (botão + confirm dialog + handler)
-
-### Resultado esperado
-Cada linha em **Notas Fiscais** e **Outros** ganha um ícone de lixeira. Clicar pede confirmação e remove a leitura — liberando o usuário para reenviar o arquivo e processar novamente do zero.
+### Resultado
+Ao abrir o painel de revisão pós-IA, a conta padrão já vem selecionada e o botão Salvar bloqueia se o campo estiver vazio.
 
