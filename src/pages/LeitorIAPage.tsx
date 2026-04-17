@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentos } from "@/hooks/useDocumentos";
 import { formatCurrency } from "@/lib/formatters";
+import { buildLancamentos, RecorrenciaTipo } from "@/lib/lancamentoBuilder";
 import { Upload, FileText, Check, Edit, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface DadosExtraidos {
   valor: number;
@@ -19,6 +21,15 @@ interface DadosExtraidos {
   categoria: string;
 }
 
+interface ContaFinanceira {
+  id: string;
+  nome: string;
+  tipo: string;
+}
+
+const FORMAS_PAGAMENTO = ["PIX", "Boleto", "Cartão de Crédito", "Cartão de Débito", "Dinheiro", "Transferência"];
+const PERIODICIDADES = ["Mensal", "Semanal", "Quinzenal", "Bimestral", "Trimestral", "Semestral", "Anual"];
+
 export default function LeitorIAPage() {
   const { user } = useAuth();
   const { uploadEProcessar } = useDocumentos();
@@ -28,6 +39,27 @@ export default function LeitorIAPage() {
   const [dados, setDados] = useState<DadosExtraidos | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [contas, setContas] = useState<ContaFinanceira[]>([]);
+  const [pagamento, setPagamento] = useState({
+    recorrencia_tipo: "Única" as RecorrenciaTipo,
+    data_vencimento: "",
+    forma_pagamento: "PIX",
+    conta_id: "",
+    numero_parcelas: "3",
+    periodicidade: "Mensal",
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("obra_contas_financeiras")
+      .select("id, nome, tipo")
+      .eq("user_id", user.id)
+      .eq("ativa", true)
+      .order("nome")
+      .then(({ data }) => setContas(data ?? []));
+  }, [user]);
 
   const hasInput = !!(file || texto.trim());
 
@@ -42,6 +74,15 @@ export default function LeitorIAPage() {
 
   const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value);
+
+  const aplicarDadosIniciais = (d: DadosExtraidos) => {
+    setDados(d);
+    setEditMode(true);
+    setPagamento(p => ({
+      ...p,
+      data_vencimento: d.data || new Date().toISOString().split("T")[0],
+    }));
+  };
 
   const processarDocumento = async () => {
     if (!hasInput || !user) return;
@@ -74,8 +115,7 @@ export default function LeitorIAPage() {
           .single();
 
         if (isRecord(docData?.payload_normalizado)) {
-          setDados(mapAiResponse(docData.payload_normalizado));
-          setEditMode(true);
+          aplicarDadosIniciais(mapAiResponse(docData.payload_normalizado));
           if (docData.status_processamento === "revisao") {
             toast.warning(docData.motivo_revisao || "Documento requer revisão");
           }
@@ -95,8 +135,7 @@ export default function LeitorIAPage() {
         if (error) throw new Error(error.message || "Erro na comunicação com a IA");
         if (aiData?.error) throw new Error(aiData.error);
 
-        setDados(mapAiResponse(aiData));
-        setEditMode(true);
+        aplicarDadosIniciais(mapAiResponse(aiData));
         toast.success("Documento processado!");
       }
     } catch (err) {
@@ -131,31 +170,57 @@ export default function LeitorIAPage() {
 
   const salvarTransacao = async () => {
     if (!dados || !user) return;
+
+    if (!pagamento.conta_id) {
+      toast.error("Selecione a conta");
+      return;
+    }
+    if (!pagamento.forma_pagamento) {
+      toast.error("Selecione a forma de pagamento");
+      return;
+    }
+    if (!pagamento.data_vencimento) {
+      toast.error("Informe a data de vencimento");
+      return;
+    }
+
     setSaving(true);
+    try {
+      const rows = buildLancamentos({
+        user_id: user.id,
+        tipo: "Saída",
+        valor: Number(dados.valor) || 0,
+        data: dados.data || new Date().toISOString().split("T")[0],
+        data_vencimento: pagamento.data_vencimento,
+        categoria: dados.categoria || "Material",
+        descricao: dados.descricao || `${dados.tipo}: ${dados.fornecedor}`,
+        forma_pagamento: pagamento.forma_pagamento,
+        observacoes: `Origem: IA | Fornecedor: ${dados.fornecedor}`,
+        conta_id: pagamento.conta_id,
+        recorrencia_tipo: pagamento.recorrencia_tipo,
+        numero_parcelas: parseInt(pagamento.numero_parcelas) || 1,
+        periodicidade: pagamento.periodicidade,
+        origem_tipo: "ia",
+      });
 
-    const { error } = await supabase.from("obra_transacoes_fluxo").insert({
-      user_id: user.id,
-      tipo: "Saída",
-      valor: dados.valor,
-      data: dados.data || new Date().toISOString().split("T")[0],
-      categoria: dados.categoria || "Material",
-      descricao: dados.descricao || `${dados.tipo}: ${dados.fornecedor}`,
-      forma_pagamento: "",
-      recorrencia: "Única",
-      referencia: "",
-      conta_id: "",
-      observacoes: `Origem: IA | Fornecedor: ${dados.fornecedor}`,
-      origem_tipo: "ia",
-    } as any);
+      const { error } = await supabase.from("obra_transacoes_fluxo").insert(rows as any);
+      if (error) throw error;
 
-    setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar: " + error.message);
-    } else {
-      toast.success("Transação salva com sucesso!");
+      const msg =
+        pagamento.recorrencia_tipo === "Parcelada"
+          ? `${rows.length} parcelas criadas!`
+          : pagamento.recorrencia_tipo === "Recorrente"
+          ? "Lançamento recorrente criado!"
+          : "Transação salva! Confirme o pagamento em Contas a Pagar.";
+      toast.success(msg);
+
       setDados(null);
       setTexto("");
       setFile(null);
+    } catch (err) {
+      toast.error("Erro ao salvar: " + (err instanceof Error ? err.message : "Erro desconhecido"));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -246,6 +311,107 @@ export default function LeitorIAPage() {
                   )}
                 </div>
               ))}
+
+              {/* Bloco: Forma de Pagamento */}
+              <div className="pt-4 border-t border-border/40 space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Forma de Pagamento</h3>
+
+                {/* Tipo de Lançamento */}
+                <div>
+                  <Label className="text-xs text-muted-foreground">Tipo de Lançamento</Label>
+                  <div className="flex gap-2 mt-1">
+                    {(["Única", "Parcelada", "Recorrente"] as RecorrenciaTipo[]).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setPagamento(p => ({ ...p, recorrencia_tipo: t }))}
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+                          pagamento.recorrencia_tipo === t
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-accent/50 text-muted-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Parcelas */}
+                {pagamento.recorrencia_tipo === "Parcelada" && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Número de parcelas</Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      value={pagamento.numero_parcelas}
+                      onChange={e => setPagamento(p => ({ ...p, numero_parcelas: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+
+                {/* Periodicidade */}
+                {pagamento.recorrencia_tipo === "Recorrente" && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Periodicidade</Label>
+                    <Select
+                      value={pagamento.periodicidade}
+                      onValueChange={v => setPagamento(p => ({ ...p, periodicidade: v }))}
+                    >
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PERIODICIDADES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Data de Vencimento */}
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {pagamento.recorrencia_tipo === "Parcelada" ? "Vencimento da 1ª parcela" : "Data de Vencimento"}
+                  </Label>
+                  <Input
+                    type="date"
+                    value={pagamento.data_vencimento}
+                    onChange={e => setPagamento(p => ({ ...p, data_vencimento: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+
+                {/* Forma de pagamento */}
+                <div>
+                  <Label className="text-xs text-muted-foreground">Forma de Pagamento</Label>
+                  <Select
+                    value={pagamento.forma_pagamento}
+                    onValueChange={v => setPagamento(p => ({ ...p, forma_pagamento: v }))}
+                  >
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Conta */}
+                <div>
+                  <Label className="text-xs text-muted-foreground">Conta</Label>
+                  <Select
+                    value={pagamento.conta_id}
+                    onValueChange={v => setPagamento(p => ({ ...p, conta_id: v }))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder={contas.length ? "Selecione a conta" : "Nenhuma conta cadastrada"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contas.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.nome} {c.tipo ? `· ${c.tipo}` : ""}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               <div className="flex gap-3 pt-2">
                 <Button
