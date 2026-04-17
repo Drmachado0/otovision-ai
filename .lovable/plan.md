@@ -1,37 +1,46 @@
 
 
-## Plano: adicionar forma de pagamento no Leitor IA
+## Plano: corrigir cálculo de Comissão ao excluir lançamentos
 
 ### Diagnóstico
-Hoje em `LeitorIAPage.tsx`, após a IA extrair os dados, o usuário só edita: Fornecedor, Valor, Data, Tipo, Categoria, Descrição. Ao clicar em **Salvar**, é gravado direto em `obra_transacoes_fluxo` com `forma_pagamento: ""`, `recorrencia: "Única"`, `conta_id: ""` — sem opção de definir parcelamento, vencimento ou conta. Por isso depois cai em Contas a Pagar sem dados corretos e não dá pra editar.
+Em `src/pages/ComissaoPage.tsx` o cálculo hoje é:
 
-A tela de **Nova Transação** (Fluxo de Caixa, imagem 4) já tem o fluxo certo: Tipo de Lançamento (Única / Parcelada / Recorrente), Vencimento, Forma de Pagamento, Conta.
+```
+comissaoTotal   = totalGasto * 8%          ← vem de obra_transacoes_fluxo
+comissaoPaga    = soma das linhas pago=true
+comissaoPendente = comissaoTotal - comissaoPaga
+```
 
-### O que vou fazer
+Problema: ao excluir um pagamento de comissão (soft delete em `obra_comissao_pagamentos`), o **totalGasto** não muda, então `comissaoTotal` e `comissaoPendente` continuam iguais. A exclusão só some da lista — mas o valor "fantasma" continua aparecendo como pendente.
 
-1. **Expandir o painel "Dados Extraídos"** no `LeitorIAPage.tsx` adicionando, após Descrição, os mesmos campos da Nova Transação:
-   - **Tipo de Lançamento**: Única / Parcelada / Recorrente (botões iguais ao Fluxo)
-   - **Data de Vencimento** (data input)
-   - Se **Parcelada**: campo "Número de parcelas" + "Intervalo (dias)"
-   - Se **Recorrente**: seletor de frequência (Mensal, Semanal, etc.)
-   - **Forma de Pagamento**: PIX, Boleto, Cartão, Dinheiro, Transferência
-   - **Conta**: select com `obra_contas_financeiras` ativas
+Além disso, hoje cada Saída em `obra_transacoes_fluxo` gera uma linha em `obra_comissao_pagamentos` automaticamente. Se o usuário excluir a comissão (sem excluir o gasto), ela é regerada na cabeça do cálculo porque o gasto ainda existe.
 
-2. **Pré-preencher** vencimento = data do documento (ou hoje), forma = PIX (padrão).
+### O que vou ajustar
 
-3. **Refatorar `salvarTransacao`** para:
-   - Caso **Única**: insere 1 linha em `obra_transacoes_fluxo` com `forma_pagamento`, `conta_id`, `data_vencimento` corretos.
-   - Caso **Parcelada**: gera N linhas (uma por parcela) com vencimentos espaçados, descrição "X/N", valor dividido. Usa o mesmo padrão já existente no `PagamentoDialog`/Fluxo.
-   - Caso **Recorrente**: insere com `recorrencia` definida + `data_vencimento`, deixando o `recurrenceEngine` cuidar das próximas.
+1. **Mudar a fórmula em `ComissaoPage.tsx`** para refletir só o que existe na tabela de comissões:
+   ```
+   comissaoTotal    = soma de TODAS as comissões não excluídas (pago + pendente)
+   comissaoPaga     = soma das comissões pago=true
+   comissaoPendente = soma das comissões pago=false
+   ```
+   Assim, ao excluir uma linha, ela some do total e do pendente — comportamento esperado.
 
-4. **Reaproveitar lógica** consultando como `FluxoCaixaPage.tsx` faz hoje pra parcelamento/recorrência, garantindo consistência (mesma estrutura de payload).
+2. **Manter "Base (Gastos)"** como referência informativa (continua mostrando `totalGasto`), mas separar visualmente da comissão total. Adicionar um pequeno texto "Comissão teórica (8% sobre gastos): R$ X" para o usuário comparar.
 
-5. **Validação**: bloquear Salvar se faltar Conta, Forma de Pagamento ou Vencimento.
+3. **Marcar exclusão como definitiva**: ao soft-deletar uma comissão, gravar `observacoes` com tag `[excluido_manual]` para que o trigger/auto-gerador (caso exista em PagamentoDialog/create_compra_atomica) **não recrie** a mesma comissão na próxima sincronização. Verificarei se há lógica de auto-criação rodando em loop.
+
+4. **Ajustar `InsightsPage.tsx`** que já usa `pago=false` direto da tabela — só conferir que continua coerente com a nova fórmula (já está).
+
+5. **Ajustar `Dashboard.tsx` / `DashboardPage.tsx`** se exibirem "Comissão Pendente" com a fórmula antiga. Vou inspecionar e alinhar.
 
 ### Arquivos a editar
-- `src/pages/LeitorIAPage.tsx` (única alteração principal)
-- Possivelmente extrair um helper `src/lib/lancamentoBuilder.ts` se a lógica de parcelas/recorrência ainda não estiver isolada — verificarei `FluxoCaixaPage.tsx` antes de duplicar código.
+- `src/pages/ComissaoPage.tsx` (fórmula principal + UI das KPIs)
+- `src/pages/DashboardPage.tsx` (se exibe comissão pendente)
+- `src/pages/Dashboard.tsx` (idem)
+- `src/components/ComissaoDetailDrawer.tsx` (revisar exclusão para garantir consistência)
 
 ### Resultado esperado
-Após processar pela IA, o usuário define **na mesma tela** se é à vista, parcelada (com nº parcelas) ou recorrente, escolhe forma e conta, e clica Salvar. Os lançamentos vão pra `obra_transacoes_fluxo` já estruturados, aparecendo corretamente em **Contas a Pagar** com vencimento, parcela e forma — sem precisar editar depois.
+- Excluir uma comissão de R$ 100 → "Comissão Total" e "Pendente" caem R$ 100 imediatamente.
+- "Base (Gastos)" continua mostrando o total real de saídas como referência.
+- Linha "Comissão teórica (8%)" mostra o que seria devido se todos os gastos gerassem comissão — apenas informativo.
 
