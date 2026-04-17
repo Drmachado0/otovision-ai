@@ -159,6 +159,7 @@ function DocumentGroup({ tipo, docs, onSelect, onReprocess, onDelete }: {
                   doc={doc}
                   onSelect={() => onSelect(doc)}
                   onReprocess={() => onReprocess(doc)}
+                  onDelete={() => onDelete(doc)}
                 />
               ))}
             </tbody>
