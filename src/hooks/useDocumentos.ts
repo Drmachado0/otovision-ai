@@ -301,6 +301,29 @@ export function useDocumentos() {
     toast.success("Lançamento criado!");
   };
 
+  const excluirDocumento = async (docId: string) => {
+    if (!user) return;
+    const doc = documentos.find((d) => d.id === docId);
+    try {
+      // Remove arquivo do storage se existir
+      if (doc?.storage_path) {
+        await supabase.storage.from("documentos").remove([doc.storage_path]);
+      }
+      // Remove movimentações extraídas vinculadas
+      await supabase.from("obra_movimentacoes_extraidas").delete().eq("documento_id", docId);
+      // Remove eventos de processamento vinculados
+      await supabase.from("obra_eventos_processamento").delete().eq("documento_id", docId);
+      // Remove o documento
+      const { error } = await supabase.from("obra_documentos_processados").delete().eq("id", docId);
+      if (error) throw error;
+      toast.success("Leitura excluída. Você pode reenviar o arquivo.");
+      await fetchDocumentos();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error("Erro ao excluir: " + msg);
+    }
+  };
+
   const stats = {
     pendentes: documentos.filter((d) => d.status_processamento === "pendente").length,
     processando: documentos.filter((d) => d.status_processamento === "processando").length,
