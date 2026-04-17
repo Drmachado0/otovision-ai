@@ -7,7 +7,7 @@ import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Ruler, Flame, Target,
   ShieldAlert, ArrowRight, CreditCard, ShoppingCart,
-  Landmark, Receipt, Calendar, Clock,
+  Landmark, Receipt, Calendar, Clock, Sparkles,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -247,13 +247,31 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Atalho Leitor IA */}
+      <Link
+        to="/leitor-ia"
+        className="glass-card p-4 flex items-center justify-between border border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all animate-fade-in-up"
+        style={{ animationDelay: "50ms" }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Leitor IA</p>
+            <p className="text-xs text-muted-foreground">Envie nota fiscal, recibo ou extrato — extração automática</p>
+          </div>
+        </div>
+        <ArrowRight className="w-5 h-5 text-muted-foreground" />
+      </Link>
+
       {/* Main KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { variant: "info" as const, label: "Orçamento Total", value: formatCurrency(orcamentoTotal), icon: <DollarSign className="w-5 h-5" /> },
-          { variant: "danger" as const, label: "Total Gasto", value: formatCurrency(totalGasto), icon: <TrendingDown className="w-5 h-5" />, sub: `${formatPercent(percentual)} executado` },
-          { variant: "success" as const, label: "Saldo Restante", value: formatCurrency(saldo), icon: <Wallet className="w-5 h-5" /> },
-          { variant: "warning" as const, label: "Total Entradas", value: formatCurrency(totalEntradas), icon: <Activity className="w-5 h-5" /> },
+          { variant: "info" as const, label: "Orçamento Total", value: formatCurrency(orcamentoTotal), icon: <DollarSign className="w-5 h-5" />, to: "/configuracoes" },
+          { variant: "danger" as const, label: "Total Gasto", value: formatCurrency(totalGasto), icon: <TrendingDown className="w-5 h-5" />, sub: `${formatPercent(percentual)} executado`, to: "/fluxo" },
+          { variant: "success" as const, label: "Saldo do Orçamento", value: formatCurrency(saldo), icon: <Wallet className="w-5 h-5" />, to: "/previsao" },
+          { variant: "warning" as const, label: "Total Entradas", value: formatCurrency(totalEntradas), icon: <Activity className="w-5 h-5" />, to: "/fluxo" },
         ].map((card, i) => (
           <StatCard key={card.label} {...card} delay={i * 100} />
         ))}
@@ -261,10 +279,10 @@ export default function DashboardPage() {
 
       {/* Advanced KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <MiniKPI cls="stat-card-primary" icon={<Ruler className="w-4 h-4 text-primary" />} label="Custo/m²" value={formatCurrency(kpis.custoM2)} delay={400} />
-        <MiniKPI cls="stat-card-warning" icon={<Flame className="w-4 h-4 text-warning" />} label="Burn Rate/dia" value={formatCurrency(kpis.burnRate)} sub={`~${Math.round(kpis.diasRestantes)} dias restantes`} delay={500} />
-        <MiniKPI cls="stat-card-info" icon={<Target className="w-4 h-4 text-info" />} label="Projeção Final" value={formatCurrency(kpis.projecao)} delay={600} />
-        <div className="glass-card p-4 relative overflow-hidden animate-fade-in-up" style={{ animationDelay: "700ms" }}>
+        <MiniKPI cls="stat-card-primary" icon={<Ruler className="w-4 h-4 text-primary" />} label="Custo/m²" value={formatCurrency(kpis.custoM2)} delay={400} to="/relatorios" />
+        <MiniKPI cls="stat-card-warning" icon={<Flame className="w-4 h-4 text-warning" />} label="Burn Rate/dia" value={formatCurrency(kpis.burnRate)} sub={`~${Math.round(kpis.diasRestantes)} dias restantes`} delay={500} to="/previsao" />
+        <MiniKPI cls="stat-card-info" icon={<Target className="w-4 h-4 text-info" />} label="Projeção Final" value={formatCurrency(kpis.projecao)} delay={600} to="/previsao" />
+        <Link to="/insights" className="glass-card p-4 relative overflow-hidden animate-fade-in-up hover:bg-accent/30 transition-colors block" style={{ animationDelay: "700ms" }}>
           <div className={`absolute top-0 left-0 w-1 h-full ${rc.bg}`} />
           <div className="flex items-center gap-2 mb-2">
             <ShieldAlert className={`w-4 h-4 ${rc.color}`} />
@@ -272,7 +290,7 @@ export default function DashboardPage() {
           </div>
           <p className={`text-lg font-bold ${rc.color}`}>{rc.label}</p>
           <p className="text-[10px] text-muted-foreground">{kpis.progressoGeral.toFixed(1)}% concluído</p>
-        </div>
+        </Link>
       </div>
 
       {/* Contas a Pagar highlight */}
@@ -521,35 +539,49 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ variant, label, value, icon, sub, delay = 0 }: {
+function StatCard({ variant, label, value, icon, sub, delay = 0, to }: {
   variant: "success" | "danger" | "info" | "warning";
-  label: string; value: string; icon: React.ReactNode; sub?: string; delay?: number;
+  label: string; value: string; icon: React.ReactNode; sub?: string; delay?: number; to?: string;
 }) {
   const classes = { success: "stat-card-success", danger: "stat-card-danger", info: "stat-card-info", warning: "stat-card-warning" };
   const iconColor = { success: "text-success", danger: "text-destructive", info: "text-info", warning: "text-warning" };
-  return (
-    <div className={`${classes[variant]} p-5 animate-fade-in-up`} style={{ animationDelay: `${delay}ms` }}>
+  const inner = (
+    <>
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
         <div className={iconColor[variant]}>{icon}</div>
       </div>
       <p className="text-xl font-bold">{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-    </div>
+    </>
+  );
+  const className = `${classes[variant]} p-5 animate-fade-in-up ${to ? "hover:bg-accent/30 transition-colors block" : ""}`;
+  const style = { animationDelay: `${delay}ms` };
+  return to ? (
+    <Link to={to} className={className} style={style}>{inner}</Link>
+  ) : (
+    <div className={className} style={style}>{inner}</div>
   );
 }
 
-function MiniKPI({ cls, icon, label, value, sub, delay = 0 }: {
-  cls: string; icon: React.ReactNode; label: string; value: string; sub?: string; delay?: number;
+function MiniKPI({ cls, icon, label, value, sub, delay = 0, to }: {
+  cls: string; icon: React.ReactNode; label: string; value: string; sub?: string; delay?: number; to?: string;
 }) {
-  return (
-    <div className={`${cls} p-4 animate-fade-in-up`} style={{ animationDelay: `${delay}ms` }}>
+  const inner = (
+    <>
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
       </div>
       <p className="text-lg font-bold">{value}</p>
       {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
-    </div>
+    </>
+  );
+  const className = `${cls} p-4 animate-fade-in-up ${to ? "hover:bg-accent/30 transition-colors block" : ""}`;
+  const style = { animationDelay: `${delay}ms` };
+  return to ? (
+    <Link to={to} className={className} style={style}>{inner}</Link>
+  ) : (
+    <div className={className} style={style}>{inner}</div>
   );
 }
