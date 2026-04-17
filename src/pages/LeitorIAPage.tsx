@@ -402,7 +402,7 @@ export default function LeitorIAPage() {
 
                 {/* Conta */}
                 <div>
-                  <Label className="text-xs text-muted-foreground">Conta</Label>
+                  <Label className="text-xs text-muted-foreground">Conta <span className="text-destructive">*</span></Label>
                   <Select
                     value={pagamento.conta_id}
                     onValueChange={v => setPagamento(p => ({ ...p, conta_id: v }))}
