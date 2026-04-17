@@ -5,10 +5,11 @@ import {
   Upload, FileText, CheckCircle2, AlertTriangle, XCircle, Clock, Loader2,
   Eye, RotateCcw, FolderSync, Search, ChevronDown, ChevronRight,
   FileCheck, FileClock, FileWarning, FileX, Copy,
-  Receipt, FileSpreadsheet, CreditCard, File
+  Receipt, FileSpreadsheet, CreditCard, File, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import DocumentoReviewPanel from "@/components/DocumentoReviewPanel";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 import type { IconComponent } from "@/lib/types";
 
@@ -45,10 +46,11 @@ function DocTypeBadge({ tipo }: { tipo: string }) {
   );
 }
 
-function DocumentRow({ doc, onSelect, onReprocess }: {
+function DocumentRow({ doc, onSelect, onReprocess, onDelete }: {
   doc: DocumentoProcessado;
   onSelect: () => void;
   onReprocess: () => void;
+  onDelete: () => void;
 }) {
   const cfg = STATUS_CONFIG[doc.status_processamento] || STATUS_CONFIG.pendente;
   const Icon = cfg.icon;
@@ -102,17 +104,21 @@ function DocumentRow({ doc, onSelect, onReprocess }: {
               <RotateCcw className="w-4 h-4" />
             </button>
           )}
+          <button onClick={onDelete} className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-colors" title="Excluir leitura">
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </td>
     </tr>
   );
 }
 
-function DocumentGroup({ tipo, docs, onSelect, onReprocess }: {
+function DocumentGroup({ tipo, docs, onSelect, onReprocess, onDelete }: {
   tipo: string;
   docs: DocumentoProcessado[];
   onSelect: (doc: DocumentoProcessado) => void;
   onReprocess: (doc: DocumentoProcessado) => void;
+  onDelete: (doc: DocumentoProcessado) => void;
 }) {
   const [open, setOpen] = useState(true);
   const cfg = TIPO_DOC_CONFIG[tipo] || TIPO_DOC_CONFIG.outro;
@@ -153,6 +159,7 @@ function DocumentGroup({ tipo, docs, onSelect, onReprocess }: {
                   doc={doc}
                   onSelect={() => onSelect(doc)}
                   onReprocess={() => onReprocess(doc)}
+                  onDelete={() => onDelete(doc)}
                 />
               ))}
             </tbody>
@@ -164,12 +171,13 @@ function DocumentGroup({ tipo, docs, onSelect, onReprocess }: {
 }
 
 export default function PastaMonitorPage() {
-  const { documentos, loading, stats, uploadEProcessar, reprocessar, fetchDocumentos } = useDocumentos();
+  const { documentos, loading, stats, uploadEProcessar, reprocessar, excluirDocumento, fetchDocumentos } = useDocumentos();
   const [uploading, setUploading] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<DocumentoProcessado | null>(null);
+  const [docToDelete, setDocToDelete] = useState<DocumentoProcessado | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = async (files: FileList | null) => {
@@ -346,10 +354,24 @@ export default function PastaMonitorPage() {
               docs={g.docs}
               onSelect={setSelectedDoc}
               onReprocess={(doc) => reprocessar(doc.id, "")}
+              onDelete={(doc) => setDocToDelete(doc)}
             />
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!docToDelete}
+        title="Excluir leitura"
+        message={`Excluir leitura de "${docToDelete?.nome_arquivo || ""}"? Você poderá reenviar o arquivo depois para processar novamente.`}
+        confirmLabel="Excluir"
+        variant="danger"
+        onCancel={() => setDocToDelete(null)}
+        onConfirm={async () => {
+          if (docToDelete) await excluirDocumento(docToDelete.id);
+          setDocToDelete(null);
+        }}
+      />
     </div>
   );
 }
