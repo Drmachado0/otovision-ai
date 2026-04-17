@@ -82,9 +82,13 @@ export default function ComissaoPage() {
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
   useRealtimeSubscription("obra_comissao_pagamentos", fetchData);
 
-  const comissaoTotal = totalGasto * (PERCENTUAL_COMISSAO / 100);
+  // Total agora reflete somente as comissões existentes (não excluídas).
+  // Excluir um lançamento reduz imediatamente o Total e o Pendente.
   const comissaoPaga = comissoes.filter(c => c.pago).reduce((s, c) => s + Number(c.valor), 0);
-  const comissaoPendente = comissaoTotal - comissaoPaga;
+  const comissaoPendente = comissoes.filter(c => !c.pago).reduce((s, c) => s + Number(c.valor), 0);
+  const comissaoTotal = comissaoPaga + comissaoPendente;
+  // Referência informativa: o que seria devido se todos os gastos gerassem comissão.
+  const comissaoTeorica = totalGasto * (PERCENTUAL_COMISSAO / 100);
 
   // Média mensal
   const mesesUnicos = new Set(comissoes.map(c => c.mes).filter(Boolean));
