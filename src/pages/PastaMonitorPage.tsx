@@ -171,12 +171,13 @@ function DocumentGroup({ tipo, docs, onSelect, onReprocess, onDelete }: {
 }
 
 export default function PastaMonitorPage() {
-  const { documentos, loading, stats, uploadEProcessar, reprocessar, fetchDocumentos } = useDocumentos();
+  const { documentos, loading, stats, uploadEProcessar, reprocessar, excluirDocumento, fetchDocumentos } = useDocumentos();
   const [uploading, setUploading] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<DocumentoProcessado | null>(null);
+  const [docToDelete, setDocToDelete] = useState<DocumentoProcessado | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = async (files: FileList | null) => {
