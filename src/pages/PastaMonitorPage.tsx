@@ -354,10 +354,24 @@ export default function PastaMonitorPage() {
               docs={g.docs}
               onSelect={setSelectedDoc}
               onReprocess={(doc) => reprocessar(doc.id, "")}
+              onDelete={(doc) => setDocToDelete(doc)}
             />
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!docToDelete}
+        title="Excluir leitura"
+        message={`Excluir leitura de "${docToDelete?.nome_arquivo || ""}"? Você poderá reenviar o arquivo depois para processar novamente.`}
+        confirmLabel="Excluir"
+        variant="danger"
+        onCancel={() => setDocToDelete(null)}
+        onConfirm={async () => {
+          if (docToDelete) await excluirDocumento(docToDelete.id);
+          setDocToDelete(null);
+        }}
+      />
     </div>
   );
 }
