@@ -46,10 +46,11 @@ function DocTypeBadge({ tipo }: { tipo: string }) {
   );
 }
 
-function DocumentRow({ doc, onSelect, onReprocess }: {
+function DocumentRow({ doc, onSelect, onReprocess, onDelete }: {
   doc: DocumentoProcessado;
   onSelect: () => void;
   onReprocess: () => void;
+  onDelete: () => void;
 }) {
   const cfg = STATUS_CONFIG[doc.status_processamento] || STATUS_CONFIG.pendente;
   const Icon = cfg.icon;
@@ -103,17 +104,21 @@ function DocumentRow({ doc, onSelect, onReprocess }: {
               <RotateCcw className="w-4 h-4" />
             </button>
           )}
+          <button onClick={onDelete} className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-colors" title="Excluir leitura">
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </td>
     </tr>
   );
 }
 
-function DocumentGroup({ tipo, docs, onSelect, onReprocess }: {
+function DocumentGroup({ tipo, docs, onSelect, onReprocess, onDelete }: {
   tipo: string;
   docs: DocumentoProcessado[];
   onSelect: (doc: DocumentoProcessado) => void;
   onReprocess: (doc: DocumentoProcessado) => void;
+  onDelete: (doc: DocumentoProcessado) => void;
 }) {
   const [open, setOpen] = useState(true);
   const cfg = TIPO_DOC_CONFIG[tipo] || TIPO_DOC_CONFIG.outro;
