@@ -809,7 +809,7 @@ export default function ComissaoPage() {
         title="Marcar como pagas"
         message={`Confirmar pagamento de ${selectedPendentes.length} comissão(ões)? A data de pagamento será definida como hoje.`}
         confirmLabel={bulkLoading ? "Processando..." : "Confirmar"}
-        variant="default"
+        variant="warning"
         onConfirm={handleBulkPay}
         onCancel={() => setConfirmBulkPay(false)}
       />
