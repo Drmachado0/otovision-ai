@@ -148,6 +148,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_encryption_keys: {
+        Row: {
+          created_at: string
+          id: number
+          key_name: string
+          key_value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          key_name: string
+          key_value: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          key_name?: string
+          key_value?: string
+        }
+        Relationships: []
+      }
       atendimentos: {
         Row: {
           assunto: string | null
@@ -214,6 +235,42 @@ export type Database = {
           },
         ]
       }
+      badges: {
+        Row: {
+          condition_key: string
+          condition_value: number
+          created_at: string
+          description: string
+          icon: string
+          id: string
+          name: string
+          rarity: string
+          slug: string
+        }
+        Insert: {
+          condition_key: string
+          condition_value?: number
+          created_at?: string
+          description: string
+          icon?: string
+          id?: string
+          name: string
+          rarity?: string
+          slug: string
+        }
+        Update: {
+          condition_key?: string
+          condition_value?: number
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          name?: string
+          rarity?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       bot_commands: {
         Row: {
           command: string
@@ -260,6 +317,132 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      brand_preferred_times: {
+        Row: {
+          brand_id: string
+          created_at: string
+          format: string | null
+          id: string
+          label: string | null
+          time: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          format?: string | null
+          id?: string
+          label?: string | null
+          time: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          format?: string | null
+          id?: string
+          label?: string | null
+          time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      brands: {
+        Row: {
+          brand_colors: Json | null
+          brand_personality: string | null
+          created_at: string | null
+          default_slide_limit: number | null
+          description: string | null
+          desires: string | null
+          formality_level: string | null
+          id: string
+          ideal_customer: string | null
+          instagram_handle: string | null
+          logo_url: string | null
+          main_products: string | null
+          name: string
+          objective: string | null
+          pain_points: string | null
+          purchase_objections: string | null
+          reference_images: string[] | null
+          sector: string | null
+          tag: string | null
+          target_audience: string | null
+          tone_of_voice: string | null
+          unique_value: string | null
+          updated_at: string | null
+          user_id: string
+          visual_style: string | null
+          visual_style_description: string | null
+          website: string | null
+          words_to_avoid: string[] | null
+          words_to_use: string[] | null
+        }
+        Insert: {
+          brand_colors?: Json | null
+          brand_personality?: string | null
+          created_at?: string | null
+          default_slide_limit?: number | null
+          description?: string | null
+          desires?: string | null
+          formality_level?: string | null
+          id?: string
+          ideal_customer?: string | null
+          instagram_handle?: string | null
+          logo_url?: string | null
+          main_products?: string | null
+          name: string
+          objective?: string | null
+          pain_points?: string | null
+          purchase_objections?: string | null
+          reference_images?: string[] | null
+          sector?: string | null
+          tag?: string | null
+          target_audience?: string | null
+          tone_of_voice?: string | null
+          unique_value?: string | null
+          updated_at?: string | null
+          user_id: string
+          visual_style?: string | null
+          visual_style_description?: string | null
+          website?: string | null
+          words_to_avoid?: string[] | null
+          words_to_use?: string[] | null
+        }
+        Update: {
+          brand_colors?: Json | null
+          brand_personality?: string | null
+          created_at?: string | null
+          default_slide_limit?: number | null
+          description?: string | null
+          desires?: string | null
+          formality_level?: string | null
+          id?: string
+          ideal_customer?: string | null
+          instagram_handle?: string | null
+          logo_url?: string | null
+          main_products?: string | null
+          name?: string
+          objective?: string | null
+          pain_points?: string | null
+          purchase_objections?: string | null
+          reference_images?: string[] | null
+          sector?: string | null
+          tag?: string | null
+          target_audience?: string | null
+          tone_of_voice?: string | null
+          unique_value?: string | null
+          updated_at?: string | null
+          user_id?: string
+          visual_style?: string | null
+          visual_style_description?: string | null
+          website?: string | null
+          words_to_avoid?: string[] | null
+          words_to_use?: string[] | null
+        }
+        Relationships: []
       }
       bridge_tokens: {
         Row: {
@@ -375,6 +558,62 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      generation_jobs: {
+        Row: {
+          created_at: string | null
+          current_phase: string | null
+          current_slide: number | null
+          error: string | null
+          id: string
+          idempotency_key: string | null
+          payload: Json | null
+          post_id: string | null
+          result: Json | null
+          status: string | null
+          total_slides: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_phase?: string | null
+          current_slide?: number | null
+          error?: string | null
+          id?: string
+          idempotency_key?: string | null
+          payload?: Json | null
+          post_id?: string | null
+          result?: Json | null
+          status?: string | null
+          total_slides?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_phase?: string | null
+          current_slide?: number | null
+          error?: string | null
+          id?: string
+          idempotency_key?: string | null
+          payload?: Json | null
+          post_id?: string | null
+          result?: Json | null
+          status?: string | null
+          total_slides?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_jobs_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sg_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       growth_stats: {
         Row: {
@@ -515,6 +754,114 @@ export type Database = {
           safety_limits?: Json | null
           safety_preset?: string | null
           updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      inspirations: {
+        Row: {
+          ai_tip: string | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          image: string | null
+          sector: string | null
+          suggested_formats: string[] | null
+          suggested_platforms: string[] | null
+          suggested_prompt: string | null
+          tags: string[] | null
+          title: string
+        }
+        Insert: {
+          ai_tip?: string | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image?: string | null
+          sector?: string | null
+          suggested_formats?: string[] | null
+          suggested_platforms?: string[] | null
+          suggested_prompt?: string | null
+          tags?: string[] | null
+          title: string
+        }
+        Update: {
+          ai_tip?: string | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image?: string | null
+          sector?: string | null
+          suggested_formats?: string[] | null
+          suggested_platforms?: string[] | null
+          suggested_prompt?: string | null
+          tags?: string[] | null
+          title?: string
+        }
+        Relationships: []
+      }
+      llm_phase_config: {
+        Row: {
+          direct: boolean
+          model: string
+          phase: string
+          provider: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          direct?: boolean
+          model: string
+          phase: string
+          provider: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          direct?: boolean
+          model?: string
+          phase?: string
+          provider?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      llm_phase_metrics: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          latency_ms: number | null
+          model: string
+          phase: string
+          provider: string
+          success: boolean
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          latency_ms?: number | null
+          model: string
+          phase: string
+          provider: string
+          success: boolean
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          latency_ms?: number | null
+          model?: string
+          phase?: string
+          provider?: string
+          success?: boolean
           user_id?: string | null
         }
         Relationships: []
@@ -875,6 +1222,27 @@ export type Database = {
           lock_conversa?: boolean | null
           session_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      oauth_states: {
+        Row: {
+          created_at: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          provider?: string
+          state?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -3100,6 +3468,83 @@ export type Database = {
         }
         Relationships: []
       }
+      posts: {
+        Row: {
+          bonus_edit_credits: number | null
+          brand_id: string
+          caption: string | null
+          chat_history: Json | null
+          created_at: string | null
+          error_message: string | null
+          format_dimensions: string | null
+          format_type: string | null
+          hashtags: string[] | null
+          id: string
+          original_prompt: string | null
+          platform: string | null
+          published_at: string | null
+          scheduled_at: string | null
+          slides: Json | null
+          status: string | null
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          bonus_edit_credits?: number | null
+          brand_id: string
+          caption?: string | null
+          chat_history?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          format_dimensions?: string | null
+          format_type?: string | null
+          hashtags?: string[] | null
+          id?: string
+          original_prompt?: string | null
+          platform?: string | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          slides?: Json | null
+          status?: string | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          bonus_edit_credits?: number | null
+          brand_id?: string
+          caption?: string | null
+          chat_history?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          format_dimensions?: string | null
+          format_type?: string | null
+          hashtags?: string[] | null
+          id?: string
+          original_prompt?: string | null
+          platform?: string | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          slides?: Json | null
+          status?: string | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -3124,6 +3569,48 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      research_sessions: {
+        Row: {
+          briefing: Json
+          created_at: string
+          error: string | null
+          id: string
+          model: string | null
+          raw_content: Json | null
+          search_provider: string | null
+          sources: Json
+          status: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          briefing?: Json
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string | null
+          raw_content?: Json | null
+          search_provider?: string | null
+          sources?: Json
+          status?: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          briefing?: Json
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string | null
+          raw_content?: Json | null
+          search_provider?: string | null
+          sources?: Json
+          status?: string
+          topic?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -3159,6 +3646,97 @@ export type Database = {
           username_count?: number
         }
         Relationships: []
+      }
+      scheduled_posts: {
+        Row: {
+          brand_id: string | null
+          caption: string
+          cover_url: string | null
+          created_at: string
+          format: string | null
+          id: string
+          ig_connection_id: string | null
+          ig_container_id: string | null
+          ig_media_id: string | null
+          notes: string
+          post_id: string | null
+          publish_attempts: number
+          publish_error: string | null
+          published_at: string | null
+          scheduled_at: string
+          scheduled_at_tz: string | null
+          status: Database["public"]["Enums"]["scheduled_post_status"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_id?: string | null
+          caption?: string
+          cover_url?: string | null
+          created_at?: string
+          format?: string | null
+          id?: string
+          ig_connection_id?: string | null
+          ig_container_id?: string | null
+          ig_media_id?: string | null
+          notes?: string
+          post_id?: string | null
+          publish_attempts?: number
+          publish_error?: string | null
+          published_at?: string | null
+          scheduled_at: string
+          scheduled_at_tz?: string | null
+          status?: Database["public"]["Enums"]["scheduled_post_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          brand_id?: string | null
+          caption?: string
+          cover_url?: string | null
+          created_at?: string
+          format?: string | null
+          id?: string
+          ig_connection_id?: string | null
+          ig_container_id?: string | null
+          ig_media_id?: string | null
+          notes?: string
+          post_id?: string | null
+          publish_attempts?: number
+          publish_error?: string | null
+          published_at?: string | null
+          scheduled_at?: string
+          scheduled_at_tz?: string | null
+          status?: Database["public"]["Enums"]["scheduled_post_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "sg_marcas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_ig_connection_id_fkey"
+            columns: ["ig_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sg_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       session_stats: {
         Row: {
@@ -3215,6 +3793,398 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sg_marcas: {
+        Row: {
+          brand_voice_sample: Json | null
+          cidade: string | null
+          color_accent: string | null
+          color_primary: string | null
+          color_secondary: string | null
+          concorrentes: string | null
+          created_at: string
+          cta_padrao: string | null
+          desejos_publico: string | null
+          diferenciais: string | null
+          dores_publico: string | null
+          emojis_permitidos: boolean | null
+          estado: string | null
+          estilo_copy: string | null
+          estilo_visual: string | null
+          faixa_etaria: string | null
+          font_body: string | null
+          font_heading: string | null
+          forbidden_words: string[] | null
+          genero_publico: string | null
+          hashtags: string | null
+          id: string
+          idioma: string | null
+          instagram_handle: string | null
+          interesses_publico: string | null
+          is_default: boolean | null
+          link_bio: string | null
+          logo_url: string | null
+          missao: string | null
+          nicho: string | null
+          nome: string
+          objetivos_marca: string | null
+          observacoes: string | null
+          pais: string | null
+          palavras_chave: string | null
+          precos: string | null
+          produtos_servicos: string | null
+          proposta_valor: string | null
+          publico_alvo: string | null
+          segmento: string | null
+          slug: string | null
+          timezone: string
+          tom_voz: string | null
+          updated_at: string
+          user_id: string
+          valores: string | null
+          visao: string | null
+          voice_tone: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          brand_voice_sample?: Json | null
+          cidade?: string | null
+          color_accent?: string | null
+          color_primary?: string | null
+          color_secondary?: string | null
+          concorrentes?: string | null
+          created_at?: string
+          cta_padrao?: string | null
+          desejos_publico?: string | null
+          diferenciais?: string | null
+          dores_publico?: string | null
+          emojis_permitidos?: boolean | null
+          estado?: string | null
+          estilo_copy?: string | null
+          estilo_visual?: string | null
+          faixa_etaria?: string | null
+          font_body?: string | null
+          font_heading?: string | null
+          forbidden_words?: string[] | null
+          genero_publico?: string | null
+          hashtags?: string | null
+          id?: string
+          idioma?: string | null
+          instagram_handle?: string | null
+          interesses_publico?: string | null
+          is_default?: boolean | null
+          link_bio?: string | null
+          logo_url?: string | null
+          missao?: string | null
+          nicho?: string | null
+          nome: string
+          objetivos_marca?: string | null
+          observacoes?: string | null
+          pais?: string | null
+          palavras_chave?: string | null
+          precos?: string | null
+          produtos_servicos?: string | null
+          proposta_valor?: string | null
+          publico_alvo?: string | null
+          segmento?: string | null
+          slug?: string | null
+          timezone?: string
+          tom_voz?: string | null
+          updated_at?: string
+          user_id?: string
+          valores?: string | null
+          visao?: string | null
+          voice_tone?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          brand_voice_sample?: Json | null
+          cidade?: string | null
+          color_accent?: string | null
+          color_primary?: string | null
+          color_secondary?: string | null
+          concorrentes?: string | null
+          created_at?: string
+          cta_padrao?: string | null
+          desejos_publico?: string | null
+          diferenciais?: string | null
+          dores_publico?: string | null
+          emojis_permitidos?: boolean | null
+          estado?: string | null
+          estilo_copy?: string | null
+          estilo_visual?: string | null
+          faixa_etaria?: string | null
+          font_body?: string | null
+          font_heading?: string | null
+          forbidden_words?: string[] | null
+          genero_publico?: string | null
+          hashtags?: string | null
+          id?: string
+          idioma?: string | null
+          instagram_handle?: string | null
+          interesses_publico?: string | null
+          is_default?: boolean | null
+          link_bio?: string | null
+          logo_url?: string | null
+          missao?: string | null
+          nicho?: string | null
+          nome?: string
+          objetivos_marca?: string | null
+          observacoes?: string | null
+          pais?: string | null
+          palavras_chave?: string | null
+          precos?: string | null
+          produtos_servicos?: string | null
+          proposta_valor?: string | null
+          publico_alvo?: string | null
+          segmento?: string | null
+          slug?: string | null
+          timezone?: string
+          tom_voz?: string | null
+          updated_at?: string
+          user_id?: string
+          valores?: string | null
+          visao?: string | null
+          voice_tone?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      sg_posts: {
+        Row: {
+          brand_id: string | null
+          caption: string | null
+          created_at: string
+          enhanced_prompt: string | null
+          format_dimensions: string | null
+          format_type: string | null
+          formato_id: string
+          id: string
+          marca_id: string | null
+          original_prompt: string | null
+          render_config: Json
+          scheduled_at: string | null
+          slide_backgrounds: Json
+          slide_copies: Json
+          slide_images: Json
+          slides: Json
+          status: string
+          thumbnail_url: string | null
+          titulo: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_id?: string | null
+          caption?: string | null
+          created_at?: string
+          enhanced_prompt?: string | null
+          format_dimensions?: string | null
+          format_type?: string | null
+          formato_id: string
+          id?: string
+          marca_id?: string | null
+          original_prompt?: string | null
+          render_config?: Json
+          scheduled_at?: string | null
+          slide_backgrounds?: Json
+          slide_copies?: Json
+          slide_images?: Json
+          slides?: Json
+          status?: string
+          thumbnail_url?: string | null
+          titulo?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          brand_id?: string | null
+          caption?: string | null
+          created_at?: string
+          enhanced_prompt?: string | null
+          format_dimensions?: string | null
+          format_type?: string | null
+          formato_id?: string
+          id?: string
+          marca_id?: string | null
+          original_prompt?: string | null
+          render_config?: Json
+          scheduled_at?: string | null
+          slide_backgrounds?: Json
+          slide_copies?: Json
+          slide_images?: Json
+          slides?: Json
+          status?: string
+          thumbnail_url?: string | null
+          titulo?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sg_posts_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "sg_marcas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sg_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          credits: number
+          email: string | null
+          full_name: string | null
+          id: string
+          is_admin: boolean
+          plan: string
+          rank: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          credits?: number
+          email?: string | null
+          full_name?: string | null
+          id: string
+          is_admin?: boolean
+          plan?: string
+          rank?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          credits?: number
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          is_admin?: boolean
+          plan?: string
+          rank?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      social_accounts: {
+        Row: {
+          access_token: string
+          account_type: string | null
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          external_id: string
+          external_username: string | null
+          id: string
+          last_synced_at: string | null
+          media_count: number | null
+          page_id: string | null
+          page_name: string | null
+          provider: string
+          scopes: string[] | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          account_type?: string | null
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          external_id: string
+          external_username?: string | null
+          id?: string
+          last_synced_at?: string | null
+          media_count?: number | null
+          page_id?: string | null
+          page_name?: string | null
+          provider: string
+          scopes?: string[] | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          account_type?: string | null
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          external_id?: string
+          external_username?: string | null
+          id?: string
+          last_synced_at?: string | null
+          media_count?: number | null
+          page_id?: string | null
+          page_name?: string | null
+          provider?: string
+          scopes?: string[] | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_connections: {
+        Row: {
+          access_token_encrypted: string
+          account_type: string | null
+          brand_id: string | null
+          connected_at: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          ig_user_id: string
+          last_refreshed_at: string | null
+          platform: string
+          profile_picture_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          access_token_encrypted: string
+          account_type?: string | null
+          brand_id?: string | null
+          connected_at?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          ig_user_id: string
+          last_refreshed_at?: string | null
+          platform: string
+          profile_picture_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          access_token_encrypted?: string
+          account_type?: string | null
+          brand_id?: string | null
+          connected_at?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          ig_user_id?: string
+          last_refreshed_at?: string | null
+          platform?: string
+          profile_picture_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
       }
       target_queue: {
         Row: {
@@ -3323,6 +4293,95 @@ export type Database = {
           },
         ]
       }
+      templates: {
+        Row: {
+          category: string
+          cover_url: string | null
+          created_at: string
+          description: string
+          enhanced_prompt: string
+          format: string
+          id: string
+          is_premium: boolean
+          tags: string[] | null
+          title: string
+        }
+        Insert: {
+          category: string
+          cover_url?: string | null
+          created_at?: string
+          description: string
+          enhanced_prompt: string
+          format: string
+          id?: string
+          is_premium?: boolean
+          tags?: string[] | null
+          title: string
+        }
+        Update: {
+          category?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string
+          enhanced_prompt?: string
+          format?: string
+          id?: string
+          is_premium?: boolean
+          tags?: string[] | null
+          title?: string
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          badge_id: string
+          id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          id?: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_credits: {
+        Row: {
+          credits: number | null
+          plan_key: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          credits?: number | null
+          plan_key?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          credits?: number | null
+          plan_key?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -3371,6 +4430,120 @@ export type Database = {
         }
         Relationships: []
       }
+      user_stats: {
+        Row: {
+          brand_completed: boolean
+          exports: number
+          last_login_date: string | null
+          level: number
+          login_streak: number
+          posts_created: number
+          regenerations: number
+          tier: string
+          total_xp: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_completed?: boolean
+          exports?: number
+          last_login_date?: string | null
+          level?: number
+          login_streak?: number
+          posts_created?: number
+          regenerations?: number
+          tier?: string
+          total_xp?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_completed?: boolean
+          exports?: number
+          last_login_date?: string | null
+          level?: number
+          login_streak?: number
+          posts_created?: number
+          regenerations?: number
+          tier?: string
+          total_xp?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_conversation_state: {
+        Row: {
+          birth_date: string | null
+          cidade_atendimento: string | null
+          convenio: string | null
+          conversation_id: string | null
+          created_at: string
+          current_intent: string | null
+          current_step: string
+          data_preferida: string | null
+          human_reason: string | null
+          id: number
+          last_message_at: string
+          local_preferido: string | null
+          motivo_consulta: string | null
+          needs_human: boolean
+          opcao_agenda_escolhida: string | null
+          patient_name: string | null
+          phone: string
+          source: string
+          status: string
+          tipo_atendimento: string | null
+          updated_at: string
+        }
+        Insert: {
+          birth_date?: string | null
+          cidade_atendimento?: string | null
+          convenio?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          current_intent?: string | null
+          current_step?: string
+          data_preferida?: string | null
+          human_reason?: string | null
+          id?: number
+          last_message_at?: string
+          local_preferido?: string | null
+          motivo_consulta?: string | null
+          needs_human?: boolean
+          opcao_agenda_escolhida?: string | null
+          patient_name?: string | null
+          phone: string
+          source: string
+          status?: string
+          tipo_atendimento?: string | null
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string | null
+          cidade_atendimento?: string | null
+          convenio?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          current_intent?: string | null
+          current_step?: string
+          data_preferida?: string | null
+          human_reason?: string | null
+          id?: number
+          last_message_at?: string
+          local_preferido?: string | null
+          motivo_consulta?: string | null
+          needs_human?: boolean
+          opcao_agenda_escolhida?: string | null
+          patient_name?: string | null
+          phone?: string
+          source?: string
+          status?: string
+          tipo_atendimento?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       whitelist: {
         Row: {
           added_at: string | null
@@ -3404,6 +4577,33 @@ export type Database = {
           reason?: string | null
           user_id?: string
           username?: string
+        }
+        Relationships: []
+      }
+      xp_events: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          metadata: Json | null
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          reason: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          reason?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -3448,6 +4648,19 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      llm_phase_metrics_summary: {
+        Row: {
+          avg_latency_ms: number | null
+          failure_count: number | null
+          last_failure_at: string | null
+          last_failure_message: string | null
+          last_model: string | null
+          phase: string | null
+          success_count: number | null
+          total: number | null
+        }
+        Relationships: []
       }
       vw_atendimentos_ativos: {
         Row: {
@@ -3523,15 +4736,27 @@ export type Database = {
         Args: { p_device_id: string; p_ig_username: string }
         Returns: string
       }
+      award_xp: {
+        Args: { _amount: number; _metadata?: Json; _reason: string }
+        Returns: Json
+      }
       cleanup_growth_stats: { Args: never; Returns: number }
       clear_target_queue: {
         Args: { p_ig_account_id: string; p_status?: string }
         Returns: number
       }
+      compute_level: { Args: { _xp: number }; Returns: number }
+      compute_tier: { Args: { _level: number }; Returns: string }
       create_compra_atomica: {
         Args: { p_comissao?: Json; p_compra: Json; p_transacao?: Json }
         Returns: Json
       }
+      debit_credits_atomic: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: Json
+      }
+      decrypt_token: { Args: { ciphertext: string }; Returns: string }
+      encrypt_token: { Args: { plain: string }; Returns: string }
       fetch_next_targets: {
         Args: { p_ig_account_id: string; p_limit?: number }
         Returns: {
@@ -3594,6 +4819,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      grant_daily_login_xp: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3626,6 +4852,10 @@ export type Database = {
         }
         Returns: string
       }
+      refund_credits: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: number
+      }
       registrar_mensagem: {
         Args: {
           p_conteudo: string
@@ -3651,6 +4881,20 @@ export type Database = {
         Args: { p_command: string; p_ig_account_id: string; p_params: Json }
         Returns: string
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      start_image_generation_atomic: {
+        Args: {
+          p_amount: number
+          p_bypass_credits: boolean
+          p_payload: Json
+          p_post: Json
+          p_total_slides: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      unlock_eligible_badges: { Args: { _user_id: string }; Returns: number }
       upsert_paciente: {
         Args: { p_nome?: string; p_phone_number: string; p_remote_jid: string }
         Returns: string
@@ -3658,6 +4902,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "financeiro" | "construtor" | "visualizador"
+      scheduled_post_status: "draft" | "scheduled" | "published" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3786,6 +5031,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "financeiro", "construtor", "visualizador"],
+      scheduled_post_status: ["draft", "scheduled", "published", "failed"],
     },
   },
 } as const
