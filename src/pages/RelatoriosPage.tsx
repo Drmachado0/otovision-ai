@@ -142,11 +142,10 @@ export default function RelatoriosPage() {
       </div>
 
       <Tabs defaultValue="financeiro">
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-3 w-full">
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="compras">Compras</TabsTrigger>
           <TabsTrigger value="comissao">Comissão</TabsTrigger>
-          <TabsTrigger value="etapas">Etapas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="financeiro" className="space-y-3 mt-4">
