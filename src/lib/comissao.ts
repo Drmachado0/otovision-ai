@@ -258,7 +258,7 @@ export async function registrarTransacaoComComissao({
     };
   }
 
-  const transacaoDuplicada = (candidatas || []).find((candidata) => {
+  const transacaoDuplicada = (candidatas || []).find((candidata: unknown) => {
     const existente = candidata as TransacaoComComissaoInsert & { id?: string };
     return ehTransacaoDuplicada(transacao, existente);
   }) as ((TransacaoComComissaoInsert & { id?: string }) | undefined);
