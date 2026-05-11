@@ -159,6 +159,24 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require authenticated user — derive user_id from JWT (never trust client)
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return err("Unauthorized", 401);
+  }
+  const supabaseAuth = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+  const { data: claimsData, error: claimsErr } = await supabaseAuth.auth.getClaims(
+    authHeader.replace("Bearer ", "")
+  );
+  if (claimsErr || !claimsData?.claims?.sub) {
+    return err("Unauthorized", 401);
+  }
+  const authedUserId = claimsData.claims.sub as string;
+
   try {
     const body = await req.json();
     const {
@@ -168,9 +186,10 @@ serve(async (req) => {
       nome_arquivo = "desconhecido",
       tipo_arquivo = "",
       documento_id,
-      user_id,
       persistir = false,
     } = body;
+    // user_id is always derived from JWT, never from request body
+    const user_id = authedUserId;
 
     // Validate input: need either texto or base64_content
     if ((!texto || texto.trim().length < 5) && !base64_content) {
