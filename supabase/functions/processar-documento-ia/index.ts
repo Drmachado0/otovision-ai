@@ -282,7 +282,8 @@ serve(async (req) => {
           motivo_revisao: motivoRevisao,
           motivo_erro: "",
         })
-        .eq("id", documento_id);
+        .eq("id", documento_id)
+        .eq("user_id", user_id);
 
       // Register processing event
       await supabase.from("obra_eventos_processamento").insert({
@@ -318,7 +319,8 @@ serve(async (req) => {
                 duplicidade_status: "suspeita",
                 duplicidade_score: 85,
               })
-              .eq("id", documento_id);
+              .eq("id", documento_id)
+              .eq("user_id", user_id);
 
             await supabase.from("obra_eventos_processamento").insert({
               user_id,
@@ -364,7 +366,8 @@ serve(async (req) => {
               status_processamento: "revisao",
               motivo_revisao: "Movimentação com mesmos dados já existe no sistema",
             })
-            .eq("id", documento_id);
+            .eq("id", documento_id)
+            .eq("user_id", user_id);
         } else {
           rowsToInsert.push({
             user_id,
@@ -404,7 +407,8 @@ serve(async (req) => {
               status_processamento: "revisao",
               motivo_revisao: `Possível duplicata: ${similar.length} transação(ões) com mesmo valor e data`,
             })
-            .eq("id", documento_id);
+            .eq("id", documento_id)
+            .eq("user_id", user_id);
 
           await supabase.from("obra_eventos_processamento").insert({
             user_id,
