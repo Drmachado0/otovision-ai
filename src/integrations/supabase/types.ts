@@ -1222,6 +1222,27 @@ export type Database = {
         }
         Relationships: []
       }
+      n8n_mensagens_enviadas_bot: {
+        Row: {
+          enviada_em: string
+          id: number
+          telefone: string
+          texto: string
+        }
+        Insert: {
+          enviada_em?: string
+          id?: number
+          telefone: string
+          texto: string
+        }
+        Update: {
+          enviada_em?: string
+          id?: number
+          telefone?: string
+          texto?: string
+        }
+        Relationships: []
+      }
       n8n_mensagens_processadas: {
         Row: {
           id_mensagem: string
@@ -1237,6 +1258,27 @@ export type Database = {
           id_mensagem?: string
           processada_em?: string
           telefone?: string
+        }
+        Relationships: []
+      }
+      n8n_pausas_humano: {
+        Row: {
+          motivo: string | null
+          pausado_ate: string
+          telefone: string
+          ultima_msg_humano: string
+        }
+        Insert: {
+          motivo?: string | null
+          pausado_ate: string
+          telefone: string
+          ultima_msg_humano?: string
+        }
+        Update: {
+          motivo?: string | null
+          pausado_ate?: string
+          telefone?: string
+          ultima_msg_humano?: string
         }
         Relationships: []
       }
