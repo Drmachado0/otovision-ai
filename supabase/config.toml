@@ -1,1 +1,4 @@
 project_id = "ebyruchdswmkuynthiqi"
+
+[functions.backup-diario-automatico]
+verify_jwt = false

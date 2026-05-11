@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   Settings, Shield, Download, Trash2, Users, Info, AlertTriangle,
-  Loader2, Check, Building2, Save,
+  Loader2, Check, Building2, Save, Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,8 @@ export default function ConfiguracoesPage() {
   const [dangerConfirm, setDangerConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [comissaoRate, setComissaoRate] = useState("8");
+  const [autoBackups, setAutoBackups] = useState<{ name: string; created_at?: string | null }[]>([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
 
   // Obra config state
   const [obraConfig, setObraConfig] = useState<ObraConfig>(defaultObraConfig);
@@ -186,6 +188,39 @@ export default function ConfiguracoesPage() {
       toast.error("Erro ao exportar: " + (err instanceof Error ? err.message : "Erro desconhecido"));
     }
     setExporting(false);
+  };
+
+  const fetchAutoBackups = async () => {
+    if (!user) return;
+    setLoadingBackups(true);
+    const { data, error } = await supabase.storage
+      .from("backups-automaticos")
+      .list(user.id, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+    if (!error && data) {
+      setAutoBackups(data.filter((f) => f.name.endsWith(".json")));
+    }
+    setLoadingBackups(false);
+  };
+
+  useEffect(() => { fetchAutoBackups(); }, [user]);
+
+  const handleDownloadAutoBackup = async (name: string) => {
+    if (!user) return;
+    const { data, error } = await supabase.storage
+      .from("backups-automaticos")
+      .download(`${user.id}/${name}`);
+    if (error || !data) {
+      toast.error("Erro ao baixar backup: " + (error?.message ?? "desconhecido"));
+      return;
+    }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backup-auto-${name}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleDeleteAll = async () => {
@@ -460,6 +495,32 @@ export default function ConfiguracoesPage() {
             />
             <p className="text-[10px] text-muted-foreground mt-1">Importar backup JSON exportado anteriormente</p>
           </div>
+        </div>
+
+        {/* Backups automáticos diários */}
+        <div className="pt-4 border-t border-border/50">
+          <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
+            <Calendar className="w-4 h-4 text-primary" /> Backups automáticos diários
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Geramos automaticamente um backup completo todos os dias às 03:00 UTC e mantemos os últimos 30 dias.
+          </p>
+          {loadingBackups ? (
+            <p className="text-xs text-muted-foreground">Carregando...</p>
+          ) : autoBackups.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum backup automático ainda. O primeiro será gerado na próxima execução.</p>
+          ) : (
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {autoBackups.map((b) => (
+                <div key={b.name} className="flex items-center justify-between text-xs p-2 rounded bg-secondary/30 hover:bg-secondary/50">
+                  <span className="font-mono">{b.name.replace(".json", "")}</span>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => handleDownloadAutoBackup(b.name)}>
+                    <Download className="w-3 h-3" /> Baixar
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
