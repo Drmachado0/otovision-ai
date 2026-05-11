@@ -12,7 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from "@/lib/formatters";
+
+interface BackupPrefs {
+  hora_utc: number;
+  retencao_dias: number;
+  enviar_google_drive: boolean;
+  ativo: boolean;
+}
+
+const DEFAULT_PREFS: BackupPrefs = {
+  hora_utc: 3,
+  retencao_dias: 30,
+  enviar_google_drive: false,
+  ativo: true,
+};
 
 interface UserWithRole {
   id: string;
@@ -57,6 +72,8 @@ export default function ConfiguracoesPage() {
   const [comissaoRate, setComissaoRate] = useState("8");
   const [autoBackups, setAutoBackups] = useState<{ name: string; created_at?: string | null }[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
+  const [backupPrefs, setBackupPrefs] = useState<BackupPrefs>(DEFAULT_PREFS);
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
   // Obra config state
   const [obraConfig, setObraConfig] = useState<ObraConfig>(defaultObraConfig);
@@ -221,6 +238,29 @@ export default function ConfiguracoesPage() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const fetchBackupPrefs = async () => {
+    if (!user) return;
+    const { data } = await (supabase as any)
+      .from("obra_backup_preferencias")
+      .select("hora_utc, retencao_dias, enviar_google_drive, ativo")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (data) setBackupPrefs(data as BackupPrefs);
+  };
+
+  useEffect(() => { fetchBackupPrefs(); }, [user]);
+
+  const handleSavePrefs = async () => {
+    if (!user) return;
+    setSavingPrefs(true);
+    const { error } = await (supabase as any)
+      .from("obra_backup_preferencias")
+      .upsert({ user_id: user.id, ...backupPrefs }, { onConflict: "user_id" });
+    if (error) toast.error("Erro ao salvar preferências: " + error.message);
+    else toast.success("Preferências salvas!");
+    setSavingPrefs(false);
   };
 
   const handleDeleteAll = async () => {
@@ -497,13 +537,72 @@ export default function ConfiguracoesPage() {
           </div>
         </div>
 
-        {/* Backups automáticos diários */}
+        {/* Preferências de backup automático */}
+        <div className="pt-4 border-t border-border/50 space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Settings className="w-4 h-4 text-primary" /> Preferências de backup automático
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Hora do backup (UTC)</Label>
+              <select
+                value={backupPrefs.hora_utc}
+                onChange={(e) => setBackupPrefs({ ...backupPrefs, hora_utc: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00 UTC</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs">Reter por</Label>
+              <select
+                value={backupPrefs.retencao_dias}
+                onChange={(e) => setBackupPrefs({ ...backupPrefs, retencao_dias: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
+              >
+                {[7, 14, 30, 60, 90].map((d) => (
+                  <option key={d} value={d}>{d} dias</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+            <div className="flex-1 pr-3">
+              <p className="text-xs font-medium">Enviar cópia para o Google Drive</p>
+              <p className="text-[10px] text-muted-foreground">
+                Os backups vão para uma pasta compartilhada do Google Drive da organização (subpasta por usuário).
+              </p>
+            </div>
+            <Switch
+              checked={backupPrefs.enviar_google_drive}
+              onCheckedChange={(v) => setBackupPrefs({ ...backupPrefs, enviar_google_drive: v })}
+            />
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+            <div>
+              <p className="text-xs font-medium">Backup automático ativo</p>
+              <p className="text-[10px] text-muted-foreground">Desative para pausar a geração de backups.</p>
+            </div>
+            <Switch
+              checked={backupPrefs.ativo}
+              onCheckedChange={(v) => setBackupPrefs({ ...backupPrefs, ativo: v })}
+            />
+          </div>
+          <Button onClick={handleSavePrefs} disabled={savingPrefs} size="sm" className="gap-2">
+            {savingPrefs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Salvar preferências
+          </Button>
+        </div>
+
+        {/* Backups disponíveis */}
         <div className="pt-4 border-t border-border/50">
           <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
-            <Calendar className="w-4 h-4 text-primary" /> Backups automáticos diários
+            <Calendar className="w-4 h-4 text-primary" /> Backups disponíveis
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Geramos automaticamente um backup completo todos os dias às 03:00 UTC e mantemos os últimos 30 dias.
+            Backup gerado diariamente às {String(backupPrefs.hora_utc).padStart(2, "0")}:00 UTC. Mantidos por {backupPrefs.retencao_dias} dias.
           </p>
           {loadingBackups ? (
             <p className="text-xs text-muted-foreground">Carregando...</p>
