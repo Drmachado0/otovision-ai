@@ -14,6 +14,7 @@ import CompraDetailDrawer, { getCompraType, parseParcelas, type CompraFull } fro
 import FornecedorCombobox from "@/components/FornecedorCombobox";
 import CategoriaSelect from "@/components/CategoriaSelect";
 import { calcularResumoCompras } from "@/lib/financeiro";
+import { gerarParcelasCompra } from "@/lib/parcelas";
 
 const STATUS_COLORS: Record<string, string> = {
   Pedido: "badge-warning",
@@ -22,22 +23,6 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 type TipoCompra = "Única" | "Parcelada" | "Recorrente";
-
-function generateParcelas(valorTotal: number, numParcelas: number, dataInicio: string) {
-  const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
-  const parcelas = [];
-  for (let i = 0; i < numParcelas; i++) {
-    const d = new Date(dataInicio);
-    d.setMonth(d.getMonth() + i);
-    parcelas.push({
-      numero: i + 1,
-      valor: i === numParcelas - 1 ? Math.round((valorTotal - valorParcela * (numParcelas - 1)) * 100) / 100 : valorParcela,
-      data_vencimento: d.toISOString().split("T")[0],
-      status: "Pendente",
-    });
-  }
-  return parcelas;
-}
 
 export default function ComprasPage() {
   const { user } = useAuth();
@@ -108,45 +93,61 @@ export default function ComprasPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+
     if (!form.fornecedor || !form.valor_total) {
       toast.error("Preencha fornecedor e valor");
       return;
     }
-    setSaving(true);
+
     const valor = Number(form.valor_total);
+    if (!Number.isFinite(valor) || valor <= 0) {
+      toast.error("Informe um valor maior que zero");
+      return;
+    }
+
     const isParcelada = form.tipo_compra === "Parcelada";
     const isRecorrente = form.tipo_compra === "Recorrente";
     const numParcelas = isParcelada ? Number(form.numero_parcelas) : 1;
-    const parcelas = isParcelada ? generateParcelas(valor, numParcelas, form.data) : [];
-    const obs = isRecorrente ? `[RECORRENTE] ${form.periodicidade} - ${form.descricao || form.fornecedor}` : form.observacoes;
+    if (isParcelada && (!Number.isInteger(numParcelas) || numParcelas < 2 || numParcelas > 60)) {
+      toast.error("Informe entre 2 e 60 parcelas");
+      return;
+    }
 
-    const { error } = await supabase.from("obra_compras").insert({
-      user_id: user!.id,
-      fornecedor: form.fornecedor,
-      descricao: form.descricao,
-      categoria: form.categoria,
-      valor_total: valor,
-      data: form.data,
-      status_entrega: form.status_entrega,
-      forma_pagamento: form.forma_pagamento,
-      numero_parcelas: numParcelas,
-      parcelas: parcelas as any,
-      observacoes: obs,
-      conta_id: form.conta_id,
-    } as any);
+    setSaving(true);
+    try {
+      const parcelas = isParcelada ? gerarParcelasCompra(valor, numParcelas, form.data) : [];
+      const obs = isRecorrente ? `[RECORRENTE] ${form.periodicidade} - ${form.descricao || form.fornecedor}` : form.observacoes;
 
-    // Compra registrada é compromisso/a pagar. A saída real no fluxo de caixa
-    // deve ser criada apenas no pagamento, pelo PagamentoDialog ou pelo pagamento
-    // de parcela, para evitar despesa e comissão duplicadas.
+      const { error } = await supabase.from("obra_compras").insert({
+        user_id: user!.id,
+        fornecedor: form.fornecedor,
+        descricao: form.descricao,
+        categoria: form.categoria,
+        valor_total: valor,
+        data: form.data,
+        status_entrega: form.status_entrega,
+        forma_pagamento: form.forma_pagamento,
+        numero_parcelas: numParcelas,
+        parcelas: parcelas as any,
+        observacoes: obs,
+        conta_id: form.conta_id,
+      } as any);
 
-    setSaving(false);
-    if (error) {
-      toast.error("Erro: " + error.message);
-    } else {
-      toast.success(isParcelada ? `Compra parcelada em ${numParcelas}x registrada!` : isRecorrente ? "Assinatura registrada!" : "Compra registrada!");
-      setShowForm(false);
-      resetForm();
-      fetchData();
+      // Compra registrada é compromisso/a pagar. A saída real no fluxo de caixa
+      // deve ser criada apenas no pagamento, pelo PagamentoDialog ou pelo pagamento
+      // de parcela, para evitar despesa e comissão duplicadas.
+
+      if (error) {
+        toast.error("Erro: " + error.message);
+      } else {
+        toast.success(isParcelada ? `Compra parcelada em ${numParcelas}x registrada!` : isRecorrente ? "Assinatura registrada!" : "Compra registrada!");
+        setShowForm(false);
+        resetForm();
+        fetchData();
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
