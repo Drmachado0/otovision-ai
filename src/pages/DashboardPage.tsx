@@ -111,7 +111,6 @@ export default function DashboardPage() {
     }
 
     if (recentTransRes.data) setTransacoes(recentTransRes.data as unknown as TransacaoRow[]);
-    if (etapasRes.data) setEtapas(etapasRes.data as EtapaRow[]);
 
     if (comprasRes.data) {
       const resumo = calcularResumoCompras(comprasRes.data as never);
