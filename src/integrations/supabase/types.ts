@@ -1321,6 +1321,57 @@ export type Database = {
         }
         Relationships: []
       }
+      obra_backup_drive_folders: {
+        Row: {
+          created_at: string
+          folder_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      obra_backup_preferencias: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          enviar_google_drive: boolean
+          hora_utc: number
+          id: string
+          retencao_dias: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          enviar_google_drive?: boolean
+          hora_utc?: number
+          id?: string
+          retencao_dias?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          enviar_google_drive?: boolean
+          hora_utc?: number
+          id?: string
+          retencao_dias?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       obra_categorias: {
         Row: {
           created_at: string
