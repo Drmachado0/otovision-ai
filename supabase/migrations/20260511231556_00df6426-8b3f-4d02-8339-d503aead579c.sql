@@ -1,0 +1,1 @@
+CREATE POLICY "Deny all access to n8n_pausas_humano" ON public.n8n_pausas_humano FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
