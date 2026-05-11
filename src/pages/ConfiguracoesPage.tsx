@@ -55,6 +55,8 @@ export default function ConfiguracoesPage() {
   const [dangerConfirm, setDangerConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [comissaoRate, setComissaoRate] = useState("8");
+  const [autoBackups, setAutoBackups] = useState<{ name: string; created_at?: string }[]>([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
 
   // Obra config state
   const [obraConfig, setObraConfig] = useState<ObraConfig>(defaultObraConfig);
