@@ -537,13 +537,72 @@ export default function ConfiguracoesPage() {
           </div>
         </div>
 
-        {/* Backups automáticos diários */}
+        {/* Preferências de backup automático */}
+        <div className="pt-4 border-t border-border/50 space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Settings className="w-4 h-4 text-primary" /> Preferências de backup automático
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Hora do backup (UTC)</Label>
+              <select
+                value={backupPrefs.hora_utc}
+                onChange={(e) => setBackupPrefs({ ...backupPrefs, hora_utc: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00 UTC</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs">Reter por</Label>
+              <select
+                value={backupPrefs.retencao_dias}
+                onChange={(e) => setBackupPrefs({ ...backupPrefs, retencao_dias: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
+              >
+                {[7, 14, 30, 60, 90].map((d) => (
+                  <option key={d} value={d}>{d} dias</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+            <div className="flex-1 pr-3">
+              <p className="text-xs font-medium">Enviar cópia para o Google Drive</p>
+              <p className="text-[10px] text-muted-foreground">
+                Os backups vão para uma pasta compartilhada do Google Drive da organização (subpasta por usuário).
+              </p>
+            </div>
+            <Switch
+              checked={backupPrefs.enviar_google_drive}
+              onCheckedChange={(v) => setBackupPrefs({ ...backupPrefs, enviar_google_drive: v })}
+            />
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+            <div>
+              <p className="text-xs font-medium">Backup automático ativo</p>
+              <p className="text-[10px] text-muted-foreground">Desative para pausar a geração de backups.</p>
+            </div>
+            <Switch
+              checked={backupPrefs.ativo}
+              onCheckedChange={(v) => setBackupPrefs({ ...backupPrefs, ativo: v })}
+            />
+          </div>
+          <Button onClick={handleSavePrefs} disabled={savingPrefs} size="sm" className="gap-2">
+            {savingPrefs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Salvar preferências
+          </Button>
+        </div>
+
+        {/* Backups disponíveis */}
         <div className="pt-4 border-t border-border/50">
           <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
-            <Calendar className="w-4 h-4 text-primary" /> Backups automáticos diários
+            <Calendar className="w-4 h-4 text-primary" /> Backups disponíveis
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Geramos automaticamente um backup completo todos os dias às 03:00 UTC e mantemos os últimos 30 dias.
+            Backup gerado diariamente às {String(backupPrefs.hora_utc).padStart(2, "0")}:00 UTC. Mantidos por {backupPrefs.retencao_dias} dias.
           </p>
           {loadingBackups ? (
             <p className="text-xs text-muted-foreground">Carregando...</p>
