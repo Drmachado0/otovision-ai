@@ -286,7 +286,7 @@ export default function DashboardPage() {
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Risco</span>
           </div>
           <p className={`text-lg font-bold ${rc.color}`}>{rc.label}</p>
-          <p className="text-[10px] text-muted-foreground">{kpis.progressoGeral.toFixed(1)}% concluído</p>
+          <p className="text-[10px] text-muted-foreground">{formatPercent(percentual)} do orçamento usado</p>
         </Link>
       </div>
 
