@@ -214,6 +214,38 @@ describe("registrarTransacaoComComissao", () => {
     expect(calls.filter(c => c.op === "insert").map(c => c.table)).toEqual(["obra_comissao_pagamentos"]);
   });
 
+  it("reaproveita transação por referência estável mesmo com descrição diferente", async () => {
+    const { supabase, calls } = mockSupabase([{
+      id: "tx-compra-parcela",
+      user_id: "user-1",
+      tipo: "Saída",
+      valor: 250,
+      data: "2026-05-10",
+      categoria: "Materiais",
+      descricao: "Parcela 1/3 - Cimento CP-II",
+      referencia: "COMPRA-compra-1-PARCELA-1",
+    }]);
+
+    const result = await registrarTransacaoComComissao({
+      supabase,
+      transacao: {
+        user_id: "user-1",
+        tipo: "Saída",
+        valor: 250,
+        data: "2026-05-10",
+        categoria: "Material",
+        descricao: "Pagamento compra depósito",
+        referencia: "COMPRA-compra-1-PARCELA-1",
+      },
+    });
+
+    expect(result.transacao).toEqual({ id: "tx-compra-parcela" });
+    expect(result.transacaoDuplicada).toBe(true);
+    expect(result.comissao?.transacao_id).toBe("tx-compra-parcela");
+    expect(result.comissao?.valor).toBe(20);
+    expect(calls.filter(c => c.op === "insert").map(c => c.table)).toEqual(["obra_comissao_pagamentos"]);
+  });
+
   it("não duplica comissão quando a saída reaproveitada já tem comissão ativa", async () => {
     const { supabase, calls } = mockSupabase([{
       id: "tx-existente",

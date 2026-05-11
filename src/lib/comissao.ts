@@ -194,9 +194,57 @@ export async function registrarTransacaoComComissao({
   documentoId,
   gerarComissao = true,
 }: RegistrarTransacaoComComissaoInput): Promise<RegistrarTransacaoComComissaoResult> {
+  const reaproveitarTransacaoExistente = async (existente: TransacaoComComissaoInsert & { id: string }) => {
+    const comissaoResult = await registrarComissaoParaTransacaoExistente({
+      supabase,
+      transacao: {
+        ...transacao,
+        ...existente,
+        id: existente.id,
+      },
+      fornecedor,
+      documentoId,
+      gerarComissao,
+    });
+
+    return {
+      transacao: { id: existente.id },
+      comissao: comissaoResult.comissao,
+      transacaoError: null,
+      comissaoError: comissaoResult.comissaoError,
+      transacaoDuplicada: true,
+      comissaoDuplicada: comissaoResult.comissaoDuplicada,
+    };
+  };
+
+  const referencia = typeof transacao.referencia === "string" ? transacao.referencia.trim() : "";
+  if (referencia) {
+    const { data: porReferencia, error: consultaReferenciaError } = await supabase
+      .from("obra_transacoes_fluxo")
+      .select("id, user_id, tipo, valor, data, categoria, descricao, forma_pagamento, referencia")
+      .eq("user_id", transacao.user_id)
+      .eq("referencia", referencia)
+      .is("deleted_at", null)
+      .limit(1);
+
+    if (consultaReferenciaError) {
+      return {
+        transacao: null,
+        comissao: null,
+        transacaoError: consultaReferenciaError,
+        comissaoError: null,
+      };
+    }
+
+    const transacaoPorReferencia = (porReferencia || [])[0] as (TransacaoComComissaoInsert & { id?: string }) | undefined;
+    if (transacaoPorReferencia?.id) {
+      return reaproveitarTransacaoExistente({ ...transacaoPorReferencia, id: transacaoPorReferencia.id });
+    }
+  }
+
   const { data: candidatas, error: consultaDuplicidadeError } = await supabase
     .from("obra_transacoes_fluxo")
-    .select("id, user_id, tipo, valor, data, categoria, descricao")
+    .select("id, user_id, tipo, valor, data, categoria, descricao, forma_pagamento, referencia")
     .eq("user_id", transacao.user_id)
     .eq("tipo", transacao.tipo)
     .eq("data", transacao.data)
@@ -215,29 +263,10 @@ export async function registrarTransacaoComComissao({
   const transacaoDuplicada = (candidatas || []).find((candidata) => {
     const existente = candidata as TransacaoComComissaoInsert & { id?: string };
     return ehTransacaoDuplicada(transacao, existente);
-  }) as ({ id?: string } | undefined);
+  }) as ((TransacaoComComissaoInsert & { id?: string }) | undefined);
 
   if (transacaoDuplicada?.id) {
-    const comissaoResult = await registrarComissaoParaTransacaoExistente({
-      supabase,
-      transacao: {
-        ...transacao,
-        ...(transacaoDuplicada as TransacaoComComissaoInsert),
-        id: transacaoDuplicada.id,
-      },
-      fornecedor,
-      documentoId,
-      gerarComissao,
-    });
-
-    return {
-      transacao: { id: transacaoDuplicada.id },
-      comissao: comissaoResult.comissao,
-      transacaoError: null,
-      comissaoError: comissaoResult.comissaoError,
-      transacaoDuplicada: true,
-      comissaoDuplicada: comissaoResult.comissaoDuplicada,
-    };
+    return reaproveitarTransacaoExistente({ ...transacaoDuplicada, id: transacaoDuplicada.id });
   }
 
   const { data, error } = await supabase
