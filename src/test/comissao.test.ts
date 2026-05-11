@@ -86,7 +86,7 @@ describe("ehTransacaoDuplicada", () => {
 });
 
 describe("registrarTransacaoComComissao", () => {
-  function mockSupabase(duplicateRows: unknown[] = []) {
+  function mockSupabase(duplicateRows: unknown[] = [], commissionRows: unknown[] = []) {
     const calls: Array<{ table: string; payload?: unknown; op: "insert" | "select" }> = [];
     return {
       calls,
@@ -98,7 +98,10 @@ describe("registrarTransacaoComComissao", () => {
               return {
                 eq() { return this; },
                 is() { return this; },
-                limit: async () => ({ data: table === "obra_transacoes_fluxo" ? duplicateRows : [], error: null }),
+                limit: async () => ({
+                  data: table === "obra_transacoes_fluxo" ? duplicateRows : commissionRows,
+                  error: null,
+                }),
               };
             },
             insert(payload: unknown) {
@@ -180,7 +183,7 @@ describe("registrarTransacaoComComissao", () => {
     expect(calls.filter(c => c.op === "insert").map(c => c.table)).toEqual(["obra_transacoes_fluxo"]);
   });
 
-  it("bloqueia inserção quando já existe saída ativa igual ou com diferença de centavo", async () => {
+  it("reaproveita saída duplicada e cria comissão se ainda não existir", async () => {
     const { supabase, calls } = mockSupabase([{
       id: "tx-existente",
       user_id: "user-1",
@@ -206,6 +209,37 @@ describe("registrarTransacaoComComissao", () => {
     expect(result.transacao).toEqual({ id: "tx-existente" });
     expect(result.transacaoDuplicada).toBe(true);
     expect(result.transacaoError).toBeNull();
+    expect(result.comissao?.transacao_id).toBe("tx-existente");
+    expect(result.comissao?.valor).toBe(98.31);
+    expect(calls.filter(c => c.op === "insert").map(c => c.table)).toEqual(["obra_comissao_pagamentos"]);
+  });
+
+  it("não duplica comissão quando a saída reaproveitada já tem comissão ativa", async () => {
+    const { supabase, calls } = mockSupabase([{
+      id: "tx-existente",
+      user_id: "user-1",
+      tipo: "Saída",
+      valor: 1228.92,
+      data: "2026-04-14",
+      categoria: "Material",
+      descricao: "Orçamento de materiais elétricos",
+    }], [{ id: "comissao-existente", transacao_id: "tx-existente" }]);
+
+    const result = await registrarTransacaoComComissao({
+      supabase,
+      transacao: {
+        user_id: "user-1",
+        tipo: "Saída",
+        valor: 1228.91,
+        data: "2026-04-14",
+        categoria: "material",
+        descricao: "orcamento de materiais eletricos",
+      },
+    });
+
+    expect(result.transacao).toEqual({ id: "tx-existente" });
+    expect(result.transacaoDuplicada).toBe(true);
+    expect(result.comissaoDuplicada).toBe(true);
     expect(result.comissao).toBeNull();
     expect(calls.filter(c => c.op === "insert")).toEqual([]);
   });

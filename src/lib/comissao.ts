@@ -43,19 +43,15 @@ type SupabaseInsertResult = PromiseLike<{ error: unknown | null }> & {
   };
 };
 
+type SupabaseSelectChain = {
+  eq: (column: string, value: unknown) => SupabaseSelectChain;
+  is: (column: string, value: unknown) => SupabaseSelectChain;
+  limit: (count: number) => Promise<{ data: unknown[] | null; error: unknown | null }>;
+};
+
 type SupabaseTable = {
   insert: (payload: unknown) => SupabaseInsertResult;
-  select: (columns: string) => {
-    eq: (column: string, value: unknown) => {
-      eq: (column: string, value: unknown) => {
-        eq: (column: string, value: unknown) => {
-          is: (column: string, value: unknown) => {
-            limit: (count: number) => Promise<{ data: unknown[] | null; error: unknown | null }>;
-          };
-        };
-      };
-    };
-  };
+  select: (columns: string) => SupabaseSelectChain;
 };
 
 export interface RegistrarTransacaoComComissaoInput {
@@ -74,6 +70,24 @@ export interface RegistrarTransacaoComComissaoResult {
   transacaoError: unknown | null;
   comissaoError: unknown | null;
   transacaoDuplicada?: boolean;
+  comissaoDuplicada?: boolean;
+}
+
+export interface RegistrarComissaoTransacaoExistenteInput {
+  supabase: {
+    from: (table: string) => SupabaseTable;
+  };
+  transacao: TransacaoComComissaoInsert & { id: string };
+  fornecedor?: string;
+  documentoId?: string;
+  gerarComissao?: boolean;
+  dataComissao?: string;
+}
+
+export interface RegistrarComissaoTransacaoExistenteResult {
+  comissao: ComissaoPendenteInsert | null;
+  comissaoError: unknown | null;
+  comissaoDuplicada?: boolean;
 }
 
 function roundCurrency(value: number): number {
@@ -123,6 +137,56 @@ export function deveGerarComissao(transacao: Pick<TransacaoComComissaoInsert, "t
   return transacao.tipo === "Saída" && Number(transacao.valor) > 0;
 }
 
+export async function registrarComissaoParaTransacaoExistente({
+  supabase,
+  transacao,
+  fornecedor,
+  documentoId,
+  gerarComissao = true,
+  dataComissao,
+}: RegistrarComissaoTransacaoExistenteInput): Promise<RegistrarComissaoTransacaoExistenteResult> {
+  if (!gerarComissao || !deveGerarComissao(transacao)) {
+    return { comissao: null, comissaoError: null };
+  }
+
+  const { data: existentes, error: consultaError } = await supabase
+    .from("obra_comissao_pagamentos")
+    .select("id, transacao_id")
+    .eq("user_id", transacao.user_id)
+    .eq("transacao_id", transacao.id)
+    .is("deleted_at", null)
+    .limit(1);
+
+  if (consultaError) {
+    return { comissao: null, comissaoError: consultaError };
+  }
+
+  if ((existentes || []).length > 0) {
+    return { comissao: null, comissaoError: null, comissaoDuplicada: true };
+  }
+
+  const comissao = buildComissaoPendente({
+    userId: transacao.user_id,
+    transacaoId: transacao.id,
+    data: dataComissao || transacao.data,
+    valorBase: Number(transacao.valor),
+    descricao: typeof transacao.descricao === "string" ? transacao.descricao : "",
+    categoria: typeof transacao.categoria === "string" ? transacao.categoria : undefined,
+    fornecedor,
+    formaPagamento: typeof transacao.forma_pagamento === "string" ? transacao.forma_pagamento : undefined,
+    documentoId,
+  });
+
+  const { error: comissaoError } = await supabase
+    .from("obra_comissao_pagamentos")
+    .insert(comissao);
+
+  return {
+    comissao: comissaoError ? null : comissao,
+    comissaoError: comissaoError || null,
+  };
+}
+
 export async function registrarTransacaoComComissao({
   supabase,
   transacao,
@@ -154,12 +218,25 @@ export async function registrarTransacaoComComissao({
   }) as ({ id?: string } | undefined);
 
   if (transacaoDuplicada?.id) {
+    const comissaoResult = await registrarComissaoParaTransacaoExistente({
+      supabase,
+      transacao: {
+        ...transacao,
+        ...(transacaoDuplicada as TransacaoComComissaoInsert),
+        id: transacaoDuplicada.id,
+      },
+      fornecedor,
+      documentoId,
+      gerarComissao,
+    });
+
     return {
       transacao: { id: transacaoDuplicada.id },
-      comissao: null,
+      comissao: comissaoResult.comissao,
       transacaoError: null,
-      comissaoError: null,
+      comissaoError: comissaoResult.comissaoError,
       transacaoDuplicada: true,
+      comissaoDuplicada: comissaoResult.comissaoDuplicada,
     };
   }
 
