@@ -12,7 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from "@/lib/formatters";
+
+interface BackupPrefs {
+  hora_utc: number;
+  retencao_dias: number;
+  enviar_google_drive: boolean;
+  ativo: boolean;
+}
+
+const DEFAULT_PREFS: BackupPrefs = {
+  hora_utc: 3,
+  retencao_dias: 30,
+  enviar_google_drive: false,
+  ativo: true,
+};
 
 interface UserWithRole {
   id: string;
