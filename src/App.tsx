@@ -127,16 +127,16 @@ function AuthenticatedApp() {
             <Route path="/leitor-ia" element={<LeitorIAPage />} />
             <Route path="/comissao" element={<ComissaoPage />} />
             <Route path="/auditoria" element={<AuditoriaPage />} />
-            <Route path="/cronograma" element={<CronogramaPage />} />
-            <Route path="/diario" element={<DiarioObraPage />} />
-            <Route path="/medicao" element={<MedicaoObraPage />} />
+            <Route path="/cronograma" element={<NotFound />} />
+            <Route path="/diario" element={<NotFound />} />
+            <Route path="/medicao" element={<NotFound />} />
             <Route path="/equipe" element={<EquipePage />} />
             <Route path="/curva-abc" element={<CurvaABCPage />} />
             <Route path="/previsao" element={<PrevisaoPage />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/pasta-sync" element={<PastaMonitorPage />} />
-            <Route path="/conciliacao" element={<ConciliacaoPage />} />
+            <Route path="/conciliacao" element={<NotFound />} />
             <Route path="/contas" element={<ContasBancariasPage />} />
             <Route path="/notas-fiscais" element={<NotasFiscaisPage />} />
             <Route path="/fornecedores" element={<FornecedoresPage />} />
