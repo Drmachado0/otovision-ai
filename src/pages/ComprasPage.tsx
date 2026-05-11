@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import CompraDetailDrawer, { getCompraType, parseParcelas, type CompraFull } from "@/components/CompraDetailDrawer";
 import FornecedorCombobox from "@/components/FornecedorCombobox";
 import CategoriaSelect from "@/components/CategoriaSelect";
+import { calcularResumoCompras } from "@/lib/financeiro";
 
 const STATUS_COLORS: Record<string, string> = {
   Pedido: "badge-warning",
@@ -209,12 +210,11 @@ export default function ComprasPage() {
     return matchSearch && matchTipo;
   });
 
-  const totalCompras = filtered.reduce((s, c) => s + Number(c.valor_total), 0);
-  const totalEntregue = filtered.filter(c => c.status_entrega === "Entregue").reduce((s, c) => s + Number(c.valor_total), 0);
+  const resumoCompras = calcularResumoCompras(filtered);
+  const totalCompras = resumoCompras.totalCompromissado;
+  const totalEntregue = resumoCompras.totalEntregueOuPago;
   const totalPendente = totalCompras - totalEntregue;
-  const parcelasPendentes = filtered.reduce((s, c) => {
-    return s + parseParcelas(c.parcelas).filter(p => p.status === "Pendente").reduce((a, p) => a + Number(p.valor), 0);
-  }, 0);
+  const totalAPagar = resumoCompras.totalAPagar;
 
   return (
     <div className="space-y-6 animate-slide-in">
@@ -231,10 +231,10 @@ export default function ComprasPage() {
       {/* Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { cls: "stat-card-info", icon: <Package className="w-4 h-4 text-info" />, label: "Total", value: formatCurrency(totalCompras) },
-          { cls: "stat-card-success", icon: <Truck className="w-4 h-4 text-success" />, label: "Entregue", value: formatCurrency(totalEntregue), color: "text-success" },
-          { cls: "stat-card-warning", icon: <Clock className="w-4 h-4 text-warning" />, label: "Pendente", value: formatCurrency(totalPendente), color: "text-warning" },
-          { cls: "stat-card-info", icon: <CreditCard className="w-4 h-4 text-info" />, label: "Parcelas Pend.", value: formatCurrency(parcelasPendentes), color: "text-info" },
+          { cls: "stat-card-info", icon: <Package className="w-4 h-4 text-info" />, label: "Total Compromissado", value: formatCurrency(totalCompras) },
+          { cls: "stat-card-success", icon: <Truck className="w-4 h-4 text-success" />, label: "Pago/Entregue", value: formatCurrency(totalEntregue), color: "text-success" },
+          { cls: "stat-card-warning", icon: <Clock className="w-4 h-4 text-warning" />, label: "A Entregar", value: formatCurrency(totalPendente), color: "text-warning" },
+          { cls: "stat-card-info", icon: <CreditCard className="w-4 h-4 text-info" />, label: "A Pagar", value: formatCurrency(totalAPagar), color: "text-info" },
         ].map((m, i) => (
           <div key={m.label} className={`${m.cls} p-4 animate-fade-in-up`} style={{ animationDelay: `${i * 100}ms` }}>
             <div className="flex items-center gap-2 mb-1">{m.icon}<span className="text-xs text-muted-foreground uppercase">{m.label}</span></div>

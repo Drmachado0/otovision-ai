@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import OrigemBadge from "@/components/OrigemBadge";
 import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/TransacaoDetailDrawer";
 import type { EtapaRow } from "@/lib/types";
+import { calcularResumoCompras } from "@/lib/financeiro";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -61,6 +62,7 @@ export default function DashboardPage() {
   const [etapas, setEtapas] = useState<EtapaRow[]>([]);
   const [comprasPendentes, setComprasPendentes] = useState(0);
   const [comprasTotal, setComprasTotal] = useState(0);
+  const [comprasAPagar, setComprasAPagar] = useState(0);
   const [comissoesPendentes, setComissoesPendentes] = useState(0);
   const [comissoesPagas, setComissoesPagas] = useState(0);
   const [contas, setContas] = useState<ContaRow[]>([]);
@@ -81,7 +83,7 @@ export default function DashboardPage() {
       // Recent 5 for display (all statuses)
       supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at" as any).is("deleted_at", null).order("data", { ascending: false }).limit(5),
       supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao, fim_previsto"),
-      supabase.from("obra_compras").select("valor_total, status_entrega").is("deleted_at", null),
+      supabase.from("obra_compras").select("valor_total, status_entrega, numero_parcelas, parcelas, observacoes").is("deleted_at", null),
       supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null),
       supabase.from("obra_contas_financeiras").select("id, nome, tipo, cor, saldo_inicial, ativa").eq("ativa", true),
       // Contas a pagar (pending)
@@ -116,9 +118,10 @@ export default function DashboardPage() {
     if (etapasRes.data) setEtapas(etapasRes.data as EtapaRow[]);
 
     if (comprasRes.data) {
-      const c = comprasRes.data as { valor_total: number; status_entrega: string }[];
-      setComprasTotal(c.reduce((s, x) => s + Number(x.valor_total), 0));
-      setComprasPendentes(c.filter(x => x.status_entrega !== "Entregue").length);
+      const resumo = calcularResumoCompras(comprasRes.data);
+      setComprasTotal(resumo.totalCompromissado);
+      setComprasAPagar(resumo.totalAPagar);
+      setComprasPendentes(resumo.pendentesEntrega);
     }
 
     if (comissoesRes.data) {
@@ -316,10 +319,12 @@ export default function DashboardPage() {
         <Link to="/compras" className="glass-card p-4 hover:bg-accent/30 transition-colors animate-fade-in-up" style={{ animationDelay: "750ms" }}>
           <div className="flex items-center gap-2 mb-2">
             <ShoppingCart className="w-4 h-4 text-primary" />
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Compras</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Compras a Pagar</span>
           </div>
-          <p className="text-lg font-bold">{formatCurrency(comprasTotal)}</p>
-          <p className="text-[10px] text-muted-foreground">{comprasPendentes} pendente(s) de entrega</p>
+          <p className="text-lg font-bold">{formatCurrency(comprasAPagar)}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {comprasPendentes} pendente(s) · {formatCurrency(comprasTotal)} compromissado
+          </p>
         </Link>
 
         {/* Comissões */}

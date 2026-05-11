@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { registrarTransacaoComComissao } from "@/lib/comissao";
 
 export interface DocumentoProcessado {
   id: string;
@@ -41,6 +42,7 @@ export interface MovimentacaoExtraida {
   status_revisao: string;
   transacao_id: string | null;
   created_at: string;
+  gerarComissao?: boolean;
 }
 
 export interface EventoProcessamento {
@@ -274,30 +276,66 @@ export function useDocumentos() {
   const aprovarMovimentacao = async (movId: string, dados: Partial<MovimentacaoExtraida>, docId: string) => {
     if (!user) return;
 
-    // Create transaction
-    const { error } = await supabase.from("obra_transacoes_fluxo").insert({
-      user_id: user.id,
-      tipo: dados.tipo_movimentacao === "entrada" ? "Entrada" : "Saída",
-      valor: dados.valor || 0,
-      data: dados.data_movimentacao || new Date().toISOString().split("T")[0],
-      categoria: dados.categoria_sugerida || "Outro",
-      descricao: dados.descricao || "",
-      forma_pagamento: "",
-      recorrencia: "Única",
-      referencia: "",
-      conta_id: "",
-      observacoes: `Origem: IA_PASTA | Doc: ${docId}`,
-      origem_tipo: "ia_pasta",
-      origem_id: docId,
-    } as any);
+    const tipoTransacao = dados.tipo_movimentacao === "entrada" ? "Entrada" : "Saída";
+    const valor = dados.valor || 0;
+    const data = dados.data_movimentacao || new Date().toISOString().split("T")[0];
+    const categoria = dados.categoria_sugerida || "Outro";
+    const descricao = dados.descricao || "";
+    const documento = documentos.find((d) => d.id === docId);
+    const payload = documento?.payload_normalizado as Record<string, unknown> | null | undefined;
+    const fornecedor =
+      (typeof payload?.fornecedor_ou_origem === "string" && payload.fornecedor_ou_origem) ||
+      (typeof payload?.fornecedor === "string" && payload.fornecedor) ||
+      "";
+    const gerarComissao = dados.gerarComissao !== false;
 
-    if (error) {
-      toast.error("Erro ao criar transação: " + error.message);
+    const { transacao, transacaoError, comissao, comissaoError, transacaoDuplicada } = await registrarTransacaoComComissao({
+      supabase,
+      fornecedor,
+      documentoId: docId,
+      gerarComissao,
+      transacao: {
+        user_id: user.id,
+        tipo: tipoTransacao,
+        valor,
+        data,
+        categoria,
+        descricao,
+        forma_pagamento: "",
+        recorrencia: "Única",
+        referencia: "",
+        conta_id: "",
+        observacoes: `Origem: IA_PASTA | Doc: ${docId}${gerarComissao ? "" : " | Sem comissão por opção do usuário"}`,
+        origem_tipo: "ia_pasta",
+        origem_id: docId,
+      },
+    });
+
+    if (transacaoError || !transacao) {
+      toast.error("Erro ao criar transação: " + (transacaoError instanceof Error ? transacaoError.message : "transação não retornada"));
       return;
     }
 
-    await supabase.from("obra_movimentacoes_extraidas").update({ status_revisao: "aprovado" } as any).eq("id", movId);
-    await registrarEvento(docId, "lancamento", "sucesso", `Movimentação aprovada e lançada: R$ ${dados.valor}`);
+    if (transacaoDuplicada) {
+      await supabase.from("obra_movimentacoes_extraidas").update({ status_revisao: "aprovado", transacao_id: transacao.id } as any).eq("id", movId);
+      await registrarEvento(docId, "deduplicacao", "bloqueado", `Lançamento duplicado evitado. Movimentação vinculada à transação existente: ${transacao.id}`);
+      toast.info("Lançamento duplicado evitado; movimentação vinculada ao lançamento existente.");
+      return;
+    }
+
+    if (tipoTransacao === "Saída" && valor > 0) {
+      if (!gerarComissao) {
+        await registrarEvento(docId, "comissao", "ignorada", "Despesa mantida nos gastos sem comissão por opção do usuário");
+      } else if (comissaoError) {
+        await registrarEvento(docId, "comissao", "erro", `Falha ao criar comissão automática: ${comissaoError instanceof Error ? comissaoError.message : "erro desconhecido"}`);
+        toast.warning("Lançamento criado, mas houve erro ao criar comissão automática");
+      } else if (comissao) {
+        await registrarEvento(docId, "comissao", "sucesso", `Comissão automática de 8% criada: R$ ${comissao.valor}`);
+      }
+    }
+
+    await supabase.from("obra_movimentacoes_extraidas").update({ status_revisao: "aprovado", transacao_id: transacao.id } as any).eq("id", movId);
+    await registrarEvento(docId, "lancamento", "sucesso", `Movimentação aprovada e lançada: R$ ${valor}`);
     toast.success("Lançamento criado!");
   };
 

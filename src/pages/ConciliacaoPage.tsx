@@ -86,6 +86,7 @@ export default function ConciliacaoPage() {
   const [selectedTxId, setSelectedTxId] = useState("");
   const [selectedContaId, setSelectedContaId] = useState("");
   const [selectedCategoria, setSelectedCategoria] = useState("");
+  const [gerarComissaoCriarTx, setGerarComissaoCriarTx] = useState(true);
 
   // Enriched conciliations with movimentacao data
   const enrichedConcs = useMemo(() => {
@@ -386,15 +387,32 @@ export default function ConciliacaoPage() {
             })()}
             <Input placeholder="Categoria" value={selectedCategoria} onChange={e => setSelectedCategoria(e.target.value)} />
             <Input placeholder="ID da Conta" value={selectedContaId} onChange={e => setSelectedContaId(e.target.value)} />
+            {criarTxDialog && movimentacoes.find(m => m.id === criarTxDialog)?.tipo_movimentacao !== "entrada" && (
+              <label className="flex items-start gap-3 rounded-lg border border-border/60 bg-secondary/30 p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={gerarComissaoCriarTx}
+                  onChange={e => setGerarComissaoCriarTx(e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-primary"
+                />
+                <span>
+                  <span className="font-medium">Gerar comissão automática de 8%</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Desmarque para criar a saída apenas nos gastos, sem comissão do construtor.
+                  </span>
+                </span>
+              </label>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCriarTxDialog(null)}>Cancelar</Button>
             <Button onClick={async () => {
               if (criarTxDialog) {
-                await criarTransacaoDeMov(criarTxDialog, selectedContaId, selectedCategoria);
+                await criarTransacaoDeMov(criarTxDialog, selectedContaId, selectedCategoria, gerarComissaoCriarTx);
                 setCriarTxDialog(null);
                 setSelectedCategoria("");
                 setSelectedContaId("");
+                setGerarComissaoCriarTx(true);
               }
             }}>Criar e Conciliar</Button>
           </DialogFooter>

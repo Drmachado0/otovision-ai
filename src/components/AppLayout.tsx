@@ -68,7 +68,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const currentPage = getPageLabel(location.pathname);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-[100dvh] overflow-hidden">
       {/* Sidebar desktop */}
       <aside className="hidden lg:flex flex-col w-64 bg-sidebar border-r border-sidebar-border">
         <div className="flex items-center gap-3 px-6 py-6 border-b border-sidebar-border">
@@ -116,7 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-col flex-1 overflow-hidden">
         <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm">
           <div className="flex items-center gap-2">
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="text-foreground p-1 lg:hidden">
+            <button onClick={() => setMobileOpen(!mobileOpen)} className="h-11 w-11 rounded-lg flex items-center justify-center text-foreground hover:bg-accent lg:hidden" aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}>
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <div className="flex items-center gap-2 lg:hidden">
@@ -139,8 +139,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {mobileOpen && (
-          <div className="lg:hidden absolute inset-0 z-50 bg-background/95 backdrop-blur-sm pt-14 animate-slide-in-left">
-            <nav className="px-4 py-4 space-y-1">
+          <div className="lg:hidden fixed inset-0 z-50 bg-background/95 backdrop-blur-sm pt-16 animate-slide-in-left">
+            <nav className="h-[calc(100dvh-4rem)] overflow-y-auto px-4 py-4 space-y-1 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
               {visibleItems.map((item, i) => {
                 const active = location.pathname === item.path;
                 return (

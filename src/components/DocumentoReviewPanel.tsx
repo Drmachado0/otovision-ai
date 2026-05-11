@@ -25,6 +25,7 @@ export default function DocumentoReviewPanel({ documento, onBack }: Props) {
   const [showTimeline, setShowTimeline] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [manualText, setManualText] = useState("");
+  const [gerarComissaoPorMov, setGerarComissaoPorMov] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchData();
@@ -43,7 +44,8 @@ export default function DocumentoReviewPanel({ documento, onBack }: Props) {
   const handleAprovar = async (mov: MovimentacaoExtraida) => {
     setSaving(mov.id);
     const dados = editingMov === mov.id ? { ...mov, ...editData } : mov;
-    await aprovarMovimentacao(mov.id, dados, documento.id);
+    const gerarComissao = gerarComissaoPorMov[mov.id] ?? true;
+    await aprovarMovimentacao(mov.id, { ...dados, gerarComissao }, documento.id);
     await fetchData();
     setSaving(null);
     setEditingMov(null);
@@ -307,6 +309,11 @@ export default function DocumentoReviewPanel({ documento, onBack }: Props) {
                             {mov.tipo_movimentacao === "entrada" ? "+" : "-"}{formatCurrency(mov.valor)}
                           </span>
                           <span className="text-xs text-muted-foreground">{mov.categoria_sugerida}</span>
+                          {mov.tipo_movimentacao === "saida" && mov.status_revisao === "pendente" && (
+                            <span className="text-xs text-muted-foreground">
+                              {(gerarComissaoPorMov[mov.id] ?? true) ? "Comissão 8%" : "Sem comissão"}
+                            </span>
+                          )}
                           {mov.status_revisao === "aprovado" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
                         </div>
                       </div>
@@ -314,7 +321,21 @@ export default function DocumentoReviewPanel({ documento, onBack }: Props) {
                   )}
 
                   {mov.status_revisao === "pendente" && (
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/30">
+                    <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
+                      {mov.tipo_movimentacao === "saida" && (
+                        <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={gerarComissaoPorMov[mov.id] ?? true}
+                            onChange={(e) => setGerarComissaoPorMov((prev) => ({ ...prev, [mov.id]: e.target.checked }))}
+                            className="mt-0.5 h-3.5 w-3.5 accent-primary"
+                          />
+                          <span>
+                            Gerar comissão automática de 8%. Desmarque para lançar apenas nos gastos.
+                          </span>
+                        </label>
+                      )}
+                      <div className="flex items-center gap-2">
                       <button
                         onClick={() => { if (isEditing) { setEditingMov(null); setEditData({}); } else { setEditingMov(mov.id); setEditData({}); } }}
                         className="px-3 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-accent flex items-center gap-1 transition-colors"
@@ -334,6 +355,7 @@ export default function DocumentoReviewPanel({ documento, onBack }: Props) {
                       >
                         <X className="w-3 h-3" /> Descartar
                       </button>
+                      </div>
                     </div>
                   )}
                 </div>

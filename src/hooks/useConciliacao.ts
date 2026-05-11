@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import { registrarTransacaoComComissao } from "@/lib/comissao";
 
 /* ── Types ── */
 export interface MovimentacaoExtraida {
@@ -368,32 +369,42 @@ export function useConciliacao() {
   }, [user, fetchAll]);
 
   /* Create transaction from movimentacao */
-  const criarTransacaoDeMov = useCallback(async (movId: string, contaId: string, categoria: string) => {
+  const criarTransacaoDeMov = useCallback(async (movId: string, contaId: string, categoria: string, gerarComissao: boolean = true) => {
     if (!user) return;
     const mov = movimentacoes.find(m => m.id === movId);
     if (!mov) return;
-    const { data: tx } = await supabase.from("obra_transacoes_fluxo").insert({
-      user_id: user.id,
-      tipo: mov.tipo_movimentacao === "entrada" ? "Entrada" : "Saída",
-      descricao: mov.descricao,
-      categoria: categoria || mov.categoria_sugerida,
-      valor: mov.valor,
-      data: mov.data_movimentacao,
-      forma_pagamento: "",
-      conta_id: contaId,
-      observacoes: `Criado via conciliação bancária`,
-      recorrencia: "Única",
-      referencia: `CONC-${movId.slice(0, 8)}`,
-      origem_tipo: "conciliacao",
-      origem_id: movId,
-      conciliado: true,
-      conciliado_em: new Date().toISOString(),
-    }).select("id").single();
+    const { transacao: tx, transacaoError, comissaoError } = await registrarTransacaoComComissao({
+      supabase,
+      gerarComissao,
+      transacao: {
+        user_id: user.id,
+        tipo: mov.tipo_movimentacao === "entrada" ? "Entrada" : "Saída",
+        descricao: mov.descricao,
+        categoria: categoria || mov.categoria_sugerida,
+        valor: mov.valor,
+        data: mov.data_movimentacao,
+        forma_pagamento: "",
+        conta_id: contaId,
+        observacoes: `Criado via conciliação bancária${gerarComissao ? "" : " | Sem comissão por opção do usuário"}`,
+        recorrencia: "Única",
+        referencia: `CONC-${movId.slice(0, 8)}`,
+        origem_tipo: "conciliacao",
+        origem_id: movId,
+        conciliado: true,
+        conciliado_em: new Date().toISOString(),
+      },
+    });
+
+    if (transacaoError) {
+      toast.error("Erro ao criar transação via conciliação");
+      return;
+    }
 
     if (tx) {
       await conciliarManual(movId, tx.id, "Transação criada via conciliação");
     }
-    toast.success("Transação criada e conciliada");
+    if (gerarComissao && comissaoError) toast.warning("Transação criada, mas houve erro ao criar comissão automática");
+    else toast.success(gerarComissao ? "Transação criada e conciliada com comissão" : "Transação criada e conciliada sem comissão");
   }, [user, movimentacoes, conciliarManual]);
 
   return {

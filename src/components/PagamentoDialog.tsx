@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
 import { Upload, Loader2, CreditCard, Wallet, Receipt } from "lucide-react";
+import { PERCENTUAL_COMISSAO_CONSTRUTOR, registrarTransacaoComComissao } from "@/lib/comissao";
 
 interface PagamentoDialogProps {
   open: boolean;
@@ -41,6 +42,7 @@ export default function PagamentoDialog({
   const [contaId, setContaId] = useState("");
   const [metodo, setMetodo] = useState("PIX");
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [gerarComissao, setGerarComissao] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function PagamentoDialog({
       });
   }, [open, userId]);
 
-  const comissaoValor = Number(valor) * 0.08;
+  const comissaoValor = Number(valor) * (PERCENTUAL_COMISSAO_CONSTRUTOR / 100);
 
   const handleConfirmar = async () => {
     if (!contaId) {
@@ -81,71 +83,96 @@ export default function PagamentoDialog({
       }
 
       if (tipo === "nf") {
-        // Use the atomic RPC
-        const mes = new Date().toISOString().slice(0, 7);
-        const { error } = await supabase.rpc("pagar_nf_atomica", {
-          p_nf_id: id,
-          p_conta_id: contaId,
-          p_metodo: metodo,
-          p_transacao: {
-            descricao: `NF ${descricao || fornecedor}`,
-            categoria,
+        if (gerarComissao) {
+          // Use the atomic RPC when commission should be created together with the payment.
+          const mes = new Date().toISOString().slice(0, 7);
+          const { error } = await supabase.rpc("pagar_nf_atomica", {
+            p_nf_id: id,
+            p_conta_id: contaId,
+            p_metodo: metodo,
+            p_transacao: {
+              descricao: `NF ${descricao || fornecedor}`,
+              categoria,
+              valor,
+              forma_pagamento: metodo,
+              metodo_pagamento: metodo,
+              observacoes: `Fornecedor: ${fornecedor}`,
+              status: "pago",
+              data_pagamento: new Date().toISOString(),
+            },
+            p_comissao: {
+              mes,
+              valor: comissaoValor,
+              pago: false,
+              observacoes: `Comissão automática NF - ${fornecedor}`,
+            },
+          });
+          if (error) throw error;
+        } else {
+          const { transacaoError } = await registrarTransacaoComComissao({
+            supabase,
+            fornecedor,
+            gerarComissao: false,
+            transacao: {
+              user_id: userId,
+              tipo: "Saída",
+              valor,
+              data: new Date().toISOString(),
+              categoria,
+              descricao: `NF ${descricao || fornecedor}`,
+              forma_pagamento: metodo,
+              conta_id: contaId,
+              recorrencia: "Única",
+              referencia: `NF-${id}`,
+              metodo_pagamento: metodo,
+              observacoes: `Fornecedor: ${fornecedor} | Sem comissão por opção do usuário`,
+              origem_tipo: "nf",
+              origem_id: id,
+              status: "pago",
+              data_pagamento: new Date().toISOString(),
+            },
+          });
+          if (transacaoError) throw transacaoError;
+          const { error } = await supabase
+            .from("obra_notas_fiscais")
+            .update({ status: "paga", forma_pagamento: metodo })
+            .eq("id", id);
+          if (error) throw error;
+        }
+      } else {
+        // For compras: payment creates the real cash-flow expense and optional commission.
+        const { transacaoError, comissaoError } = await registrarTransacaoComComissao({
+          supabase,
+          fornecedor,
+          gerarComissao,
+          transacao: {
+            user_id: userId,
+            tipo: "Saída",
             valor,
+            data: new Date().toISOString(),
+            categoria,
+            descricao: `Compra - ${descricao || fornecedor}`,
             forma_pagamento: metodo,
+            conta_id: contaId,
+            recorrencia: "Única",
+            referencia: `COMPRA-${id}`,
             metodo_pagamento: metodo,
-            observacoes: `Fornecedor: ${fornecedor}`,
+            observacoes: `Fornecedor: ${fornecedor}${gerarComissao ? "" : " | Sem comissão por opção do usuário"}`,
+            origem_tipo: "compra",
+            origem_id: id,
             status: "pago",
             data_pagamento: new Date().toISOString(),
           },
-          p_comissao: {
-            mes,
-            valor: comissaoValor,
-            pago: false,
-            observacoes: `Comissão automática NF - ${fornecedor}`,
-          },
         });
-        if (error) throw error;
-      } else {
-        // For compras: create transaction directly
-        const { error } = await supabase.from("obra_transacoes_fluxo").insert({
-          user_id: userId,
-          tipo: "Saída",
-          valor,
-          data: new Date().toISOString(),
-          categoria,
-          descricao: `Compra - ${descricao || fornecedor}`,
-          forma_pagamento: metodo,
-          conta_id: contaId,
-          recorrencia: "Única",
-          referencia: `COMPRA-${id}`,
-          metodo_pagamento: metodo,
-          observacoes: `Fornecedor: ${fornecedor}`,
-          origem_tipo: "compra",
-          origem_id: id,
-          status: "pago",
-          data_pagamento: new Date().toISOString(),
-        } as any);
-        if (error) throw error;
+        if (transacaoError) throw transacaoError;
+        if (gerarComissao && comissaoError) toast.warning("Pagamento registrado, mas houve erro ao criar comissão automática");
 
         // Update compra status
-        await supabase
+        const { error } = await supabase
           .from("obra_compras")
           .update({ status_entrega: "Entregue" })
           .eq("id", id);
-
-        // Create commission for compra (same as NF flow)
-        const mesCompra = new Date().toISOString().slice(0, 7);
-        await supabase.from("obra_comissao_pagamentos").insert({
-          user_id: userId,
-          mes: mesCompra,
-          valor: comissaoValor,
-          pago: false,
-          auto: true,
-          observacoes: `Compra - ${fornecedor}`,
-          fornecedor,
-          categoria,
-          forma_pagamento: metodo,
-        } as any);
+        if (error) throw error;
       }
 
       // Register receipt as processed document in Pasta Sync
@@ -177,6 +204,7 @@ export default function PagamentoDialog({
       setArquivo(null);
       setContaId("");
       setMetodo("PIX");
+      setGerarComissao(true);
       onSuccess();
       onClose();
     } catch (err) {
@@ -212,7 +240,7 @@ export default function PagamentoDialog({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Comissão (8%)</span>
-              <Badge variant="outline" className="text-xs">{formatCurrency(comissaoValor)}</Badge>
+              <Badge variant="outline" className="text-xs">{gerarComissao ? formatCurrency(comissaoValor) : "Não gerar"}</Badge>
             </div>
             {categoria && (
               <div className="flex justify-between text-sm">
@@ -258,6 +286,21 @@ export default function PagamentoDialog({
               </SelectContent>
             </Select>
           </div>
+
+          <label className="flex items-start gap-3 rounded-lg border border-border/60 bg-secondary/30 p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={gerarComissao}
+              onChange={(e) => setGerarComissao(e.target.checked)}
+              className="mt-1 h-4 w-4 accent-primary"
+            />
+            <span>
+              <span className="font-medium">Gerar comissão automática de 8%</span>
+              <span className="block text-xs text-muted-foreground">
+                Desmarque para registrar o pagamento apenas nos gastos, sem comissão do construtor.
+              </span>
+            </span>
+          </label>
 
           {/* Receipt upload */}
           <div className="space-y-1.5">
