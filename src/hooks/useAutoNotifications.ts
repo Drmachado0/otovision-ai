@@ -132,21 +132,4 @@ async function generateNotifications(userId: string) {
     );
   }
 
-  // 5. Etapas atrasadas do cronograma
-  const { data: etapas } = await supabase
-    .from("obra_cronograma")
-    .select("id, nome, fim_previsto, status")
-    .neq("status", "Concluída")
-    .lt("fim_previsto", today);
-
-  if (etapas && etapas.length > 0) {
-    await createNotification(
-      userId,
-      "alerta",
-      `${etapas.length} etapa(s) atrasada(s)`,
-      `Etapas atrasadas: ${etapas.slice(0, 3).map(e => e.nome).join(", ")}${etapas.length > 3 ? ` e mais ${etapas.length - 3}` : ""}`,
-      "alta",
-      "/cronograma"
-    );
-  }
 }

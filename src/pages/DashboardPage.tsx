@@ -173,7 +173,7 @@ export default function DashboardPage() {
     const diasDecorridos = inicio ? Math.max(1, Math.floor((Date.now() - inicio.getTime()) / 86400000)) : 1;
     const burnRate = totalGasto / diasDecorridos;
     const diasRestantes = burnRate > 0 ? saldo / burnRate : 0;
-    // Sem cronograma: projeção = burn rate até a data de término prevista
+    // Projeção financeira = burn rate até a data de término prevista
     const fim = config.data_termino ? new Date(config.data_termino) : null;
     const diasRestantesObra = fim ? Math.max(0, Math.floor((fim.getTime() - Date.now()) / 86400000)) : 0;
     const projecao = burnRate > 0 ? totalGasto + burnRate * diasRestantesObra : orcamentoTotal;

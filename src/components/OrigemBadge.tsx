@@ -11,7 +11,7 @@ function getOrigemBadgeConfig(origem?: string | null) {
     case "compra":
       return { label: "Compra", className: "badge-warning" };
     case "conciliacao":
-      return { label: "Conciliação", className: "badge-primary" };
+      return { label: "Banco", className: "badge-primary" };
     case "pasta":
       return { label: "Pasta", className: "badge-success" };
     default:

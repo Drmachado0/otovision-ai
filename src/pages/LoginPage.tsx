@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 
 const FEATURES = [
   { icon: BarChart3, title: "Dashboard Executivo", desc: "KPIs em tempo real, graficos e projecoes" },
-  { icon: Shield, title: "Controle Total", desc: "Fluxo de caixa, compras, comissoes e cronograma" },
+  { icon: Shield, title: "Controle Total", desc: "Fluxo de caixa, compras, comissoes e relatórios" },
   { icon: Zap, title: "IA Integrada", desc: "Leitura automatica de notas fiscais e extratos" },
 ];
 
@@ -59,7 +59,7 @@ export default function LoginPage() {
             com <span className="gradient-text">inteligencia</span>
           </h2>
           <p className="text-muted-foreground mb-12 max-w-md">
-            Plataforma completa para gestao financeira, acompanhamento de cronograma e controle de custos da sua obra.
+            Plataforma completa para gestao financeira, compras, relatorios e controle de custos da sua obra.
           </p>
 
           <div className="space-y-6">
