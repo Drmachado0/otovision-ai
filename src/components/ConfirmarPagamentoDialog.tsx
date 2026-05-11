@@ -9,10 +9,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { toast } from "sonner";
 import { Upload, Loader2, CreditCard, Wallet, Receipt, Calendar, Tag } from "lucide-react";
+import { PERCENTUAL_COMISSAO_CONSTRUTOR, registrarComissaoParaTransacaoExistente } from "@/lib/comissao";
 
 interface ContaFinanceira {
   id: string;
@@ -46,6 +48,7 @@ export default function ConfirmarPagamentoDialog({
   const [contaId, setContaId] = useState("");
   const [metodo, setMetodo] = useState("PIX");
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [gerarComissao, setGerarComissao] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -65,7 +68,7 @@ export default function ConfirmarPagamentoDialog({
     if (transacao?.forma_pagamento) setMetodo(transacao.forma_pagamento);
   }, [open, transacao]);
 
-  const comissaoValor = transacao ? Number(transacao.valor) * 0.08 : 0;
+  const comissaoValor = transacao ? Number(transacao.valor) * (PERCENTUAL_COMISSAO_CONSTRUTOR / 100) : 0;
 
   const handleConfirmar = async () => {
     if (!transacao) return;
@@ -103,19 +106,26 @@ export default function ConfirmarPagamentoDialog({
         .eq("id", transacao.id);
       if (error) throw error;
 
-      // Create commission (8%)
-      const mes = new Date().toISOString().slice(0, 7);
-      await supabase.from("obra_comissao_pagamentos").insert({
-        user_id: userId,
-        mes,
-        valor: comissaoValor,
-        pago: false,
-        auto: true,
-        observacoes: `Pagamento - ${transacao.descricao || transacao.categoria}`,
-        fornecedor: "",
-        categoria: transacao.categoria,
-        forma_pagamento: metodo,
-      } as any);
+      // Create or reuse linked commission. This prevents duplicate commissions if the
+      // payment confirmation is retried or the dialog is submitted again.
+      const { comissaoError } = await registrarComissaoParaTransacaoExistente({
+        supabase,
+        gerarComissao,
+        dataComissao: new Date().toISOString().slice(0, 10),
+        transacao: {
+          id: transacao.id,
+          user_id: userId,
+          tipo: "Saída",
+          valor: Number(transacao.valor),
+          data: new Date().toISOString().slice(0, 10),
+          categoria: transacao.categoria,
+          descricao: transacao.descricao,
+          forma_pagamento: metodo,
+        },
+      });
+      if (gerarComissao && comissaoError) {
+        toast.warning("Pagamento confirmado, mas houve erro ao criar comissão automática");
+      }
 
       // Register comprovante as document
       if (storagePath && arquivo) {
@@ -145,6 +155,7 @@ export default function ConfirmarPagamentoDialog({
       setArquivo(null);
       setContaId("");
       setMetodo("PIX");
+      setGerarComissao(true);
       onSuccess();
       onClose();
     } catch (err) {
@@ -204,9 +215,25 @@ export default function ConfirmarPagamentoDialog({
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Comissao (8%)</span>
+              <span className="text-muted-foreground">Comissão ({PERCENTUAL_COMISSAO_CONSTRUTOR}%)</span>
               <Badge variant="outline" className="text-xs">{formatCurrency(comissaoValor)}</Badge>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-secondary/30 p-3">
+            <label className="flex items-start gap-3 text-sm leading-tight">
+              <Checkbox
+                checked={gerarComissao}
+                onCheckedChange={(checked) => setGerarComissao(checked === true)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">Gerar comissão automática de {PERCENTUAL_COMISSAO_CONSTRUTOR}%</span>
+                <span className="block text-xs text-muted-foreground mt-1">
+                  Desmarque apenas quando esta despesa não deve entrar na comissão do construtor.
+                </span>
+              </span>
+            </label>
           </div>
 
           {/* Conta */}
