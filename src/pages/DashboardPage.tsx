@@ -72,14 +72,13 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-    const [configRes, allTransRes, recentTransRes, etapasRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
+    const [configRes, allTransRes, recentTransRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
       supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
       // BUG-001/003: Total Gasto = todas as transacoes (pagas + pendentes),
       // alinhado com Previsao/Curva ABC/Relatorios/Comissao
       supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id, status" as any).is("deleted_at", null).neq("status" as any, "cancelado"),
       // Recent 5 for display (all statuses)
       supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at" as any).is("deleted_at", null).order("data", { ascending: false }).limit(5),
-      supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao, fim_previsto"),
       supabase.from("obra_compras").select("valor_total, status_entrega, numero_parcelas, parcelas, observacoes").is("deleted_at", null),
       supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null),
       supabase.from("obra_contas_financeiras").select("id, nome, tipo, cor, saldo_inicial, ativa").eq("ativa", true),
