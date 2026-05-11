@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/formatters";
-import { exportCSV, filterByDateRange, filterByCategoria, type TransacaoRow, type CompraRow, type ComissaoRow, type EtapaRow, type JsonRecord } from "@/lib/types";
+import { exportCSV, filterByDateRange, filterByCategoria, type TransacaoRow, type CompraRow, type ComissaoRow, type JsonRecord } from "@/lib/types";
 import { toast } from "sonner";
 import {
-  FileText,
   Download,
   Filter,
   BarChart3,
@@ -23,7 +22,6 @@ export default function RelatoriosPage() {
   const [transacoes, setTransacoes] = useState<TransacaoRow[]>([]);
   const [compras, setCompras] = useState<CompraRow[]>([]);
   const [comissoes, setComissoes] = useState<ComissaoRow[]>([]);
-  const [etapas, setEtapas] = useState<EtapaRow[]>([]);
   const [orcamento, setOrcamento] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dataInicio, setDataInicio] = useState("");
@@ -36,18 +34,16 @@ export default function RelatoriosPage() {
   const [pageComissoes, setPageComissoes] = useState(0);
 
   const fetchData = useCallback(async () => {
-    const [configRes, transRes, comprasRes, comRes, etapasRes] = await Promise.all([
+    const [configRes, transRes, comprasRes, comRes] = await Promise.all([
       supabase.from("obra_config").select("orcamento_total").limit(1).maybeSingle(),
       supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, data, categoria, descricao, forma_pagamento, observacoes").is("deleted_at", null).order("data", { ascending: false }),
       supabase.from("obra_compras").select("id, fornecedor, descricao, categoria, valor_total, data, status_entrega, forma_pagamento, numero_parcelas, observacoes, nf_vinculada").is("deleted_at", null).order("data", { ascending: false }),
       supabase.from("obra_comissao_pagamentos").select("id, mes, valor, pago, data_pagamento, observacoes, auto, categoria, fornecedor, forma_pagamento, transacao_id, created_at").is("deleted_at", null).order("created_at", { ascending: false }),
-      supabase.from("obra_cronograma").select("id, nome, categoria, responsavel, inicio_previsto, fim_previsto, inicio_real, fim_real, status, percentual_conclusao, custo_previsto, custo_real, observacoes, descricao").order("inicio_previsto", { ascending: true }),
     ]);
     if (configRes.data) setOrcamento(Number(configRes.data.orcamento_total) || 0);
     if (transRes.data) setTransacoes(transRes.data as TransacaoRow[]);
     if (comprasRes.data) setCompras(comprasRes.data as CompraRow[]);
     if (comRes.data) setComissoes(comRes.data as ComissaoRow[]);
-    if (etapasRes.data) setEtapas(etapasRes.data as unknown as EtapaRow[]);
     setLoading(false);
   }, []);
 
