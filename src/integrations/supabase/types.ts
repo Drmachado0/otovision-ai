@@ -1159,6 +1159,24 @@ export type Database = {
         }
         Relationships: []
       }
+      n8n_eventos_processados: {
+        Row: {
+          event: string
+          evento_id: string
+          processado_em: string
+        }
+        Insert: {
+          event: string
+          evento_id: string
+          processado_em?: string
+        }
+        Update: {
+          event?: string
+          evento_id?: string
+          processado_em?: string
+        }
+        Relationships: []
+      }
       n8n_fila_mensagens: {
         Row: {
           id: number
@@ -1201,6 +1219,24 @@ export type Database = {
           id?: number
           message?: Json
           session_id?: string
+        }
+        Relationships: []
+      }
+      n8n_mensagens_processadas: {
+        Row: {
+          id_mensagem: string
+          processada_em: string
+          telefone: string
+        }
+        Insert: {
+          id_mensagem: string
+          processada_em?: string
+          telefone: string
+        }
+        Update: {
+          id_mensagem?: string
+          processada_em?: string
+          telefone?: string
         }
         Relationships: []
       }
