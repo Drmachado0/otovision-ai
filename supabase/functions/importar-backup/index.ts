@@ -94,15 +94,21 @@ Deno.serve(async (req) => {
 
     if (!Array.isArray(rows) || rows.length === 0) continue;
 
-    // Override user_id on every row to the authenticated user
+    // Cap rows per table to prevent abuse
+    if ((rows as any[]).length > 10000) {
+      errors.push(`${table}: payload muito grande (>10000 linhas), ignorado.`);
+      continue;
+    }
+
+    // Strip id (let DB generate fresh UUIDs) so attackers cannot overwrite
+    // other users' rows by guessing/knowing their UUIDs. Also strip timestamps
+    // and force user_id to the authenticated user.
     const cleaned = (rows as any[]).map((row) => {
-      const { created_at, updated_at, ...rest } = row;
+      const { id, created_at, updated_at, user_id: _ignored, ...rest } = row;
       return { ...rest, user_id: userId };
     });
 
-    const { error } = await supabaseAdmin
-      .from(table)
-      .upsert(cleaned, { onConflict: "id", ignoreDuplicates: false });
+    const { error } = await supabaseAdmin.from(table).insert(cleaned);
 
     if (error) {
       errors.push(`${table}: ${error.message}`);
