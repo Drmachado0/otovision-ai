@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   Settings, Shield, Download, Trash2, Users, Info, AlertTriangle,
-  Loader2, Check, Building2, Save,
+  Loader2, Check, Building2, Save, Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
