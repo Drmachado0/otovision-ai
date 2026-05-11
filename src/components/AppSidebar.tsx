@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText,
-  Calendar, Percent, GitCompare, Shield, Settings, LogOut, Building2
+  Percent, Shield, Settings, LogOut, Building2
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -18,9 +18,7 @@ const navItems = [
   { title: "Fluxo de Caixa", url: "/fluxo-caixa", icon: ArrowLeftRight },
   { title: "Compras", url: "/compras", icon: ShoppingCart },
   { title: "Documentos IA", url: "/documentos", icon: FileText },
-  { title: "Cronograma", url: "/cronograma", icon: Calendar },
   { title: "Comissões", url: "/comissoes", icon: Percent },
-  { title: "Conciliação", url: "/conciliacao", icon: GitCompare },
   { title: "Auditoria", url: "/auditoria", icon: Shield },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
