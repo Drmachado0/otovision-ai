@@ -1,69 +1,48 @@
-## Plano: Comissão 2.0 — Controle total mês a mês
+## Objetivo
+Remover completamente os módulos **Cronograma**, **Diário de Obra** e **Conciliação Bancária** da aplicação, sem quebrar as demais funcionalidades.
 
-Reformula `src/pages/ComissaoPage.tsx` para virar um painel completo de controle da comissão, com KPIs reorganizados, série temporal mês a mês, gráficos de acompanhamento e tabela auditável de TODOS os lançamentos. Mantém o drawer de detalhe e exclusão já existentes.
+## Escopo das remoções
 
-### 1. KPIs no topo (linha 1 — visão geral)
-Reorganizar em 4 cards principais (mais legíveis que os 6 atuais empilhados):
+### 1. Páginas (deletar arquivos)
+- `src/pages/CronogramaPage.tsx`
+- `src/pages/DiarioObraPage.tsx`
+- `src/pages/ConciliacaoPage.tsx`
+- `src/hooks/useConciliacao.ts`
+- `src/test/conciliacao.test.ts`
 
-| Card | Conteúdo | Cor |
-|---|---|---|
-| Comissão Total Acumulada | soma de todos lançamentos + sub-linha "8% sobre R$ X de gastos" | primary |
-| Pago | total + nº de lançamentos pagos + % do total | success |
-| Pendente | total + nº pendentes + alerta se > 30 dias | warning |
-| Este Mês | comissão do mês atual + comparação com mês anterior (▲/▼ %) | info |
+### 2. Roteamento e navegação
+- `src/App.tsx`: remover imports lazy e `<Route>` de `/cronograma`, `/diario`, `/conciliacao`.
+- `src/components/AppSidebar.tsx`: remover itens "Cronograma" e "Conciliação".
+- `src/components/AppLayout.tsx`: remover itens `/cronograma`, `/diario`, `/conciliacao`.
 
-### 2. Linha 2 — KPIs secundários (compactos)
-Strip horizontal: Média Mensal · Mês Maior · Mês Menor · Ticket Médio por Lançamento · Previsão Próx. Mês (média móvel 3m).
+### 3. Telas que consultam `obra_cronograma` — limpar referências
+- `src/pages/DashboardPage.tsx`: remover query `obra_cronograma`, KPIs/cards/links de cronograma e o `useRealtimeSubscription("obra_cronograma", ...)`.
+- `src/pages/InsightsPage.tsx`: remover query e realtime de `obra_cronograma`; ajustar gráficos/cards que dependiam dela.
+- `src/pages/PrevisaoPage.tsx`: remover query e realtime de `obra_cronograma`; ajustar projeções (manter projeção via fluxo/compras).
+- `src/pages/RelatoriosPage.tsx`: remover seção/coluna do relatório de cronograma.
+- `src/hooks/useAutoNotifications.ts`: remover regra "Etapas atrasadas do cronograma" (item 5) e o link `/cronograma`.
 
-### 3. Gráficos de acompanhamento (recharts, já no projeto)
+### 4. Medição de Obra (`src/pages/MedicaoObraPage.tsx`)
+Hoje carrega etapas de `obra_cronograma`. Como o cronograma será removido, a tela perde sentido — proponho **remover também a página de Medição** (rota `/medicao`, link na sidebar/layout). Confirmar na implementação.
 
-**Gráfico A — Comissão mês a mês (ComposedChart)**
-- Eixo X: meses (ordenados cronologicamente, formatados "Abr/26")
-- Barras empilhadas: Pago (verde) + Pendente (laranja)
-- Linha: Comissão teórica do mês (8% dos gastos do mês) — referência
-- Tooltip: valores formatados em BRL + nº de lançamentos
+### 5. Componentes auxiliares
+- `src/components/OrigemBadge.tsx`: remover o `case "conciliacao"` (não aparecerá mais como origem de transação).
 
-**Gráfico B — Evolução acumulada (AreaChart)**
-- Duas áreas: Acumulado Pago vs Acumulado Total
-- Mostra a curva de quitação ao longo do tempo
-- Identifica visualmente o "gap" pendente acumulado
+### 6. Backend (Supabase)
+Tabelas envolvidas: `obra_cronograma`, `obra_diario`, `obra_conciliacoes_bancarias`, `obra_sugestoes_conciliacao`, `obra_eventos_conciliacao`, `obra_movimentacoes_extraidas`.
 
-**Gráfico C — Distribuição por status (donut pequeno) + Top 5 fornecedores (barras horizontais)**
-- Lado a lado, em grid 2 colunas
-- Donut: Pago vs Pendente (% e valor)
-- Top fornecedores: maiores geradores de comissão
+Edge functions a revisar:
+- `supabase/functions/exportar-backup/index.ts`
+- `supabase/functions/importar-backup/index.ts`
+- `supabase/functions/limpar-dados-obra/index.ts`
 
-### 4. Tabela mensal resumida (nova)
-Card "Resumo Mensal" — uma linha por mês, ordenado do mais recente:
+**Estratégia recomendada:** apenas remover as tabelas das listas `ALLOWED_TABLES` das edge functions e parar de consultá-las no frontend. **Não** dropar as tabelas no banco — preserva dados históricos e evita risco em triggers de auditoria (`obra_audit_log`). Caso prefira dropar de fato, criamos uma migration.
 
-| Mês | Lançamentos | Pago | Pendente | Total | % Quitado | Ações |
-|---|---|---|---|---|---|---|
-| Abril/26 | 12 | R$ 2.000 | R$ 6.094 | R$ 8.094 | 24% | [▼ expandir] |
+## Validações pós-mudança
+- Rodar `tsc`/build para confirmar zero referências quebradas.
+- Verificar que Dashboard, Insights, Previsão, Relatórios e Notificações renderizam sem cronograma.
+- Verificar sidebar/menu mobile sem itens removidos.
 
-Clicar em "expandir" abre os lançamentos daquele mês inline (accordion) — facilita auditar mês fechado.
-
-### 5. Detalhamento de Pagamentos (lista atual, melhorada)
-Mantém a lista atual mas com:
-- **Filtros expandidos**: Status (todos/pago/pendente) + Mês (dropdown) + Fornecedor (search) + Origem (NF/Orçamento/Compra/Manual) + ordenação (data ↓/↑, valor ↓/↑)
-- **Busca textual** por descrição/fornecedor
-- **Ação em massa**: checkbox por linha + botão "Marcar X como pagas" (atualiza várias de uma vez)
-- **Badge de "atrasado"** em pendentes com mês de referência > 30 dias
-- Drawer de detalhe e exclusão continuam funcionando como hoje
-
-### 6. Exportação
-Botão "Exportar CSV" no header da página → baixa todos os lançamentos filtrados (mês, fornecedor, valor base, comissão, status, origem). Útil para conferência externa.
-
-### Lógica de agregação (técnica)
-Construir `porMes: Record<string, { pago, pendente, total, count, gastosMes }>` num único `useMemo` a partir de `comissoes` + `transacoes`. Ordenação cronológica via `Object.keys().sort()`. Mês corrente determinado por `todayLocalISO().slice(0,7)`.
-
-A "comissão teórica do mês" usa `obra_transacoes_fluxo` agrupado por `to_char(data,'YYYY-MM')` × 8% — já temos `transRes` carregado, basta agregar por mês.
-
-Acumulados gerados com `reduce` cumulativo sobre o array ordenado.
-
-### Arquivos a editar
-- `src/pages/ComissaoPage.tsx` — reescrita do layout, agregações e gráficos (único arquivo principal)
-- Reuso de: `ComissaoDetailDrawer`, `ConfirmDialog`, `formatCurrency`, `formatMes`, recharts, Progress
-- Sem mudanças em DB, hooks ou drawer
-
-### Resultado
-Painel de Comissão completo: você bate o olho e vê quanto deve, quanto pagou, evolução mês a mês em gráfico, qual mês tem mais pendência, pode filtrar/buscar/exportar e confirmar pagamentos em lote. Sem perder nenhum lançamento.
+## Pergunta antes de implementar
+1. **Medição de Obra** depende de Cronograma — devo remover também?
+2. **Tabelas no banco** — manter (mais seguro) ou dropar via migration?
