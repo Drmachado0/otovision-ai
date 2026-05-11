@@ -496,6 +496,32 @@ export default function ConfiguracoesPage() {
             <p className="text-[10px] text-muted-foreground mt-1">Importar backup JSON exportado anteriormente</p>
           </div>
         </div>
+
+        {/* Backups automáticos diários */}
+        <div className="pt-4 border-t border-border/50">
+          <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
+            <Calendar className="w-4 h-4 text-primary" /> Backups automáticos diários
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Geramos automaticamente um backup completo todos os dias às 03:00 UTC e mantemos os últimos 30 dias.
+          </p>
+          {loadingBackups ? (
+            <p className="text-xs text-muted-foreground">Carregando...</p>
+          ) : autoBackups.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum backup automático ainda. O primeiro será gerado na próxima execução.</p>
+          ) : (
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {autoBackups.map((b) => (
+                <div key={b.name} className="flex items-center justify-between text-xs p-2 rounded bg-secondary/30 hover:bg-secondary/50">
+                  <span className="font-mono">{b.name.replace(".json", "")}</span>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => handleDownloadAutoBackup(b.name)}>
+                    <Download className="w-3 h-3" /> Baixar
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Danger Zone */}
