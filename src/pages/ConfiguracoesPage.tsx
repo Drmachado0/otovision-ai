@@ -240,6 +240,29 @@ export default function ConfiguracoesPage() {
     URL.revokeObjectURL(url);
   };
 
+  const fetchBackupPrefs = async () => {
+    if (!user) return;
+    const { data } = await (supabase as any)
+      .from("obra_backup_preferencias")
+      .select("hora_utc, retencao_dias, enviar_google_drive, ativo")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (data) setBackupPrefs(data as BackupPrefs);
+  };
+
+  useEffect(() => { fetchBackupPrefs(); }, [user]);
+
+  const handleSavePrefs = async () => {
+    if (!user) return;
+    setSavingPrefs(true);
+    const { error } = await (supabase as any)
+      .from("obra_backup_preferencias")
+      .upsert({ user_id: user.id, ...backupPrefs }, { onConflict: "user_id" });
+    if (error) toast.error("Erro ao salvar preferências: " + error.message);
+    else toast.success("Preferências salvas!");
+    setSavingPrefs(false);
+  };
+
   const handleDeleteAll = async () => {
     if (dangerConfirm !== "APAGAR TUDO") return;
     setDeleting(true);
