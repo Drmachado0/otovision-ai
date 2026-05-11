@@ -55,9 +55,8 @@ type SupabaseTable = {
 };
 
 export interface RegistrarTransacaoComComissaoInput {
-  supabase: {
-    from: (table: string) => SupabaseTable;
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
   transacao: TransacaoComComissaoInsert;
   fornecedor?: string;
   documentoId?: string;
