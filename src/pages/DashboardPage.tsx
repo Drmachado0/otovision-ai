@@ -7,13 +7,11 @@ import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Ruler, Flame, Target,
   ShieldAlert, ArrowRight, CreditCard, ShoppingCart,
-  Landmark, Receipt, Calendar, Clock, Sparkles,
+  Landmark, Receipt, Clock, Sparkles,
 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import OrigemBadge from "@/components/OrigemBadge";
 import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/TransacaoDetailDrawer";
-import type { EtapaRow } from "@/lib/types";
 import { calcularResumoCompras } from "@/lib/financeiro";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
