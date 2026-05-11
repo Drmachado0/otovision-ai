@@ -72,6 +72,8 @@ export default function ConfiguracoesPage() {
   const [comissaoRate, setComissaoRate] = useState("8");
   const [autoBackups, setAutoBackups] = useState<{ name: string; created_at?: string | null }[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
+  const [backupPrefs, setBackupPrefs] = useState<BackupPrefs>(DEFAULT_PREFS);
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
   // Obra config state
   const [obraConfig, setObraConfig] = useState<ObraConfig>(defaultObraConfig);
