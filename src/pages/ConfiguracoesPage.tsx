@@ -190,6 +190,39 @@ export default function ConfiguracoesPage() {
     setExporting(false);
   };
 
+  const fetchAutoBackups = async () => {
+    if (!user) return;
+    setLoadingBackups(true);
+    const { data, error } = await supabase.storage
+      .from("backups-automaticos")
+      .list(user.id, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+    if (!error && data) {
+      setAutoBackups(data.filter((f) => f.name.endsWith(".json")));
+    }
+    setLoadingBackups(false);
+  };
+
+  useEffect(() => { fetchAutoBackups(); }, [user]);
+
+  const handleDownloadAutoBackup = async (name: string) => {
+    if (!user) return;
+    const { data, error } = await supabase.storage
+      .from("backups-automaticos")
+      .download(`${user.id}/${name}`);
+    if (error || !data) {
+      toast.error("Erro ao baixar backup: " + (error?.message ?? "desconhecido"));
+      return;
+    }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backup-auto-${name}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleDeleteAll = async () => {
     if (dangerConfirm !== "APAGAR TUDO") return;
     setDeleting(true);
