@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText, Percent,
-  Menu, X, Building2, History, Calendar, TrendingUp, Lightbulb,
-  BarChart3, FolderSync, Landmark, ChevronRight, Wallet, Settings,
-  ClipboardList, Ruler, Users, PieChart, Receipt,
+  Menu, X, Building2, History, TrendingUp, Lightbulb,
+  BarChart3, FolderSync, ChevronRight, Wallet, Settings,
+  Users, PieChart, Receipt,
 } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import NotificationBell from "@/components/NotificationBell";
@@ -21,9 +21,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/cronograma", label: "Cronograma", icon: Calendar },
-  { path: "/diario", label: "Diário de Obra", icon: ClipboardList },
-  { path: "/medicao", label: "Medição", icon: Ruler },
   { path: "/equipe", label: "Equipe", icon: Users },
   { path: "/mao-de-obra", label: "Mão de Obra", icon: Users, allowedRoles: ["admin", "construtor"] },
   { path: "/fluxo", label: "Fluxo de Caixa", icon: ArrowLeftRight, allowedRoles: ["admin", "financeiro"] },
@@ -38,7 +35,6 @@ const navItems: NavItem[] = [
   { path: "/resumo-mensal", label: "Resumo Mensal", icon: BarChart3, allowedRoles: ["admin", "financeiro"] },
   { path: "/leitor-ia", label: "Leitor IA", icon: FileText, allowedRoles: ["admin", "financeiro"] },
   { path: "/pasta-sync", label: "Pasta Sync", icon: FolderSync, allowedRoles: ["admin", "financeiro"] },
-  { path: "/conciliacao", label: "Conciliação", icon: Landmark, allowedRoles: ["admin", "financeiro"] },
   { path: "/comissao", label: "Comissão", icon: Percent, allowedRoles: ["admin", "construtor"] },
   { path: "/curva-abc", label: "Curva ABC", icon: PieChart, allowedRoles: ["admin", "financeiro"] },
   { path: "/relatorios", label: "Relatórios", icon: BarChart3, allowedRoles: ["admin", "financeiro"] },
