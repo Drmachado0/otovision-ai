@@ -100,10 +100,19 @@ async function uploadJsonToDrive(folderId: string, fileName: string, payload: un
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const supabaseAdmin = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  // Auth guard: only pg_cron / admins with the service role key may invoke.
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const provided = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!provided || provided !== serviceKey) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+
 
   const currentHour = new Date().getUTCHours();
   const today = new Date().toISOString().split("T")[0];
