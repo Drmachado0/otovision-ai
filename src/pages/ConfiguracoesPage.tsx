@@ -432,19 +432,25 @@ export default function ConfiguracoesPage() {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 try {
+                  if (file.size > 10 * 1024 * 1024) {
+                    throw new Error("Arquivo muito grande (máx 10MB)");
+                  }
                   const text = await file.text();
                   const data = JSON.parse(text);
                   if (!data || typeof data !== "object") throw new Error("Formato inválido");
-                  // Import each table's data
-                  const tables = Object.keys(data);
-                  let imported = 0;
-                  for (const table of tables) {
-                    if (Array.isArray(data[table]) && data[table].length > 0) {
-                      const { error } = await (supabase as any).from(table).upsert(data[table] as any, { onConflict: "id" });
-                      if (!error) imported += data[table].length;
-                    }
+                  // Route through edge function (server-side whitelist + user_id enforcement)
+                  const payload = data.tables ? data : { tables: data };
+                  const { data: result, error } = await supabase.functions.invoke("importar-backup", {
+                    body: payload,
+                  });
+                  if (error) throw error;
+                  const summary = (result as any)?.summary ?? {};
+                  const imported = Object.values(summary).reduce((a: number, b: any) => a + Number(b || 0), 0);
+                  const tableCount = Object.keys(summary).length;
+                  toast.success(`Backup importado! ${imported} registros restaurados de ${tableCount} tabelas.`);
+                  if ((result as any)?.errors?.length) {
+                    console.warn("Import warnings:", (result as any).errors);
                   }
-                  toast.success(`Backup importado! ${imported} registros restaurados de ${tables.length} tabelas.`);
                 } catch (err) {
                   toast.error("Erro ao importar: " + (err instanceof Error ? err.message : "Arquivo inválido"));
                 }
