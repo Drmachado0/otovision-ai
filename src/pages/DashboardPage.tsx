@@ -443,41 +443,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Etapas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">{""}
-
-        {/* Etapas */}
-        {etapas.length > 0 && (
-          <div className="glass-card p-5 animate-fade-in-up" style={{ animationDelay: "1000ms" }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold">Progresso por Etapa</h2>
-              <Link to="/cronograma">
-                <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground hover:text-primary">
-                  Ver todas <ArrowRight className="w-3 h-3" />
-                </Button>
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {etapas.slice(0, 6).map((e, i) => {
-                const isLate = e.status !== "Concluída" && e.fim_previsto && new Date(e.fim_previsto) < new Date();
-                return (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium flex items-center gap-1">
-                        {e.nome}
-                        {isLate && <span className="badge-danger text-[9px]">atrasada</span>}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{e.percentual_conclusao}%</span>
-                    </div>
-                    <Progress value={e.percentual_conclusao} className="h-2" />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Recent transactions */}
       <div className="glass-card p-5">
         <div className="flex items-center justify-between mb-4">
