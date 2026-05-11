@@ -5,9 +5,7 @@ import { formatCurrency } from "@/lib/formatters";
 import {
   Lightbulb,
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
-  Clock,
   DollarSign,
   Zap,
   CheckCircle2,
@@ -16,7 +14,6 @@ import {
 import type { IconComponent } from "@/lib/types";
 
 interface TransacaoSimples { tipo: string; valor: number; categoria: string; data: string; }
-interface EtapaSimples { nome: string; custo_previsto: number; custo_real: number; status: string; percentual_conclusao: number; fim_previsto: string; }
 interface ComissaoSimples { valor: number; pago: boolean; }
 
 interface Insight {
@@ -30,28 +27,30 @@ interface Insight {
 
 export default function InsightsPage() {
   const [orcamento, setOrcamento] = useState(0);
+  const [dataTermino, setDataTermino] = useState<string>("");
+  const [dataInicio, setDataInicio] = useState<string>("");
   const [transacoes, setTransacoes] = useState<TransacaoSimples[]>([]);
-  const [etapas, setEtapas] = useState<EtapaSimples[]>([]);
   const [comissoes, setComissoes] = useState<ComissaoSimples[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    const [configRes, transRes, etapasRes, comRes] = await Promise.all([
-      supabase.from("obra_config").select("orcamento_total").limit(1).maybeSingle(),
+    const [configRes, transRes, comRes] = await Promise.all([
+      supabase.from("obra_config").select("orcamento_total, data_inicio, data_termino").limit(1).maybeSingle(),
       supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, data").is("deleted_at", null),
-      supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao, fim_previsto"),
       supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null).eq("pago", false),
     ]);
-    if (configRes.data) setOrcamento(Number(configRes.data.orcamento_total) || 0);
+    if (configRes.data) {
+      setOrcamento(Number(configRes.data.orcamento_total) || 0);
+      setDataInicio(configRes.data.data_inicio || "");
+      setDataTermino(configRes.data.data_termino || "");
+    }
     if (transRes.data) setTransacoes(transRes.data as any);
-    if (etapasRes.data) setEtapas(etapasRes.data as any);
     if (comRes.data) setComissoes(comRes.data as any);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
-  useRealtimeSubscription("obra_cronograma", fetchData);
 
   const insights = useMemo(() => {
     const result: Insight[] = [];
@@ -63,19 +62,6 @@ export default function InsightsPage() {
       result.push({ id: "budget-over", type: "danger", icon: AlertTriangle, title: "Orçamento Ultrapassado", message: `O gasto total (${formatCurrency(totalGasto)}) ultrapassou o orçamento em ${formatCurrency(totalGasto - orcamento)}.`, priority: "alta" });
     } else if (pctGasto > 85) {
       result.push({ id: "budget-high", type: "warning", icon: TrendingUp, title: "Orçamento Próximo do Limite", message: `Já foram gastos ${pctGasto.toFixed(1)}% do orçamento. Restam ${formatCurrency(orcamento - totalGasto)}.`, priority: "alta" });
-    }
-
-    // Etapas atrasadas
-    const atrasadas = etapas.filter(e => e.status !== "Concluída" && e.fim_previsto && new Date(e.fim_previsto) < new Date());
-    if (atrasadas.length > 0) {
-      result.push({ id: "etapas-late", type: "warning", icon: Clock, title: `${atrasadas.length} Etapa(s) Atrasada(s)`, message: `As etapas "${atrasadas.map(e => e.nome).join('", "')}" estão além do prazo previsto.`, priority: "alta" });
-    }
-
-    // Etapas acima do orçamento
-    const acimaOrc = etapas.filter(e => e.custo_real > e.custo_previsto && e.custo_previsto > 0);
-    if (acimaOrc.length > 0) {
-      const totalExcesso = acimaOrc.reduce((s, e) => s + (e.custo_real - e.custo_previsto), 0);
-      result.push({ id: "etapas-over", type: "danger", icon: DollarSign, title: `${acimaOrc.length} Etapa(s) Acima do Orçamento`, message: `Excesso total de ${formatCurrency(totalExcesso)} nas etapas "${acimaOrc.map(e => e.nome).join('", "')}".`, priority: "alta" });
     }
 
     // Comissão acumulada
@@ -95,21 +81,17 @@ export default function InsightsPage() {
       result.push({ id: "top-cat", type: "info", icon: TrendingUp, title: "Maiores Gastos por Categoria", message: topCats.map(([nome, val]) => `${nome}: ${formatCurrency(val)}`).join(" | "), priority: "media" });
     }
 
-    // Progresso da obra
-    if (etapas.length > 0) {
-      const progMedio = etapas.reduce((s, e) => s + e.percentual_conclusao, 0) / etapas.length;
-      const concluidas = etapas.filter(e => e.status === "Concluída").length;
-      result.push({ id: "progress", type: "success", icon: CheckCircle2, title: "Progresso da Obra", message: `${progMedio.toFixed(1)}% concluído. ${concluidas} de ${etapas.length} etapas finalizadas.`, priority: "baixa" });
-    }
-
-    // Projeção
-    if (etapas.length > 0 && totalGasto > 0) {
-      const progMedio = etapas.reduce((s, e) => s + e.percentual_conclusao, 0) / etapas.length;
-      if (progMedio > 5) {
-        const projecao = totalGasto / (progMedio / 100);
-        if (projecao > orcamento * 1.05) {
-          result.push({ id: "projecao", type: "warning", icon: Zap, title: "Tendência de Estouro", message: `No ritmo atual, o custo final estimado é ${formatCurrency(projecao)}, ${((projecao / orcamento - 1) * 100).toFixed(1)}% acima do orçamento.`, priority: "alta" });
-        }
+    // Projeção baseada em burn rate até a data de término
+    if (dataInicio && dataTermino && totalGasto > 0) {
+      const inicio = new Date(dataInicio).getTime();
+      const fim = new Date(dataTermino).getTime();
+      const agora = Date.now();
+      const diasDecorridos = Math.max(1, Math.floor((agora - inicio) / 86400000));
+      const diasRestantes = Math.max(0, Math.floor((fim - agora) / 86400000));
+      const burnRate = totalGasto / diasDecorridos;
+      const projecao = totalGasto + burnRate * diasRestantes;
+      if (projecao > orcamento * 1.05 && orcamento > 0) {
+        result.push({ id: "projecao", type: "warning", icon: Zap, title: "Tendência de Estouro", message: `No ritmo atual, o custo final estimado é ${formatCurrency(projecao)}, ${((projecao / orcamento - 1) * 100).toFixed(1)}% acima do orçamento.`, priority: "alta" });
       }
     }
 
@@ -117,7 +99,7 @@ export default function InsightsPage() {
       const p = { alta: 0, media: 1, baixa: 2 };
       return p[a.priority] - p[b.priority];
     });
-  }, [transacoes, etapas, comissoes, orcamento]);
+  }, [transacoes, comissoes, orcamento, dataInicio, dataTermino]);
 
   const typeConfig = {
     danger: { bg: "bg-destructive/10", border: "border-destructive/20", iconColor: "text-destructive" },
