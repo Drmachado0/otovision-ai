@@ -158,7 +158,6 @@ export default function DashboardPage() {
   }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
   useRealtimeSubscription("obra_config", fetchData);
-  useRealtimeSubscription("obra_cronograma", fetchData);
   useRealtimeSubscription("obra_compras", fetchData);
   useRealtimeSubscription("obra_comissao_pagamentos", fetchData);
   useRealtimeSubscription("obra_contas_financeiras", fetchData);
@@ -174,17 +173,17 @@ export default function DashboardPage() {
     const diasDecorridos = inicio ? Math.max(1, Math.floor((Date.now() - inicio.getTime()) / 86400000)) : 1;
     const burnRate = totalGasto / diasDecorridos;
     const diasRestantes = burnRate > 0 ? saldo / burnRate : 0;
-    const progressoGeral = etapas.length > 0 ? etapas.reduce((s: number, e) => s + e.percentual_conclusao, 0) / etapas.length : 0;
-    const etapasAtrasadas = etapas.filter(e => e.status !== "Concluída" && e.fim_previsto && new Date(e.fim_previsto) < new Date()).length;
-    const projecao = progressoGeral > 5 ? totalGasto / (progressoGeral / 100) : orcamentoTotal;
+    // Sem cronograma: projeção = burn rate até a data de término prevista
+    const fim = config.data_termino ? new Date(config.data_termino) : null;
+    const diasRestantesObra = fim ? Math.max(0, Math.floor((fim.getTime() - Date.now()) / 86400000)) : 0;
+    const projecao = burnRate > 0 ? totalGasto + burnRate * diasRestantesObra : orcamentoTotal;
     const risco = projecao > orcamentoTotal * 1.1 ? "alto" : projecao > orcamentoTotal * 1.0 ? "medio" : "baixo";
-    return { custoM2, burnRate, diasRestantes, progressoGeral, etapasAtrasadas, projecao, risco };
-  }, [totalGasto, config, saldo, etapas, orcamentoTotal]);
+    return { custoM2, burnRate, diasRestantes, projecao, risco };
+  }, [totalGasto, config, saldo, orcamentoTotal]);
 
   const alerts: string[] = [];
   if (percentual > 90) alerts.push("⚠️ Orçamento acima de 90%!");
   if (percentual > 100) alerts.push("🚨 Orçamento ULTRAPASSADO!");
-  if (kpis.etapasAtrasadas > 0) alerts.push(`⏰ ${kpis.etapasAtrasadas} etapa(s) atrasada(s)`);
   if (comissoesPendentes > 0) alerts.push(`💰 ${formatCurrency(comissoesPendentes)} em comissões pendentes`);
 
   const riscoConfig = {
