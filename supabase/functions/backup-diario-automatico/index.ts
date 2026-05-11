@@ -228,6 +228,14 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Aggregate stats only — never leak user UUIDs in the response body.
+  const resultValues = Object.values(results) as Array<Record<string, unknown>>;
+  const ok_count = resultValues.filter((r) => r.ok === true).length;
+  const skipped = resultValues.filter((r) => "skipped" in r).length;
+  const errors = resultValues.filter((r) => "error" in r).length;
+  const drive_ok = resultValues.filter((r) => r.drive_file_id).length;
+  const drive_errors = resultValues.filter((r) => "drive_error" in r).length;
+
   return new Response(
     JSON.stringify({
       success: true,
@@ -235,7 +243,11 @@ Deno.serve(async (req) => {
       date: today,
       eligible: eligible.length,
       total_users: allUserIds.length,
-      results,
+      ok: ok_count,
+      skipped,
+      errors,
+      drive_ok,
+      drive_errors,
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
   );
