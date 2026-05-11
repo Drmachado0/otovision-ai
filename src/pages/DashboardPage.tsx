@@ -118,7 +118,7 @@ export default function DashboardPage() {
     if (etapasRes.data) setEtapas(etapasRes.data as EtapaRow[]);
 
     if (comprasRes.data) {
-      const resumo = calcularResumoCompras(comprasRes.data);
+      const resumo = calcularResumoCompras(comprasRes.data as never);
       setComprasTotal(resumo.totalCompromissado);
       setComprasAPagar(resumo.totalAPagar);
       setComprasPendentes(resumo.pendentesEntrega);

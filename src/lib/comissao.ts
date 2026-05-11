@@ -55,9 +55,8 @@ type SupabaseTable = {
 };
 
 export interface RegistrarTransacaoComComissaoInput {
-  supabase: {
-    from: (table: string) => SupabaseTable;
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
   transacao: TransacaoComComissaoInsert;
   fornecedor?: string;
   documentoId?: string;
@@ -74,9 +73,8 @@ export interface RegistrarTransacaoComComissaoResult {
 }
 
 export interface RegistrarComissaoTransacaoExistenteInput {
-  supabase: {
-    from: (table: string) => SupabaseTable;
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
   transacao: TransacaoComComissaoInsert & { id: string };
   fornecedor?: string;
   documentoId?: string;
@@ -260,7 +258,7 @@ export async function registrarTransacaoComComissao({
     };
   }
 
-  const transacaoDuplicada = (candidatas || []).find((candidata) => {
+  const transacaoDuplicada = (candidatas || []).find((candidata: unknown) => {
     const existente = candidata as TransacaoComComissaoInsert & { id?: string };
     return ehTransacaoDuplicada(transacao, existente);
   }) as ((TransacaoComComissaoInsert & { id?: string }) | undefined);
