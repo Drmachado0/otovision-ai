@@ -7,13 +7,11 @@ import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Ruler, Flame, Target,
   ShieldAlert, ArrowRight, CreditCard, ShoppingCart,
-  Landmark, Receipt, Calendar, Clock, Sparkles,
+  Landmark, Receipt, Clock, Sparkles,
 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import OrigemBadge from "@/components/OrigemBadge";
 import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/TransacaoDetailDrawer";
-import type { EtapaRow } from "@/lib/types";
 import { calcularResumoCompras } from "@/lib/financeiro";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -59,7 +57,6 @@ export default function DashboardPage() {
   const [totalGasto, setTotalGasto] = useState(0);
   const [totalEntradas, setTotalEntradas] = useState(0);
   const [transacoes, setTransacoes] = useState<TransacaoRow[]>([]);
-  const [etapas, setEtapas] = useState<EtapaRow[]>([]);
   const [comprasPendentes, setComprasPendentes] = useState(0);
   const [comprasTotal, setComprasTotal] = useState(0);
   const [comprasAPagar, setComprasAPagar] = useState(0);
@@ -75,14 +72,13 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-    const [configRes, allTransRes, recentTransRes, etapasRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
+    const [configRes, allTransRes, recentTransRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
       supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
       // BUG-001/003: Total Gasto = todas as transacoes (pagas + pendentes),
       // alinhado com Previsao/Curva ABC/Relatorios/Comissao
       supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id, status" as any).is("deleted_at", null).neq("status" as any, "cancelado"),
       // Recent 5 for display (all statuses)
       supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at" as any).is("deleted_at", null).order("data", { ascending: false }).limit(5),
-      supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao, fim_previsto"),
       supabase.from("obra_compras").select("valor_total, status_entrega, numero_parcelas, parcelas, observacoes").is("deleted_at", null),
       supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null),
       supabase.from("obra_contas_financeiras").select("id, nome, tipo, cor, saldo_inicial, ativa").eq("ativa", true),
@@ -115,7 +111,6 @@ export default function DashboardPage() {
     }
 
     if (recentTransRes.data) setTransacoes(recentTransRes.data as unknown as TransacaoRow[]);
-    if (etapasRes.data) setEtapas(etapasRes.data as EtapaRow[]);
 
     if (comprasRes.data) {
       const resumo = calcularResumoCompras(comprasRes.data as never);
@@ -163,7 +158,6 @@ export default function DashboardPage() {
   }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
   useRealtimeSubscription("obra_config", fetchData);
-  useRealtimeSubscription("obra_cronograma", fetchData);
   useRealtimeSubscription("obra_compras", fetchData);
   useRealtimeSubscription("obra_comissao_pagamentos", fetchData);
   useRealtimeSubscription("obra_contas_financeiras", fetchData);
@@ -179,17 +173,17 @@ export default function DashboardPage() {
     const diasDecorridos = inicio ? Math.max(1, Math.floor((Date.now() - inicio.getTime()) / 86400000)) : 1;
     const burnRate = totalGasto / diasDecorridos;
     const diasRestantes = burnRate > 0 ? saldo / burnRate : 0;
-    const progressoGeral = etapas.length > 0 ? etapas.reduce((s: number, e) => s + e.percentual_conclusao, 0) / etapas.length : 0;
-    const etapasAtrasadas = etapas.filter(e => e.status !== "Concluída" && e.fim_previsto && new Date(e.fim_previsto) < new Date()).length;
-    const projecao = progressoGeral > 5 ? totalGasto / (progressoGeral / 100) : orcamentoTotal;
+    // Sem cronograma: projeção = burn rate até a data de término prevista
+    const fim = config.data_termino ? new Date(config.data_termino) : null;
+    const diasRestantesObra = fim ? Math.max(0, Math.floor((fim.getTime() - Date.now()) / 86400000)) : 0;
+    const projecao = burnRate > 0 ? totalGasto + burnRate * diasRestantesObra : orcamentoTotal;
     const risco = projecao > orcamentoTotal * 1.1 ? "alto" : projecao > orcamentoTotal * 1.0 ? "medio" : "baixo";
-    return { custoM2, burnRate, diasRestantes, progressoGeral, etapasAtrasadas, projecao, risco };
-  }, [totalGasto, config, saldo, etapas, orcamentoTotal]);
+    return { custoM2, burnRate, diasRestantes, projecao, risco };
+  }, [totalGasto, config, saldo, orcamentoTotal]);
 
   const alerts: string[] = [];
   if (percentual > 90) alerts.push("⚠️ Orçamento acima de 90%!");
   if (percentual > 100) alerts.push("🚨 Orçamento ULTRAPASSADO!");
-  if (kpis.etapasAtrasadas > 0) alerts.push(`⏰ ${kpis.etapasAtrasadas} etapa(s) atrasada(s)`);
   if (comissoesPendentes > 0) alerts.push(`💰 ${formatCurrency(comissoesPendentes)} em comissões pendentes`);
 
   const riscoConfig = {
@@ -292,7 +286,7 @@ export default function DashboardPage() {
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Risco</span>
           </div>
           <p className={`text-lg font-bold ${rc.color}`}>{rc.label}</p>
-          <p className="text-[10px] text-muted-foreground">{kpis.progressoGeral.toFixed(1)}% concluído</p>
+          <p className="text-[10px] text-muted-foreground">{formatPercent(percentual)} do orçamento usado</p>
         </Link>
       </div>
 
@@ -448,41 +442,6 @@ export default function DashboardPage() {
           )}
         </div>
       )}
-
-      {/* Etapas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">{""}
-
-        {/* Etapas */}
-        {etapas.length > 0 && (
-          <div className="glass-card p-5 animate-fade-in-up" style={{ animationDelay: "1000ms" }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold">Progresso por Etapa</h2>
-              <Link to="/cronograma">
-                <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground hover:text-primary">
-                  Ver todas <ArrowRight className="w-3 h-3" />
-                </Button>
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {etapas.slice(0, 6).map((e, i) => {
-                const isLate = e.status !== "Concluída" && e.fim_previsto && new Date(e.fim_previsto) < new Date();
-                return (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium flex items-center gap-1">
-                        {e.nome}
-                        {isLate && <span className="badge-danger text-[9px]">atrasada</span>}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{e.percentual_conclusao}%</span>
-                    </div>
-                    <Progress value={e.percentual_conclusao} className="h-2" />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Recent transactions */}
       <div className="glass-card p-5">

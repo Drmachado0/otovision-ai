@@ -3,50 +3,50 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
 import {
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
-  Target,
   Sliders,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 
 interface TransRow { tipo: string; valor: number; categoria: string; data: string; }
-interface EtapaRow { nome: string; custo_previsto: number; custo_real: number; status: string; percentual_conclusao: number; }
 
 export default function PrevisaoPage() {
   const [orcamento, setOrcamento] = useState(0);
+  const [dataInicio, setDataInicio] = useState<string>("");
+  const [dataTermino, setDataTermino] = useState<string>("");
   const [transacoes, setTransacoes] = useState<TransRow[]>([]);
-  const [etapas, setEtapas] = useState<EtapaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [ajustePercent, setAjustePercent] = useState(0);
 
   const fetchData = useCallback(async () => {
-    const [configRes, transRes, etapasRes] = await Promise.all([
-      supabase.from("obra_config").select("orcamento_total").limit(1).maybeSingle(),
+    const [configRes, transRes] = await Promise.all([
+      supabase.from("obra_config").select("orcamento_total, data_inicio, data_termino").limit(1).maybeSingle(),
       supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, data").is("deleted_at", null),
-      supabase.from("obra_cronograma").select("nome, custo_previsto, custo_real, status, percentual_conclusao"),
     ]);
-    if (configRes.data) setOrcamento(Number(configRes.data.orcamento_total) || 0);
+    if (configRes.data) {
+      setOrcamento(Number(configRes.data.orcamento_total) || 0);
+      setDataInicio(configRes.data.data_inicio || "");
+      setDataTermino(configRes.data.data_termino || "");
+    }
     if (transRes.data) setTransacoes(transRes.data as TransRow[]);
-    if (etapasRes.data) setEtapas(etapasRes.data as EtapaRow[]);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
-  useRealtimeSubscription("obra_cronograma", fetchData);
 
   const analysis = useMemo(() => {
     const totalGasto = transacoes.filter(t => t.tipo === "Saída").reduce((s, t) => s + Number(t.valor), 0);
-    const custoPrevistoEtapas = etapas.reduce((s, e) => s + e.custo_previsto, 0);
-    const custoRealEtapas = etapas.reduce((s, e) => s + e.custo_real, 0);
-    const progressoMedio = etapas.length > 0 ? etapas.reduce((s, e) => s + e.percentual_conclusao, 0) / etapas.length : 0;
 
-    // Projeção: se gastou X com Y% concluído, o total será X / (Y/100)
-    const projecaoCusto = progressoMedio > 5 ? (totalGasto / (progressoMedio / 100)) : custoPrevistoEtapas || orcamento;
+    // Projeção baseada em burn rate e prazo da obra
+    const inicio = dataInicio ? new Date(dataInicio).getTime() : 0;
+    const fim = dataTermino ? new Date(dataTermino).getTime() : 0;
+    const agora = Date.now();
+    const diasDecorridos = inicio ? Math.max(1, Math.floor((agora - inicio) / 86400000)) : 1;
+    const diasRestantes = fim ? Math.max(0, Math.floor((fim - agora) / 86400000)) : 0;
+    const burnRate = totalGasto / diasDecorridos;
+    const projecaoCusto = totalGasto + burnRate * diasRestantes;
     const projecaoComAjuste = projecaoCusto * (1 + ajustePercent / 100);
     const diferencaProjecao = projecaoComAjuste - orcamento;
     const percentualExecutado = orcamento > 0 ? (totalGasto / orcamento) * 100 : 0;
@@ -64,20 +64,12 @@ export default function PrevisaoPage() {
       .sort((a, b) => b.gasto - a.gasto)
       .slice(0, 8);
 
-    // Previsto vs Realizado por etapa
-    const comparativo = etapas.map(e => ({
-      nome: e.nome,
-      previsto: e.custo_previsto,
-      real: e.custo_real,
-      diff: e.custo_previsto > 0 ? ((e.custo_real - e.custo_previsto) / e.custo_previsto) * 100 : 0,
-    })).filter(e => e.previsto > 0 || e.real > 0);
-
     return {
-      totalGasto, custoPrevistoEtapas, custoRealEtapas, progressoMedio,
+      totalGasto, burnRate, diasRestantes,
       projecaoCusto: projecaoComAjuste, diferencaProjecao, percentualExecutado,
-      risco, categorias, comparativo,
+      risco, categorias,
     };
-  }, [transacoes, etapas, orcamento, ajustePercent]);
+  }, [transacoes, orcamento, ajustePercent, dataInicio, dataTermino]);
 
   const riscoConfig = {
     baixo: { label: "Baixo", color: "text-success", bg: "bg-success/10", border: "border-success/20" },
@@ -133,8 +125,9 @@ export default function PrevisaoPage() {
           <p className={`text-xs mt-1 ${rc.color}`}>Risco {rc.label}</p>
         </div>
         <div className="stat-card-success p-5">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Progresso</p>
-          <p className="text-xl font-bold mt-1">{analysis.progressoMedio.toFixed(1)}%</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Burn Rate / dia</p>
+          <p className="text-xl font-bold mt-1">{formatCurrency(analysis.burnRate)}</p>
+          <p className="text-xs text-muted-foreground mt-1">~{analysis.diasRestantes} dias até término</p>
         </div>
       </div>
 
@@ -167,47 +160,6 @@ export default function PrevisaoPage() {
           </div>
         </div>
       </div>
-
-      {/* Previsto vs Realizado */}
-      {analysis.comparativo.length > 0 && (
-        <div className="glass-card p-5">
-          <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
-            <Target className="w-4 h-4 text-primary" /> Previsto vs Realizado por Etapa
-          </h2>
-          <div className="space-y-3">
-            {analysis.comparativo.map((c, i) => {
-              const max = Math.max(c.previsto, c.real);
-              return (
-                <div key={i}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium">{c.nome}</span>
-                    <span className={`text-xs font-semibold ${c.diff > 0 ? "text-destructive" : c.diff < 0 ? "text-success" : ""}`}>
-                      {c.real === 0 && c.previsto > 0 ? "Sem execução" : `${c.diff > 0 ? "+" : ""}${c.diff.toFixed(1)}%`}
-                    </span>
-                  </div>
-                  <div className="flex gap-1 h-4">
-                    <div className="relative flex-1 rounded-sm bg-secondary/30 overflow-hidden">
-                      <div className="absolute inset-y-0 left-0 bg-info/50 rounded-sm" style={{ width: `${max > 0 ? (c.previsto / max) * 100 : 0}%` }} />
-                    </div>
-                    <div className="relative flex-1 rounded-sm bg-secondary/30 overflow-hidden">
-                      <div className={`absolute inset-y-0 left-0 rounded-sm ${c.real > c.previsto ? "bg-destructive/50" : "bg-success/50"}`} style={{ width: `${max > 0 ? (c.real / max) * 100 : 0}%` }} />
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
-                    <span>Prev: {formatCurrency(c.previsto)}</span>
-                    <span>Real: {formatCurrency(c.real)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex gap-4 mt-3 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-info/50" /> Previsto</span>
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-success/50" /> Realizado (ok)</span>
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-destructive/50" /> Realizado (acima)</span>
-          </div>
-        </div>
-      )}
 
       {/* Top categorias */}
       {analysis.categorias.length > 0 && (

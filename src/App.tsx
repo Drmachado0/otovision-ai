@@ -21,17 +21,13 @@ const ComprasPage = lazy(() => import("@/pages/ComprasPage"));
 const LeitorIAPage = lazy(() => import("@/pages/LeitorIAPage"));
 const ComissaoPage = lazy(() => import("@/pages/ComissaoPage"));
 const AuditoriaPage = lazy(() => import("@/pages/AuditoriaPage"));
-const CronogramaPage = lazy(() => import("@/pages/CronogramaPage"));
 const PrevisaoPage = lazy(() => import("@/pages/PrevisaoPage"));
 const InsightsPage = lazy(() => import("@/pages/InsightsPage"));
 const RelatoriosPage = lazy(() => import("@/pages/RelatoriosPage"));
 const PastaMonitorPage = lazy(() => import("@/pages/PastaMonitorPage"));
-const ConciliacaoPage = lazy(() => import("@/pages/ConciliacaoPage"));
 const ContasBancariasPage = lazy(() => import("@/pages/ContasBancariasPage"));
 const ConfiguracoesPage = lazy(() => import("@/pages/ConfiguracoesPage"));
 const NotasFiscaisPage = lazy(() => import("@/pages/NotasFiscaisPage"));
-const DiarioObraPage = lazy(() => import("@/pages/DiarioObraPage"));
-const MedicaoObraPage = lazy(() => import("@/pages/MedicaoObraPage"));
 const EquipePage = lazy(() => import("@/pages/EquipePage"));
 const CurvaABCPage = lazy(() => import("@/pages/CurvaABCPage"));
 const FornecedoresPage = lazy(() => import("@/pages/FornecedoresPage"));
@@ -131,16 +127,12 @@ function AuthenticatedApp() {
             <Route path="/leitor-ia" element={<LeitorIAPage />} />
             <Route path="/comissao" element={<ComissaoPage />} />
             <Route path="/auditoria" element={<AuditoriaPage />} />
-            <Route path="/cronograma" element={<CronogramaPage />} />
-            <Route path="/diario" element={<DiarioObraPage />} />
-            <Route path="/medicao" element={<MedicaoObraPage />} />
             <Route path="/equipe" element={<EquipePage />} />
             <Route path="/curva-abc" element={<CurvaABCPage />} />
             <Route path="/previsao" element={<PrevisaoPage />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/pasta-sync" element={<PastaMonitorPage />} />
-            <Route path="/conciliacao" element={<ConciliacaoPage />} />
             <Route path="/contas" element={<ContasBancariasPage />} />
             <Route path="/notas-fiscais" element={<NotasFiscaisPage />} />
             <Route path="/fornecedores" element={<FornecedoresPage />} />
