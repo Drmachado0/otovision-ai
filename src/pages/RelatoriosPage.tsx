@@ -276,47 +276,6 @@ export default function RelatoriosPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="etapas" className="space-y-3 mt-4">
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">{etapas.length} registros</span>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() =>
-              handleExport(etapas as unknown as Record<string, unknown>[], "relatorio-etapas", [
-                { key: "nome", label: "Etapa" }, { key: "status", label: "Status" },
-                { key: "percentual_conclusao", label: "Progresso %" },
-                { key: "custo_previsto", label: "Custo Previsto" }, { key: "custo_real", label: "Custo Real" },
-                { key: "inicio_previsto", label: "Início" }, { key: "fim_previsto", label: "Fim" },
-              ])
-            }>
-              <Download className="w-4 h-4" /> CSV
-            </Button>
-          </div>
-          <div className="glass-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead><tr className="border-b border-border/50">
-                  <th className="text-left p-3 text-muted-foreground font-medium">Etapa</th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">Status</th>
-                  <th className="text-right p-3 text-muted-foreground font-medium">Progresso</th>
-                  <th className="text-right p-3 text-muted-foreground font-medium">Previsto</th>
-                  <th className="text-right p-3 text-muted-foreground font-medium">Real</th>
-                </tr></thead>
-                <tbody>
-                  {etapas.map((e) => (
-                    <tr key={e.id} className="border-b border-border/30 hover:bg-secondary/30">
-                      <td className="p-3 font-medium">{e.nome}</td>
-                      <td className="p-3">{e.status}</td>
-                      <td className="p-3 text-right">{e.percentual_conclusao}%</td>
-                      <td className="p-3 text-right">{formatCurrency(Number(e.custo_previsto))}</td>
-                      <td className={`p-3 text-right ${Number(e.custo_real) > Number(e.custo_previsto) ? "text-destructive" : ""}`}>
-                        {formatCurrency(Number(e.custo_real))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
     </div>
   );
