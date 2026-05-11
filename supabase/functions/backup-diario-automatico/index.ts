@@ -100,11 +100,16 @@ async function uploadJsonToDrive(folderId: string, fileName: string, payload: un
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  // Auth guard: only pg_cron / admins with the service role key may invoke.
+  // Auth guard: only pg_cron / admins with the shared secret may invoke.
+  const cronSecret = Deno.env.get("BACKUP_CRON_SECRET");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const authHeader = req.headers.get("Authorization") ?? "";
   const provided = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (!provided || provided !== serviceKey) {
+  const cronHeader = req.headers.get("X-Cron-Secret") ?? "";
+  const authorized =
+    (provided && provided === serviceKey) ||
+    (cronSecret && (cronHeader === cronSecret || provided === cronSecret));
+  if (!authorized) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -112,6 +117,7 @@ Deno.serve(async (req) => {
   }
 
   const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+
 
 
   const currentHour = new Date().getUTCHours();
