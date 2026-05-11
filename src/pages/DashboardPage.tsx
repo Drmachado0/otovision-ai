@@ -57,7 +57,6 @@ export default function DashboardPage() {
   const [totalGasto, setTotalGasto] = useState(0);
   const [totalEntradas, setTotalEntradas] = useState(0);
   const [transacoes, setTransacoes] = useState<TransacaoRow[]>([]);
-  const [etapas, setEtapas] = useState<EtapaRow[]>([]);
   const [comprasPendentes, setComprasPendentes] = useState(0);
   const [comprasTotal, setComprasTotal] = useState(0);
   const [comprasAPagar, setComprasAPagar] = useState(0);
