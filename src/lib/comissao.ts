@@ -73,9 +73,8 @@ export interface RegistrarTransacaoComComissaoResult {
 }
 
 export interface RegistrarComissaoTransacaoExistenteInput {
-  supabase: {
-    from: (table: string) => SupabaseTable;
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
   transacao: TransacaoComComissaoInsert & { id: string };
   fornecedor?: string;
   documentoId?: string;
