@@ -18,22 +18,21 @@ describe("calcularFolhaMensal", () => {
     { trabalhador_id: "a", data: "2026-04-01", valor: 100 }, // outro mês
   ];
 
-  it("calcula bruto, FGTS e INSS apenas para quem incide", () => {
+  it("acumula bruto e dias por trabalhador (FGTS/INSS são manuais)", () => {
     const f = calcularFolhaMensal(trabalhadores, registros, "2026-05");
     const alice = f.itens.find((i) => i.trabalhador_id === "a")!;
     const bob = f.itens.find((i) => i.trabalhador_id === "b")!;
 
     expect(alice.bruto).toBe(200);
-    expect(alice.fgts).toBeCloseTo(16);
-    expect(alice.inss).toBeCloseTo(40);
+    expect(alice.dias).toBe(2);
+    expect(alice.fgts).toBe(0);
+    expect(alice.inss).toBe(0);
     expect(bob.bruto).toBe(90);
-    expect(bob.fgts).toBe(0);
-    expect(bob.inss).toBe(0);
 
     expect(f.total_diarias).toBe(290);
-    expect(f.total_fgts).toBeCloseTo(16);
-    expect(f.total_inss).toBeCloseTo(40);
-    expect(f.total_geral).toBeCloseTo(346);
+    expect(f.total_fgts).toBe(0);
+    expect(f.total_inss).toBe(0);
+    expect(f.total_geral).toBe(290);
   });
 });
 

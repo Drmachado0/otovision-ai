@@ -49,6 +49,8 @@ interface Props {
 }
 
 const EXTRA_FIELDS: { key: keyof FolhaItemExtras; label: string }[] = [
+  { key: "fgts", label: "FGTS" },
+  { key: "inss", label: "INSS" },
   { key: "quinzena", label: "Quinzena" },
   { key: "vales", label: "Vales" },
   { key: "vale_alimentacao", label: "V. Alim." },
@@ -106,6 +108,8 @@ export default function MaoObraFolhaTab({
       const map: Record<string, FolhaItemExtras> = {};
       (data ?? []).forEach((r: any) => {
         map[r.trabalhador_id] = {
+          fgts: Number(r.fgts) || 0,
+          inss: Number(r.inss) || 0,
           quinzena: Number(r.quinzena) || 0,
           vales: Number(r.vales) || 0,
           vale_alimentacao: Number(r.vale_alimentacao) || 0,
@@ -346,8 +350,6 @@ export default function MaoObraFolhaTab({
                   <th className="text-left px-3 py-2">Trabalhador</th>
                   <th className="text-right px-2 py-2">Dias</th>
                   <th className="text-right px-2 py-2">Bruto</th>
-                  <th className="text-right px-2 py-2">FGTS</th>
-                  <th className="text-right px-2 py-2">INSS</th>
                   {EXTRA_FIELDS.map((f) => (
                     <th key={f.key} className="text-right px-2 py-2">{f.label}</th>
                   ))}
@@ -363,12 +365,6 @@ export default function MaoObraFolhaTab({
                     </td>
                     <td className="px-2 py-1.5 text-right">{i.dias}</td>
                     <td className="px-2 py-1.5 text-right">{formatCurrency(i.bruto)}</td>
-                    <td className="px-2 py-1.5 text-right text-warning">
-                      {i.incide_encargos ? formatCurrency(i.fgts) : "-"}
-                    </td>
-                    <td className="px-2 py-1.5 text-right text-info">
-                      {i.incide_encargos ? formatCurrency(i.inss) : "-"}
-                    </td>
                     {EXTRA_FIELDS.map((f) => (
                       <td key={f.key} className="px-1 py-1 text-right">
                         <Input

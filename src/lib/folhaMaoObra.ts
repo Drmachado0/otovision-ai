@@ -1,4 +1,5 @@
 // Cálculos puros para folha de mão de obra (FGTS / INSS / consolidação mensal)
+// FGTS e INSS agora são lançados manualmente por trabalhador (não calculados automaticamente).
 
 export interface TrabalhadorEncargo {
   id: string;
@@ -14,57 +15,6 @@ export interface TrabalhadorEncargo {
 /** Dias úteis padrão por mês para estimativas. */
 export const DIAS_UTEIS_MES = 22;
 
-/**
- * Calcula uma folha estimada para o mês com base no valor da diária
- * de cada trabalhador ativo, sem depender de registros de presença.
- * Útil quando não há registros lançados ainda.
- */
-export function calcularFolhaEstimada(
-  trabalhadores: TrabalhadorEncargo[],
-  dias = DIAS_UTEIS_MES,
-): FolhaResumo {
-  const itens: FolhaItem[] = trabalhadores
-    .filter((t) => t.ativo !== false)
-    .map((t) => {
-      const bruto = (Number(t.valor_diaria) || 0) * dias;
-      const incide = !!t.incide_encargos;
-      const fgts = incide ? bruto * (Number(t.aliquota_fgts ?? 0) / 100) : 0;
-      const inss = incide ? bruto * (Number(t.aliquota_inss ?? 0) / 100) : 0;
-      return {
-        trabalhador_id: t.id,
-        nome: t.nome,
-        funcao: t.funcao ?? "",
-        dias,
-        bruto,
-        fgts,
-        inss,
-        total: bruto + fgts + inss,
-        incide_encargos: incide,
-        ...EMPTY_EXTRAS,
-      };
-    })
-    .sort((a, b) => a.nome.localeCompare(b.nome));
-
-  const total_diarias = itens.reduce((s, i) => s + i.bruto, 0);
-  const total_fgts = itens.reduce((s, i) => s + i.fgts, 0);
-  const total_inss = itens.reduce((s, i) => s + i.inss, 0);
-
-  return {
-    itens,
-    total_diarias,
-    total_fgts,
-    total_inss,
-    total_quinzena: 0,
-    total_vales: 0,
-    total_vale_alim: 0,
-    total_encerramento: 0,
-    total_ferias: 0,
-    total_horas_extras: 0,
-    total_extras: 0,
-    total_geral: total_diarias + total_fgts + total_inss,
-  };
-}
-
 export interface RegistroValor {
   trabalhador_id: string;
   data: string; // YYYY-MM-DD
@@ -72,6 +22,8 @@ export interface RegistroValor {
 }
 
 export interface FolhaItemExtras {
+  fgts: number;
+  inss: number;
   quinzena: number;
   vales: number;
   vale_alimentacao: number;
@@ -86,8 +38,6 @@ export interface FolhaItem extends FolhaItemExtras {
   funcao: string;
   dias: number;
   bruto: number;
-  fgts: number;
-  inss: number;
   total: number;
   incide_encargos: boolean;
 }
@@ -108,6 +58,8 @@ export interface FolhaResumo {
 }
 
 export const EMPTY_EXTRAS: FolhaItemExtras = {
+  fgts: 0,
+  inss: 0,
   quinzena: 0,
   vales: 0,
   vale_alimentacao: 0,
@@ -116,7 +68,7 @@ export const EMPTY_EXTRAS: FolhaItemExtras = {
   horas_extras: 0,
 };
 
-function somarExtras(it: FolhaItemExtras): number {
+function somarAdicionais(it: FolhaItemExtras): number {
   return (
     (Number(it.quinzena) || 0) +
     (Number(it.vales) || 0) +
@@ -133,13 +85,15 @@ export function aplicarExtras(
 ): FolhaResumo {
   const itens = resumo.itens.map((i) => {
     const ex = { ...EMPTY_EXTRAS, ...(extrasMap[i.trabalhador_id] ?? {}) };
-    const adicional = somarExtras(ex);
+    const adicional = somarAdicionais(ex);
     return {
       ...i,
       ...ex,
-      total: i.bruto + i.fgts + i.inss + adicional,
+      total: i.bruto + (Number(ex.fgts) || 0) + (Number(ex.inss) || 0) + adicional,
     };
   });
+  const total_fgts = itens.reduce((s, i) => s + (Number(i.fgts) || 0), 0);
+  const total_inss = itens.reduce((s, i) => s + (Number(i.inss) || 0), 0);
   const total_quinzena = itens.reduce((s, i) => s + (Number(i.quinzena) || 0), 0);
   const total_vales = itens.reduce((s, i) => s + (Number(i.vales) || 0), 0);
   const total_vale_alim = itens.reduce((s, i) => s + (Number(i.vale_alimentacao) || 0), 0);
@@ -151,6 +105,8 @@ export function aplicarExtras(
   return {
     ...resumo,
     itens,
+    total_fgts,
+    total_inss,
     total_quinzena,
     total_vales,
     total_vale_alim,
@@ -158,7 +114,7 @@ export function aplicarExtras(
     total_ferias,
     total_horas_extras,
     total_extras,
-    total_geral: resumo.total_diarias + resumo.total_fgts + resumo.total_inss + total_extras,
+    total_geral: resumo.total_diarias + total_fgts + total_inss + total_extras,
   };
 }
 
@@ -168,6 +124,52 @@ export function mesRefAtual(date = new Date()): string {
 
 export function mesRefDe(dataIso: string): string {
   return dataIso.slice(0, 7);
+}
+
+function novoItem(t: TrabalhadorEncargo): FolhaItem {
+  return {
+    trabalhador_id: t.id,
+    nome: t.nome,
+    funcao: t.funcao ?? "",
+    dias: 0,
+    bruto: 0,
+    total: 0,
+    incide_encargos: !!t.incide_encargos,
+    ...EMPTY_EXTRAS,
+  };
+}
+
+/**
+ * Estima a folha do mês com base no valor da diária × dias úteis.
+ * FGTS e INSS ficam zerados — são lançados manualmente.
+ */
+export function calcularFolhaEstimada(
+  trabalhadores: TrabalhadorEncargo[],
+  dias = DIAS_UTEIS_MES,
+): FolhaResumo {
+  const itens: FolhaItem[] = trabalhadores
+    .filter((t) => t.ativo !== false)
+    .map((t) => {
+      const bruto = (Number(t.valor_diaria) || 0) * dias;
+      return { ...novoItem(t), dias, bruto, total: bruto };
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  const total_diarias = itens.reduce((s, i) => s + i.bruto, 0);
+  return {
+    itens,
+    total_diarias,
+    total_fgts: 0,
+    total_inss: 0,
+    total_quinzena: 0,
+    total_vales: 0,
+    total_vale_alim: 0,
+    total_encerramento: 0,
+    total_ferias: 0,
+    total_horas_extras: 0,
+    total_extras: 0,
+    total_geral: total_diarias,
+  };
 }
 
 export function calcularFolhaMensal(
@@ -183,32 +185,10 @@ export function calcularFolhaMensal(
     const t = trabMap.get(r.trabalhador_id);
     if (!t) continue;
     const valor = Number(r.valor) || 0;
-    const incide = !!t.incide_encargos;
-    const fgtsPct = Number(t.aliquota_fgts ?? 0) / 100;
-    const inssPct = Number(t.aliquota_inss ?? 0) / 100;
-
-    const cur =
-      acumulador.get(t.id) ??
-      ({
-        trabalhador_id: t.id,
-        nome: t.nome,
-        funcao: t.funcao ?? "",
-        dias: 0,
-        bruto: 0,
-        fgts: 0,
-        inss: 0,
-        total: 0,
-        incide_encargos: incide,
-        ...EMPTY_EXTRAS,
-      } as FolhaItem);
-
+    const cur = acumulador.get(t.id) ?? novoItem(t);
     cur.dias += 1;
     cur.bruto += valor;
-    if (incide) {
-      cur.fgts += valor * fgtsPct;
-      cur.inss += valor * inssPct;
-    }
-    cur.total = cur.bruto + cur.fgts + cur.inss;
+    cur.total = cur.bruto;
     acumulador.set(t.id, cur);
   }
 
@@ -217,14 +197,11 @@ export function calcularFolhaMensal(
   );
 
   const total_diarias = itens.reduce((s, i) => s + i.bruto, 0);
-  const total_fgts = itens.reduce((s, i) => s + i.fgts, 0);
-  const total_inss = itens.reduce((s, i) => s + i.inss, 0);
-
   return {
     itens,
     total_diarias,
-    total_fgts,
-    total_inss,
+    total_fgts: 0,
+    total_inss: 0,
     total_quinzena: 0,
     total_vales: 0,
     total_vale_alim: 0,
@@ -232,13 +209,13 @@ export function calcularFolhaMensal(
     total_ferias: 0,
     total_horas_extras: 0,
     total_extras: 0,
-    total_geral: total_diarias + total_fgts + total_inss,
+    total_geral: total_diarias,
   };
 }
 
 export interface MesAgg {
-  mes: string; // YYYY-MM
-  label: string; // mai/26
+  mes: string;
+  label: string;
   diarias: number;
   fgts: number;
   inss: number;
@@ -246,18 +223,8 @@ export interface MesAgg {
 }
 
 const MES_LABEL = [
-  "jan",
-  "fev",
-  "mar",
-  "abr",
-  "mai",
-  "jun",
-  "jul",
-  "ago",
-  "set",
-  "out",
-  "nov",
-  "dez",
+  "jan", "fev", "mar", "abr", "mai", "jun",
+  "jul", "ago", "set", "out", "nov", "dez",
 ];
 
 export function ultimosMeses(n: number, ref = new Date()): string[] {
