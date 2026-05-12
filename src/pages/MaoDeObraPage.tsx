@@ -111,6 +111,9 @@ export default function MaoDeObraPage() {
   const { user } = useAuth();
   const [trabalhadores, setTrabalhadores] = useState<Trabalhador[]>([]);
   const [registros, setRegistros] = useState<Registro[]>([]);
+  const [registros12m, setRegistros12m] = useState<Registro[]>([]);
+  const [folhas, setFolhas] = useState<Folha[]>([]);
+  const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -120,6 +123,8 @@ export default function MaoDeObraPage() {
   const [registroForm, setRegistroForm] = useState(EMPTY_REGISTRO);
   const [savingRegistro, setSavingRegistro] = useState(false);
   const [workerRegistros, setWorkerRegistros] = useState<Registro[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"Todos" | "Ativos" | "Inativos">("Todos");
 
   // ---------- fetch trabalhadores ----------
   const fetchTrabalhadores = useCallback(async () => {
