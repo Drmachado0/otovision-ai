@@ -72,6 +72,8 @@ export interface RegistroValor {
 }
 
 export interface FolhaItemExtras {
+  fgts: number;
+  inss: number;
   quinzena: number;
   vales: number;
   vale_alimentacao: number;
