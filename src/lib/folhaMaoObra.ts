@@ -63,7 +63,16 @@ export interface RegistroValor {
   valor: number | null;
 }
 
-export interface FolhaItem {
+export interface FolhaItemExtras {
+  quinzena: number;
+  vales: number;
+  vale_alimentacao: number;
+  encerramento: number;
+  ferias_decimo: number;
+  horas_extras: number;
+}
+
+export interface FolhaItem extends FolhaItemExtras {
   trabalhador_id: string;
   nome: string;
   funcao: string;
@@ -80,7 +89,69 @@ export interface FolhaResumo {
   total_diarias: number;
   total_fgts: number;
   total_inss: number;
+  total_quinzena: number;
+  total_vales: number;
+  total_vale_alim: number;
+  total_encerramento: number;
+  total_ferias: number;
+  total_horas_extras: number;
+  total_extras: number;
   total_geral: number;
+}
+
+export const EMPTY_EXTRAS: FolhaItemExtras = {
+  quinzena: 0,
+  vales: 0,
+  vale_alimentacao: 0,
+  encerramento: 0,
+  ferias_decimo: 0,
+  horas_extras: 0,
+};
+
+function somarExtras(it: FolhaItemExtras): number {
+  return (
+    (Number(it.quinzena) || 0) +
+    (Number(it.vales) || 0) +
+    (Number(it.vale_alimentacao) || 0) +
+    (Number(it.encerramento) || 0) +
+    (Number(it.ferias_decimo) || 0) +
+    (Number(it.horas_extras) || 0)
+  );
+}
+
+export function aplicarExtras(
+  resumo: FolhaResumo,
+  extrasMap: Record<string, Partial<FolhaItemExtras>>,
+): FolhaResumo {
+  const itens = resumo.itens.map((i) => {
+    const ex = { ...EMPTY_EXTRAS, ...(extrasMap[i.trabalhador_id] ?? {}) };
+    const adicional = somarExtras(ex);
+    return {
+      ...i,
+      ...ex,
+      total: i.bruto + i.fgts + i.inss + adicional,
+    };
+  });
+  const total_quinzena = itens.reduce((s, i) => s + (Number(i.quinzena) || 0), 0);
+  const total_vales = itens.reduce((s, i) => s + (Number(i.vales) || 0), 0);
+  const total_vale_alim = itens.reduce((s, i) => s + (Number(i.vale_alimentacao) || 0), 0);
+  const total_encerramento = itens.reduce((s, i) => s + (Number(i.encerramento) || 0), 0);
+  const total_ferias = itens.reduce((s, i) => s + (Number(i.ferias_decimo) || 0), 0);
+  const total_horas_extras = itens.reduce((s, i) => s + (Number(i.horas_extras) || 0), 0);
+  const total_extras =
+    total_quinzena + total_vales + total_vale_alim + total_encerramento + total_ferias + total_horas_extras;
+  return {
+    ...resumo,
+    itens,
+    total_quinzena,
+    total_vales,
+    total_vale_alim,
+    total_encerramento,
+    total_ferias,
+    total_horas_extras,
+    total_extras,
+    total_geral: resumo.total_diarias + resumo.total_fgts + resumo.total_inss + total_extras,
+  };
 }
 
 export function mesRefAtual(date = new Date()): string {
