@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText, Percent,
-  Menu, X, Building2, History, Lightbulb,
+  Menu, X, Building2, History,
   BarChart3, FolderSync, ChevronRight, Wallet, Settings,
   Users, PieChart, Receipt,
 } from "lucide-react";
@@ -29,7 +29,7 @@ const navItems: NavItem[] = [
   { path: "/fornecedores", label: "Fornecedores", icon: Building2, allowedRoles: ["admin", "financeiro"] },
   { path: "/orcamentos", label: "Orçamentos", icon: FileText, allowedRoles: ["admin", "financeiro"] },
   { path: "/notas-fiscais", label: "Notas Fiscais", icon: FileText, allowedRoles: ["admin", "financeiro"] },
-  { path: "/insights", label: "Insights", icon: Lightbulb },
+  
   { path: "/resumo-mensal", label: "Resumo Mensal", icon: BarChart3, allowedRoles: ["admin", "financeiro"] },
   { path: "/leitor-ia", label: "Leitor IA", icon: FileText, allowedRoles: ["admin", "financeiro"] },
   { path: "/pasta-sync", label: "Pasta Sync", icon: FolderSync, allowedRoles: ["admin", "financeiro"] },
