@@ -155,13 +155,51 @@ export default function MaoDeObraPage() {
     setRegistros(data ?? []);
   }, []);
 
+  // ---------- fetch registros 12 meses (gráfico histórico) ----------
+  const fetchRegistros12m = useCallback(async () => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 11);
+    const inicio = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    const { data } = await (supabase as any)
+      .from("obra_mao_obra_registros")
+      .select("*")
+      .gte("data", inicio)
+      .order("data", { ascending: false });
+    setRegistros12m(data ?? []);
+  }, []);
+
+  // ---------- fetch folhas / contas ----------
+  const fetchFolhas = useCallback(async () => {
+    const { data } = await (supabase as any)
+      .from("obra_mao_obra_folha")
+      .select("id,mes_ref,total_diarias,total_fgts,total_inss,status")
+      .is("deleted_at", null)
+      .order("mes_ref", { ascending: false });
+    setFolhas(data ?? []);
+  }, []);
+
+  const fetchContas = useCallback(async () => {
+    const { data } = await (supabase as any)
+      .from("obra_contas_financeiras")
+      .select("id,nome,tipo")
+      .eq("ativa", true)
+      .order("nome");
+    setContas(data ?? []);
+  }, []);
+
   useEffect(() => {
     fetchTrabalhadores();
     fetchRegistros();
-  }, [fetchTrabalhadores, fetchRegistros]);
+    fetchRegistros12m();
+    fetchFolhas();
+    fetchContas();
+  }, [fetchTrabalhadores, fetchRegistros, fetchRegistros12m, fetchFolhas, fetchContas]);
 
   useRealtimeSubscription("obra_mao_de_obra", fetchTrabalhadores);
-  useRealtimeSubscription("obra_mao_obra_registros", fetchRegistros);
+  useRealtimeSubscription("obra_mao_obra_registros", () => {
+    fetchRegistros();
+    fetchRegistros12m();
+  });
 
   // ---------- fetch worker registros ----------
   const fetchWorkerRegistros = useCallback(async (trabalhadorId: string) => {
@@ -196,6 +234,9 @@ export default function MaoDeObraPage() {
       tipo_contrato: t.tipo_contrato ?? "Diária",
       data_inicio: t.data_inicio ?? todayLocalISO(),
       observacoes: t.observacoes ?? "",
+      incide_encargos: !!t.incide_encargos,
+      aliquota_fgts: String(t.aliquota_fgts ?? "8"),
+      aliquota_inss: String(t.aliquota_inss ?? "20"),
     });
     setShowForm(true);
   };
