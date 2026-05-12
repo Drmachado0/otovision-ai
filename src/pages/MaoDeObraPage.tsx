@@ -69,7 +69,7 @@ const EMPTY_FORM = {
   telefone: "",
   valor_diaria: "",
   valor_hora: "",
-  tipo_contrato: "Di\u00e1ria",
+  tipo_contrato: "Diária",
   data_inicio: todayLocalISO(),
   observacoes: "",
 };
@@ -161,7 +161,7 @@ export default function MaoDeObraPage() {
       telefone: t.telefone ?? "",
       valor_diaria: String(t.valor_diaria ?? ""),
       valor_hora: String(t.valor_hora ?? ""),
-      tipo_contrato: t.tipo_contrato ?? "Di\u00e1ria",
+      tipo_contrato: t.tipo_contrato ?? "Diária",
       data_inicio: t.data_inicio ?? todayLocalISO(),
       observacoes: t.observacoes ?? "",
     });
@@ -306,9 +306,9 @@ export default function MaoDeObraPage() {
         <div className="flex items-center gap-3">
           <HardHat className="w-6 h-6 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold">M\u00e3o de Obra</h1>
+            <h1 className="text-2xl font-bold">Mão de Obra</h1>
             <p className="text-sm text-muted-foreground">
-              Gest\u00e3o de trabalhadores e registros de presen\u00e7a
+              Gestão de trabalhadores e registros de presença
             </p>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function MaoDeObraPage() {
           {
             cls: "stat-card-success",
             icon: <Calendar className="w-4 h-4 text-success" />,
-            label: "Registros do M\u00eas",
+            label: "Registros do Mês",
             value: String(totalRegistrosMes),
             color: "text-success",
           },
@@ -425,12 +425,12 @@ export default function MaoDeObraPage() {
                   <span className="font-medium text-foreground">
                     {formatCurrency(t.valor_diaria ?? 0)}
                   </span>
-                  <span className="text-xs">/di\u00e1ria</span>
+                  <span className="text-xs">/diária</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="w-3.5 h-3.5" />
                   <Badge variant="outline" className="text-xs">
-                    {t.tipo_contrato || "Di\u00e1ria"}
+                    {t.tipo_contrato || "Diária"}
                   </Badge>
                 </div>
               </div>
@@ -501,7 +501,7 @@ export default function MaoDeObraPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="funcao">Fun\u00e7\u00e3o</Label>
+              <Label htmlFor="funcao">Função</Label>
               <Input
                 id="funcao"
                 placeholder="Ex: Pedreiro, Eletricista..."
@@ -522,7 +522,7 @@ export default function MaoDeObraPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="valor_diaria">Valor Di\u00e1ria (R$)</Label>
+                <Label htmlFor="valor_diaria">Valor Diária (R$)</Label>
                 <Input
                   id="valor_diaria"
                   type="number"
@@ -562,13 +562,13 @@ export default function MaoDeObraPage() {
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option>Di\u00e1ria</option>
+                  <option>Diária</option>
                   <option>Hora</option>
                   <option>Mensal</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="data_inicio">Data In\u00edcio</Label>
+                <Label htmlFor="data_inicio">Data Início</Label>
                 <Input
                   id="data_inicio"
                   type="date"
@@ -581,10 +581,10 @@ export default function MaoDeObraPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="observacoes">Observa\u00e7\u00f5es</Label>
+              <Label htmlFor="observacoes">Observações</Label>
               <Input
                 id="observacoes"
-                placeholder="Anota\u00e7\u00f5es sobre o trabalhador..."
+                placeholder="Anotações sobre o trabalhador..."
                 value={form.observacoes}
                 onChange={(e) =>
                   setForm({ ...form, observacoes: e.target.value })
@@ -638,7 +638,7 @@ export default function MaoDeObraPage() {
                 <div className="glass-card p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Fun\u00e7\u00e3o
+                      Função
                     </span>
                     <span className="text-sm font-medium">
                       {selectedTrabalhador.funcao || "-"}
@@ -657,7 +657,7 @@ export default function MaoDeObraPage() {
                   )}
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Valor Di\u00e1ria
+                      Valor Diária
                     </span>
                     <span className="text-sm font-medium">
                       {formatCurrency(selectedTrabalhador.valor_diaria ?? 0)}
@@ -676,12 +676,12 @@ export default function MaoDeObraPage() {
                       Contrato
                     </span>
                     <Badge variant="outline" className="text-xs">
-                      {selectedTrabalhador.tipo_contrato || "Di\u00e1ria"}
+                      {selectedTrabalhador.tipo_contrato || "Diária"}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      In\u00edcio
+                      Início
                     </span>
                     <span className="text-sm font-medium">
                       {formatDate(selectedTrabalhador.data_inicio)}
@@ -708,7 +708,7 @@ export default function MaoDeObraPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <DollarSign className="w-4 h-4 text-primary" />
                     <span className="text-xs text-muted-foreground uppercase">
-                      Custo do M\u00eas
+                      Custo do Mês
                     </span>
                   </div>
                   <p className="text-xl font-bold">
@@ -760,10 +760,10 @@ export default function MaoDeObraPage() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">
-                        Observa\u00e7\u00f5es
+                        Observações
                       </Label>
                       <Input
-                        placeholder="Ex: Servi\u00e7o de alvenaria..."
+                        placeholder="Ex: Serviço de alvenaria..."
                         value={registroForm.observacoes}
                         onChange={(e) =>
                           setRegistroForm({
