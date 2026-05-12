@@ -350,8 +350,6 @@ export default function MaoObraFolhaTab({
                   <th className="text-left px-3 py-2">Trabalhador</th>
                   <th className="text-right px-2 py-2">Dias</th>
                   <th className="text-right px-2 py-2">Bruto</th>
-                  <th className="text-right px-2 py-2">FGTS</th>
-                  <th className="text-right px-2 py-2">INSS</th>
                   {EXTRA_FIELDS.map((f) => (
                     <th key={f.key} className="text-right px-2 py-2">{f.label}</th>
                   ))}
