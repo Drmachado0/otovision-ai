@@ -108,6 +108,8 @@ export default function MaoObraFolhaTab({
       const map: Record<string, FolhaItemExtras> = {};
       (data ?? []).forEach((r: any) => {
         map[r.trabalhador_id] = {
+          fgts: Number(r.fgts) || 0,
+          inss: Number(r.inss) || 0,
           quinzena: Number(r.quinzena) || 0,
           vales: Number(r.vales) || 0,
           vale_alimentacao: Number(r.vale_alimentacao) || 0,
