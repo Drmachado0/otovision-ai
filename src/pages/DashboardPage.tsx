@@ -5,8 +5,8 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { formatCurrency, formatPercent, formatDate, todayLocalISO, parseLocalDate } from "@/lib/formatters";
 import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
-  ArrowUpRight, ArrowDownRight, Ruler, Flame, Target,
-  ShieldAlert, ArrowRight, CreditCard, ShoppingCart,
+  ArrowUpRight, ArrowDownRight, Ruler,
+  ArrowRight, CreditCard, ShoppingCart,
   Landmark, Receipt, Clock, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -169,29 +169,13 @@ export default function DashboardPage() {
   const kpis = useMemo(() => {
     const area = config.area_construida || 1;
     const custoM2 = totalGasto / area;
-    const inicio = config.data_inicio ? new Date(config.data_inicio) : null;
-    const diasDecorridos = inicio ? Math.max(1, Math.floor((Date.now() - inicio.getTime()) / 86400000)) : 1;
-    const burnRate = totalGasto / diasDecorridos;
-    const diasRestantes = burnRate > 0 ? saldo / burnRate : 0;
-    // Projeção financeira = burn rate até a data de término prevista
-    const fim = config.data_termino ? new Date(config.data_termino) : null;
-    const diasRestantesObra = fim ? Math.max(0, Math.floor((fim.getTime() - Date.now()) / 86400000)) : 0;
-    const projecao = burnRate > 0 ? totalGasto + burnRate * diasRestantesObra : orcamentoTotal;
-    const risco = projecao > orcamentoTotal * 1.1 ? "alto" : projecao > orcamentoTotal * 1.0 ? "medio" : "baixo";
-    return { custoM2, burnRate, diasRestantes, projecao, risco };
-  }, [totalGasto, config, saldo, orcamentoTotal]);
+    return { custoM2 };
+  }, [totalGasto, config]);
 
   const alerts: string[] = [];
   if (percentual > 90) alerts.push("⚠️ Orçamento acima de 90%!");
   if (percentual > 100) alerts.push("🚨 Orçamento ULTRAPASSADO!");
   if (comissoesPendentes > 0) alerts.push(`💰 ${formatCurrency(comissoesPendentes)} em comissões pendentes`);
-
-  const riscoConfig = {
-    baixo: { label: "Baixo", color: "text-success", bg: "bg-success" },
-    medio: { label: "Médio", color: "text-warning", bg: "bg-warning" },
-    alto: { label: "Alto", color: "text-destructive", bg: "bg-destructive" },
-  };
-  const rc = riscoConfig[kpis.risco as keyof typeof riscoConfig];
 
   if (loading) {
     return (
@@ -275,19 +259,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Advanced KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <MiniKPI cls="stat-card-primary" icon={<Ruler className="w-4 h-4 text-primary" />} label="Custo/m²" value={formatCurrency(kpis.custoM2)} delay={400} to="/relatorios" />
-        <MiniKPI cls="stat-card-warning" icon={<Flame className="w-4 h-4 text-warning" />} label="Burn Rate/dia" value={formatCurrency(kpis.burnRate)} sub={`~${Math.round(kpis.diasRestantes)} dias restantes`} delay={500} to="/relatorios" />
-        <MiniKPI cls="stat-card-info" icon={<Target className="w-4 h-4 text-info" />} label="Projeção Final" value={formatCurrency(kpis.projecao)} delay={600} to="/relatorios" />
-        <Link to="/insights" className="glass-card p-4 relative overflow-hidden animate-fade-in-up hover:bg-accent/30 transition-colors block" style={{ animationDelay: "700ms" }}>
-          <div className={`absolute top-0 left-0 w-1 h-full ${rc.bg}`} />
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldAlert className={`w-4 h-4 ${rc.color}`} />
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Risco</span>
-          </div>
-          <p className={`text-lg font-bold ${rc.color}`}>{rc.label}</p>
-          <p className="text-[10px] text-muted-foreground">{formatPercent(percentual)} do orçamento usado</p>
-        </Link>
       </div>
 
       {/* Contas a Pagar highlight */}
