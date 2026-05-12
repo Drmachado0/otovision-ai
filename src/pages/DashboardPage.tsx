@@ -176,8 +176,6 @@ export default function DashboardPage() {
   if (percentual > 90) alerts.push("⚠️ Orçamento acima de 90%!");
   if (percentual > 100) alerts.push("🚨 Orçamento ULTRAPASSADO!");
   if (comissoesPendentes > 0) alerts.push(`💰 ${formatCurrency(comissoesPendentes)} em comissões pendentes`);
-
-  const riscoConfig = {
     baixo: { label: "Baixo", color: "text-success", bg: "bg-success" },
     medio: { label: "Médio", color: "text-warning", bg: "bg-warning" },
     alto: { label: "Alto", color: "text-destructive", bg: "bg-destructive" },
