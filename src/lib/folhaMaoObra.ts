@@ -40,6 +40,7 @@ export function calcularFolhaEstimada(
         inss,
         total: bruto + fgts + inss,
         incide_encargos: incide,
+        ...EMPTY_EXTRAS,
       };
     })
     .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -53,6 +54,13 @@ export function calcularFolhaEstimada(
     total_diarias,
     total_fgts,
     total_inss,
+    total_quinzena: 0,
+    total_vales: 0,
+    total_vale_alim: 0,
+    total_encerramento: 0,
+    total_ferias: 0,
+    total_horas_extras: 0,
+    total_extras: 0,
     total_geral: total_diarias + total_fgts + total_inss,
   };
 }
