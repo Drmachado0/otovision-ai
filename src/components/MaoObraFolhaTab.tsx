@@ -49,6 +49,8 @@ interface Props {
 }
 
 const EXTRA_FIELDS: { key: keyof FolhaItemExtras; label: string }[] = [
+  { key: "fgts", label: "FGTS" },
+  { key: "inss", label: "INSS" },
   { key: "quinzena", label: "Quinzena" },
   { key: "vales", label: "Vales" },
   { key: "vale_alimentacao", label: "V. Alim." },
