@@ -1,74 +1,101 @@
-## Objetivo
+## Melhorias em Mão de Obra
 
-Permitir que cada usuário escolha **hora do backup** (0–23 UTC) e **período de retenção** (dias), e enviar uma cópia adicional dos backups para uma **única conta Google Drive** (do admin do workspace) via conector Lovable.
+Plano para evoluir `MaoDeObraPage` com gestão de folha mensal, encargos (FGTS/INSS), gráfico de despesas e integração com Contas a Pagar.
 
----
+### 1. Banco de dados (migration)
 
-## 1. Banco de dados (nova tabela)
+Adicionar campos e tabela para encargos:
 
-Criar `obra_backup_preferencias` (uma linha por usuário):
+```sql
+-- Configuração de alíquotas em obra_mao_de_obra
+ALTER TABLE obra_mao_de_obra
+  ADD COLUMN aliquota_fgts numeric DEFAULT 8,
+  ADD COLUMN aliquota_inss numeric DEFAULT 20,
+  ADD COLUMN incide_encargos boolean DEFAULT false;
 
-- `user_id` (uuid, único, FK lógica para auth.users)
-- `hora_utc` (int, 0–23, default 3)
-- `retencao_dias` (int, 7–90, default 30)
-- `enviar_google_drive` (boolean, default false)
-- `ativo` (boolean, default true)
+-- Histórico de folhas/encargos lançados
+CREATE TABLE obra_mao_obra_folha (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  mes_ref text NOT NULL,           -- '2026-05'
+  total_diarias numeric NOT NULL,
+  total_fgts numeric NOT NULL DEFAULT 0,
+  total_inss numeric NOT NULL DEFAULT 0,
+  detalhes jsonb,                  -- breakdown por trabalhador
+  transacao_fgts_id uuid,          -- FK lógica para obra_transacoes_fluxo
+  transacao_inss_id uuid,
+  status text DEFAULT 'lancada',
+  observacoes text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  deleted_at timestamptz,
+  UNIQUE(user_id, mes_ref)
+);
+```
 
-**RLS:** cada usuário vê/edita apenas a própria linha (`auth.uid() = user_id`).
+RLS padrão dos demais `obra_*` (acesso restrito ao `user_id` autenticado).
 
-Sem trigger de auditoria nesta tabela (não é dado de obra).
+### 2. Lançamento automático com confirmação
 
-## 2. Edge function `backup-diario-automatico` (refatorar)
+Fluxo do botão "Lançar encargos do mês":
 
-Trocar a regra de execução:
+```text
+[clique] → calcula:
+   total_diarias = soma de obra_mao_obra_registros do mês (trabalhadores incide_encargos=true)
+   total_fgts    = Σ (registro.valor × trabalhador.aliquota_fgts/100)
+   total_inss    = Σ (registro.valor × trabalhador.aliquota_inss/100)
+→ abre Dialog com valores sugeridos editáveis + escolha de conta + data
+→ confirma:
+   1) insert em obra_mao_obra_folha
+   2) insert em obra_transacoes_fluxo (tipo='Saída', categoria='Encargos FGTS', referência='FOLHA-FGTS-YYYY-MM')
+   3) insert em obra_transacoes_fluxo (categoria='Encargos INSS')
+   4) salva ids em obra_mao_obra_folha
+```
 
-- Cron passa a rodar **toda hora cheia** (`0 * * * *`).
-- Ler `current_hour_utc = EXTRACT(HOUR FROM now())`.
-- Buscar usuários em `obra_backup_preferencias` com `ativo=true AND hora_utc = current_hour_utc`. Fallback: usuários **sem** preferência usam hora padrão **3 UTC**.
-- Para cada usuário elegível:
-  1. Exportar tabelas `obra_*` (igual hoje).
-  2. Subir JSON em `backups-automaticos/{user_id}/{data}.json`.
-  3. **Retenção por usuário**: ler `retencao_dias` (default 30) e deletar arquivos mais antigos que esse limite (em vez do constante `RETENTION_DAYS = 30`).
-  4. Se `enviar_google_drive = true`, fazer upload multipart para a pasta central no Google Drive (ver §3).
+Se o mês já tem folha lançada, mostra status "Lançada" e desabilita o botão (com link para editar/estornar).
 
-## 3. Integração com Google Drive (1 Drive central)
+### 3. Folha de pagamento mensal (nova aba)
 
-- Conectar o conector **Google Drive** ao projeto via `standard_connectors--connect("google_drive")`.
-- Na primeira execução com Drive habilitado, garantir/criar a pasta raiz `OTOVISION-Backups` e, dentro dela, uma subpasta por `user_id` (cachear o `folderId` numa tabela auxiliar `obra_backup_drive_folders` com `user_id` único + `folder_id`).
-- Upload via gateway: `POST https://connector-gateway.lovable.dev/google_drive/upload/drive/v3/files?uploadType=multipart` com headers `Authorization: Bearer ${LOVABLE_API_KEY}` e `X-Connection-Api-Key: ${GOOGLE_DRIVE_API_KEY}`.
-- Falha no Drive **não aborta** o backup do Storage; só registra erro no resultado.
+Reorganizar a página em **3 abas** (`Tabs`):
+- **Trabalhadores** — grid atual (com filtros novos).
+- **Folha do mês** — seletor de mês + tabela: nome | função | dias | bruto | FGTS | INSS | total. Totais no rodapé. Botão "Lançar encargos" e "Lançar diárias em Contas a Pagar" (cria 1 transação por trabalhador).
+- **Histórico** — gráfico + lista de folhas anteriores.
 
-## 4. Cron (re-agendar)
+### 4. Gráfico de despesas mês a mês
 
-Atualizar o agendamento `backup-diario-automatico` no `pg_cron`:
+Componente Recharts (BarChart) nos últimos 12 meses, agregando `obra_mao_obra_registros.valor` + `obra_mao_obra_folha.total_fgts/inss` por mês. Cor primária do tema. Localizado na aba Histórico, acima da lista.
 
-- Desagendar o cron atual (`cron.unschedule('backup-diario-automatico')`).
-- Re-agendar com expressão `0 * * * *`.
+### 5. Filtros e busca (aba Trabalhadores)
 
-## 5. UI em Configurações → Backup de Dados
+- Input de busca por nome/função.
+- Toggle de status: Todos / Ativos / Inativos.
+- Botão para alternar visualização cards/lista (opcional).
 
-Acima da lista de backups automáticos, adicionar um card "Preferências de backup automático":
+### 6. Integração com Contas a Pagar
 
-- Select "Hora do backup (UTC)" — 00 a 23.
-- Select "Reter por" — 7 / 14 / 30 / 60 / 90 dias.
-- Switch "Enviar cópia para o Google Drive".
-- Botão "Salvar preferências".
-- Texto de ajuda mostrando próximo horário de execução em UTC e equivalente local.
+Os 2 lançamentos de encargos (FGTS, INSS) e as diárias acumuladas geram registros em `obra_transacoes_fluxo` com `tipo='Saída'`, categoria adequada e `referencia` rastreável (ex.: `FOLHA-FGTS-2026-05`), aparecendo automaticamente em `ContasAPagarPage`.
 
-Carrega/grava em `obra_backup_preferencias` (upsert por `user_id`).
+### 7. Formulário de trabalhador
 
-Se o switch do Drive estiver ON e a conexão **não existir**, mostrar aviso "O admin precisa conectar o Google Drive em Configurações" e desabilitar o switch.
+Adicionar no Dialog:
+- Switch "Calcular encargos (FGTS/INSS)".
+- Inputs % FGTS (default 8) e % INSS (default 20) — visíveis quando o switch está ativo.
 
-## 6. Validação pós-implementação
+### 8. Arquivos afetados
 
-- Confirmar que `select * from cron.job` mostra apenas a entrada `0 * * * *`.
-- Disparar a edge function manualmente via `curl_edge_functions` para validar fluxo (com e sem Drive).
-- Verificar que a UI persiste e recupera as preferências.
-- Verificar que a retenção por usuário remove apenas arquivos do próprio usuário.
+- `supabase/migrations/<ts>_mao_obra_folha.sql` (novo)
+- `src/pages/MaoDeObraPage.tsx` (refatorar em abas + filtros)
+- `src/components/MaoObraFolhaTab.tsx` (novo) — tabela folha + lançamento encargos
+- `src/components/MaoObraHistoricoChart.tsx` (novo) — gráfico 12 meses
+- `src/lib/folhaMaoObra.ts` (novo) — funções puras de cálculo (testáveis)
 
-## Detalhes técnicos
+### 9. Testes
 
-- Usuários sem linha em `obra_backup_preferencias` continuam sendo backupeados às 03:00 UTC com retenção de 30 dias (compatibilidade).
-- O bucket `backups-automaticos` permanece privado; políticas RLS já limitam SELECT por pasta=user_id.
-- O upload Drive é melhor-esforço — erros vão para o objeto `results[user_id].drive_error` no JSON de retorno.
-- Como o Drive é único, **todos os usuários compartilham a mesma conta Google**. A subpasta `{user_id}` separa visualmente, mas qualquer pessoa com acesso àquele Drive vê todos os backups. Documentar isso na ajuda do switch.
+`src/test/folhaMaoObra.test.ts` cobrindo cálculo de FGTS/INSS por trabalhador e consolidação mensal.
+
+### Notas técnicas
+
+- Cálculo somente para trabalhadores `incide_encargos=true` (informais/diaristas continuam fora por padrão).
+- Lançamento de encargos é idempotente por mês (constraint UNIQUE).
+- Gráfico usa `useMemo` agrupando registros já carregados; busca extra no backend só para histórico além do mês corrente.
+- Realtime mantido para `obra_mao_de_obra`, `obra_mao_obra_registros` e nova tabela `obra_mao_obra_folha`.
