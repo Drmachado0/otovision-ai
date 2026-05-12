@@ -7,6 +7,54 @@ export interface TrabalhadorEncargo {
   aliquota_fgts?: number | null;
   aliquota_inss?: number | null;
   incide_encargos?: boolean | null;
+  valor_diaria?: number | null;
+  ativo?: boolean | null;
+}
+
+/** Dias úteis padrão por mês para estimativas. */
+export const DIAS_UTEIS_MES = 22;
+
+/**
+ * Calcula uma folha estimada para o mês com base no valor da diária
+ * de cada trabalhador ativo, sem depender de registros de presença.
+ * Útil quando não há registros lançados ainda.
+ */
+export function calcularFolhaEstimada(
+  trabalhadores: TrabalhadorEncargo[],
+  dias = DIAS_UTEIS_MES,
+): FolhaResumo {
+  const itens: FolhaItem[] = trabalhadores
+    .filter((t) => t.ativo !== false)
+    .map((t) => {
+      const bruto = (Number(t.valor_diaria) || 0) * dias;
+      const incide = !!t.incide_encargos;
+      const fgts = incide ? bruto * (Number(t.aliquota_fgts ?? 0) / 100) : 0;
+      const inss = incide ? bruto * (Number(t.aliquota_inss ?? 0) / 100) : 0;
+      return {
+        trabalhador_id: t.id,
+        nome: t.nome,
+        funcao: t.funcao ?? "",
+        dias,
+        bruto,
+        fgts,
+        inss,
+        total: bruto + fgts + inss,
+        incide_encargos: incide,
+      };
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  const total_diarias = itens.reduce((s, i) => s + i.bruto, 0);
+  const total_fgts = itens.reduce((s, i) => s + i.fgts, 0);
+  const total_inss = itens.reduce((s, i) => s + i.inss, 0);
+
+  return {
+    itens,
+    total_diarias,
+    total_fgts,
+    total_inss,
+    total_geral: total_diarias + total_fgts + total_inss,
+  };
 }
 
 export interface RegistroValor {

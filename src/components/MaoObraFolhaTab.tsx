@@ -11,10 +11,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, Send, Calculator } from "lucide-react";
+import { CheckCircle2, Send, Calculator, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import {
   calcularFolhaMensal,
+  calcularFolhaEstimada,
   mesRefAtual,
   type TrabalhadorEncargo,
   type RegistroValor,
@@ -56,10 +57,17 @@ export default function MaoObraFolhaTab({
   const [showDialog, setShowDialog] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const folha = useMemo(
+  const folhaReal = useMemo(
     () => calcularFolhaMensal(trabalhadores, registros, mesRef),
     [trabalhadores, registros, mesRef],
   );
+
+  const usarEstimativa = folhaReal.itens.length === 0;
+  const folhaEstimada = useMemo(
+    () => calcularFolhaEstimada(trabalhadores),
+    [trabalhadores],
+  );
+  const folha = usarEstimativa ? folhaEstimada : folhaReal;
 
   const folhaLancada = folhas.find((f) => f.mes_ref === mesRef);
 
@@ -172,11 +180,17 @@ export default function MaoObraFolhaTab({
               Encargos lançados
             </Badge>
           )}
+          {!folhaLancada && usarEstimativa && folha.itens.length > 0 && (
+            <Badge variant="outline" className="gap-1 text-warning border-warning/40">
+              <Sparkles className="w-3 h-3" />
+              Estimativa (sem registros)
+            </Badge>
+          )}
         </div>
         <Button
           size="sm"
           onClick={() => setShowDialog(true)}
-          disabled={!!folhaLancada || folha.itens.length === 0}
+          disabled={!!folhaLancada || folha.total_fgts + folha.total_inss === 0}
           className="gap-1.5"
         >
           <Calculator className="w-4 h-4" />
@@ -186,7 +200,7 @@ export default function MaoObraFolhaTab({
 
       {/* Totais */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPI label="Diárias" value={folha.total_diarias} />
+        <KPI label={usarEstimativa ? "Diárias est." : "Diárias"} value={folha.total_diarias} />
         <KPI label="FGTS" value={folha.total_fgts} accent="warning" />
         <KPI label="INSS" value={folha.total_inss} accent="info" />
         <KPI label="Total Folha" value={folha.total_geral} accent="primary" />
@@ -196,7 +210,7 @@ export default function MaoObraFolhaTab({
       <div className="glass-card overflow-hidden">
         {folha.itens.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            Sem registros para {mesRef}
+            Nenhum trabalhador ativo para {mesRef}
           </div>
         ) : (
           <div className="overflow-x-auto">
