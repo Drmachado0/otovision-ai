@@ -265,6 +265,9 @@ export default function MaoDeObraPage() {
       tipo_contrato: form.tipo_contrato,
       data_inicio: form.data_inicio,
       observacoes: form.observacoes.trim(),
+      incide_encargos: form.incide_encargos,
+      aliquota_fgts: Number(form.aliquota_fgts) || 0,
+      aliquota_inss: Number(form.aliquota_inss) || 0,
     };
 
     if (editingId) {
