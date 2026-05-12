@@ -365,12 +365,6 @@ export default function MaoObraFolhaTab({
                     </td>
                     <td className="px-2 py-1.5 text-right">{i.dias}</td>
                     <td className="px-2 py-1.5 text-right">{formatCurrency(i.bruto)}</td>
-                    <td className="px-2 py-1.5 text-right text-warning">
-                      {i.incide_encargos ? formatCurrency(i.fgts) : "-"}
-                    </td>
-                    <td className="px-2 py-1.5 text-right text-info">
-                      {i.incide_encargos ? formatCurrency(i.inss) : "-"}
-                    </td>
                     {EXTRA_FIELDS.map((f) => (
                       <td key={f.key} className="px-1 py-1 text-right">
                         <Input
