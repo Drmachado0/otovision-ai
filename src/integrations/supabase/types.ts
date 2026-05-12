@@ -2346,8 +2346,10 @@ export type Database = {
           deleted_at: string | null
           encerramento: number
           ferias_decimo: number
+          fgts: number
           horas_extras: number
           id: string
+          inss: number
           mes_ref: string
           observacao: string | null
           quinzena: number
@@ -2362,8 +2364,10 @@ export type Database = {
           deleted_at?: string | null
           encerramento?: number
           ferias_decimo?: number
+          fgts?: number
           horas_extras?: number
           id?: string
+          inss?: number
           mes_ref: string
           observacao?: string | null
           quinzena?: number
@@ -2378,8 +2382,10 @@ export type Database = {
           deleted_at?: string | null
           encerramento?: number
           ferias_decimo?: number
+          fgts?: number
           horas_extras?: number
           id?: string
+          inss?: number
           mes_ref?: string
           observacao?: string | null
           quinzena?: number
