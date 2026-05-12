@@ -5,8 +5,8 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { formatCurrency, formatPercent, formatDate, todayLocalISO, parseLocalDate } from "@/lib/formatters";
 import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
-  ArrowUpRight, ArrowDownRight, Ruler, Flame, Target,
-  ShieldAlert, ArrowRight, CreditCard, ShoppingCart,
+  ArrowUpRight, ArrowDownRight, Ruler,
+  ArrowRight, CreditCard, ShoppingCart,
   Landmark, Receipt, Clock, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
