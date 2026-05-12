@@ -459,113 +459,214 @@ export default function MaoDeObraPage() {
         ))}
       </div>
 
-      {/* Content */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="glass-card p-5 space-y-3 animate-pulse">
-              <div className="h-5 bg-muted/30 rounded w-2/3" />
-              <div className="h-4 bg-muted/20 rounded w-1/2" />
-              <div className="h-4 bg-muted/20 rounded w-1/3" />
-              <div className="h-4 bg-muted/20 rounded w-1/4" />
-            </div>
-          ))}
-        </div>
-      ) : trabalhadores.length === 0 ? (
-        <div className="glass-card p-12 text-center space-y-3 animate-fade-in-up">
-          <HardHat className="w-12 h-12 mx-auto text-muted-foreground/40" />
-          <p className="text-muted-foreground text-sm">
-            Nenhum trabalhador cadastrado
-          </p>
-          <Button variant="outline" size="sm" onClick={openCreate} className="gap-1.5">
-            <Plus className="w-4 h-4" />
-            Cadastrar primeiro trabalhador
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {trabalhadores.map((t) => (
-            <div
-              key={t.id}
-              className="glass-card-interactive p-5 space-y-3 animate-fade-in-up cursor-pointer"
-              onClick={() => openDetail(t)}
-            >
-              {/* Name + status */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h3 className="font-semibold truncate">{t.nome}</h3>
-                  {t.funcao && (
-                    <Badge variant="secondary" className="mt-1 text-xs">
-                      <HardHat className="w-3 h-3 mr-1" />
-                      {t.funcao}
-                    </Badge>
-                  )}
-                </div>
-                <Badge className={t.ativo ? "badge-success" : "badge-muted"}>
-                  {t.ativo ? "Ativo" : "Inativo"}
-                </Badge>
-              </div>
+      {/* Tabs */}
+      <Tabs defaultValue="trabalhadores">
+        <TabsList className="grid grid-cols-3 w-full max-w-xl">
+          <TabsTrigger value="trabalhadores">Trabalhadores</TabsTrigger>
+          <TabsTrigger value="folha">Folha do mês</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
+        </TabsList>
 
-              {/* Details */}
-              <div className="space-y-1.5 text-sm text-muted-foreground">
-                {t.telefone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>{t.telefone}</span>
+        {/* ---- Trabalhadores ---- */}
+        <TabsContent value="trabalhadores" className="space-y-4 mt-4">
+          {/* Search + filtros */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou função..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="flex gap-1.5">
+              {(["Todos", "Ativos", "Inativos"] as const).map((s) => (
+                <Button
+                  key={s}
+                  variant={statusFilter === s ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter(s)}
+                >
+                  {s}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="glass-card p-5 space-y-3 animate-pulse">
+                  <div className="h-5 bg-muted/30 rounded w-2/3" />
+                  <div className="h-4 bg-muted/20 rounded w-1/2" />
+                  <div className="h-4 bg-muted/20 rounded w-1/3" />
+                  <div className="h-4 bg-muted/20 rounded w-1/4" />
+                </div>
+              ))}
+            </div>
+          ) : trabalhadoresFiltrados.length === 0 ? (
+            <div className="glass-card p-12 text-center space-y-3 animate-fade-in-up">
+              <HardHat className="w-12 h-12 mx-auto text-muted-foreground/40" />
+              <p className="text-muted-foreground text-sm">
+                {trabalhadores.length === 0
+                  ? "Nenhum trabalhador cadastrado"
+                  : "Nenhum resultado encontrado"}
+              </p>
+              {trabalhadores.length === 0 && (
+                <Button variant="outline" size="sm" onClick={openCreate} className="gap-1.5">
+                  <Plus className="w-4 h-4" />
+                  Cadastrar primeiro trabalhador
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {trabalhadoresFiltrados.map((t) => (
+                <div
+                  key={t.id}
+                  className="glass-card-interactive p-5 space-y-3 animate-fade-in-up cursor-pointer"
+                  onClick={() => openDetail(t)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold truncate">{t.nome}</h3>
+                      {t.funcao && (
+                        <Badge variant="secondary" className="mt-1 text-xs">
+                          <HardHat className="w-3 h-3 mr-1" />
+                          {t.funcao}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className={t.ativo ? "badge-success" : "badge-muted"}>
+                        {t.ativo ? "Ativo" : "Inativo"}
+                      </Badge>
+                      {t.incide_encargos && (
+                        <Badge variant="outline" className="text-[10px]">
+                          FGTS+INSS
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-3.5 h-3.5" />
-                  <span className="font-medium text-foreground">
-                    {formatCurrency(t.valor_diaria ?? 0)}
-                  </span>
-                  <span className="text-xs">/diária</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5" />
-                  <Badge variant="outline" className="text-xs">
-                    {t.tipo_contrato || "Diária"}
-                  </Badge>
-                </div>
-              </div>
 
-              {/* Actions */}
-              <div
-                className="flex items-center gap-2 pt-1 border-t border-border/50"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEdit(t)}
-                  className="gap-1 text-xs"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Editar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleAtivo(t)}
-                  className="gap-1 text-xs"
-                >
-                  {t.ativo ? (
-                    <>
-                      <ToggleRight className="w-3.5 h-3.5" />
-                      Desativar
-                    </>
-                  ) : (
-                    <>
-                      <ToggleLeft className="w-3.5 h-3.5" />
-                      Ativar
-                    </>
-                  )}
-                </Button>
-              </div>
+                  <div className="space-y-1.5 text-sm text-muted-foreground">
+                    {t.telefone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>{t.telefone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-3.5 h-3.5" />
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(t.valor_diaria ?? 0)}
+                      </span>
+                      <span className="text-xs">/diária</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5" />
+                      <Badge variant="outline" className="text-xs">
+                        {t.tipo_contrato || "Diária"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex items-center gap-2 pt-1 border-t border-border/50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEdit(t)}
+                      className="gap-1 text-xs"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleAtivo(t)}
+                      className="gap-1 text-xs"
+                    >
+                      {t.ativo ? (
+                        <>
+                          <ToggleRight className="w-3.5 h-3.5" />
+                          Desativar
+                        </>
+                      ) : (
+                        <>
+                          <ToggleLeft className="w-3.5 h-3.5" />
+                          Ativar
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
+        </TabsContent>
+
+        {/* ---- Folha do mês ---- */}
+        <TabsContent value="folha" className="mt-4">
+          {user && (
+            <MaoObraFolhaTab
+              userId={user.id}
+              trabalhadores={trabalhadores}
+              registros={registros12m}
+              contas={contas}
+              folhas={folhas}
+              onChange={() => {
+                fetchFolhas();
+                fetchRegistros();
+              }}
+            />
+          )}
+        </TabsContent>
+
+        {/* ---- Histórico ---- */}
+        <TabsContent value="historico" className="space-y-4 mt-4">
+          <MaoObraHistoricoChart data={dadosGrafico} />
+          <div className="glass-card p-4 space-y-2">
+            <h3 className="text-sm font-semibold mb-2">Folhas lançadas</h3>
+            {folhas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma folha lançada ainda.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="text-left px-2 py-1">Mês</th>
+                      <th className="text-right px-2 py-1">Diárias</th>
+                      <th className="text-right px-2 py-1">FGTS</th>
+                      <th className="text-right px-2 py-1">INSS</th>
+                      <th className="text-right px-2 py-1">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {folhas.map((f) => (
+                      <tr key={f.id} className="border-t border-border/40">
+                        <td className="px-2 py-1 font-medium">{f.mes_ref}</td>
+                        <td className="px-2 py-1 text-right">{formatCurrency(Number(f.total_diarias))}</td>
+                        <td className="px-2 py-1 text-right text-warning">{formatCurrency(Number(f.total_fgts))}</td>
+                        <td className="px-2 py-1 text-right text-info">{formatCurrency(Number(f.total_inss))}</td>
+                        <td className="px-2 py-1 text-right font-semibold">
+                          {formatCurrency(Number(f.total_diarias) + Number(f.total_fgts) + Number(f.total_inss))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Create / Edit Dialog */}
       <Dialog
