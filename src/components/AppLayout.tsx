@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText, Percent,
-  Menu, X, Building2, History, TrendingUp, Lightbulb,
+  Menu, X, Building2, History, Lightbulb,
   BarChart3, FolderSync, ChevronRight, Wallet, Settings,
   Users, PieChart, Receipt,
 } from "lucide-react";
