@@ -21,7 +21,7 @@ const ComprasPage = lazy(() => import("@/pages/ComprasPage"));
 const LeitorIAPage = lazy(() => import("@/pages/LeitorIAPage"));
 const ComissaoPage = lazy(() => import("@/pages/ComissaoPage"));
 const AuditoriaPage = lazy(() => import("@/pages/AuditoriaPage"));
-const PrevisaoPage = lazy(() => import("@/pages/PrevisaoPage"));
+
 const InsightsPage = lazy(() => import("@/pages/InsightsPage"));
 const RelatoriosPage = lazy(() => import("@/pages/RelatoriosPage"));
 const PastaMonitorPage = lazy(() => import("@/pages/PastaMonitorPage"));
@@ -129,7 +129,7 @@ function AuthenticatedApp() {
             <Route path="/auditoria" element={<AuditoriaPage />} />
             <Route path="/equipe" element={<EquipePage />} />
             <Route path="/curva-abc" element={<CurvaABCPage />} />
-            <Route path="/previsao" element={<PrevisaoPage />} />
+            
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/pasta-sync" element={<PastaMonitorPage />} />

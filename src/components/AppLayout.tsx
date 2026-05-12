@@ -29,7 +29,6 @@ const navItems: NavItem[] = [
   { path: "/fornecedores", label: "Fornecedores", icon: Building2, allowedRoles: ["admin", "financeiro"] },
   { path: "/orcamentos", label: "Orçamentos", icon: FileText, allowedRoles: ["admin", "financeiro"] },
   { path: "/notas-fiscais", label: "Notas Fiscais", icon: FileText, allowedRoles: ["admin", "financeiro"] },
-  { path: "/previsao", label: "Previsão", icon: TrendingUp, allowedRoles: ["admin", "financeiro"] },
   { path: "/insights", label: "Insights", icon: Lightbulb },
   { path: "/resumo-mensal", label: "Resumo Mensal", icon: BarChart3, allowedRoles: ["admin", "financeiro"] },
   { path: "/leitor-ia", label: "Leitor IA", icon: FileText, allowedRoles: ["admin", "financeiro"] },
