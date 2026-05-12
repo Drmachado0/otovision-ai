@@ -259,19 +259,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Advanced KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <MiniKPI cls="stat-card-primary" icon={<Ruler className="w-4 h-4 text-primary" />} label="Custo/m²" value={formatCurrency(kpis.custoM2)} delay={400} to="/relatorios" />
-        <MiniKPI cls="stat-card-warning" icon={<Flame className="w-4 h-4 text-warning" />} label="Burn Rate/dia" value={formatCurrency(kpis.burnRate)} sub={`~${Math.round(kpis.diasRestantes)} dias restantes`} delay={500} to="/relatorios" />
-        <MiniKPI cls="stat-card-info" icon={<Target className="w-4 h-4 text-info" />} label="Projeção Final" value={formatCurrency(kpis.projecao)} delay={600} to="/relatorios" />
-        <Link to="/insights" className="glass-card p-4 relative overflow-hidden animate-fade-in-up hover:bg-accent/30 transition-colors block" style={{ animationDelay: "700ms" }}>
-          <div className={`absolute top-0 left-0 w-1 h-full ${rc.bg}`} />
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldAlert className={`w-4 h-4 ${rc.color}`} />
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Risco</span>
-          </div>
-          <p className={`text-lg font-bold ${rc.color}`}>{rc.label}</p>
-          <p className="text-[10px] text-muted-foreground">{formatPercent(percentual)} do orçamento usado</p>
-        </Link>
       </div>
 
       {/* Contas a Pagar highlight */}
