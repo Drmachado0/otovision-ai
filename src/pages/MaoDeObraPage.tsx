@@ -365,6 +365,24 @@ export default function MaoDeObraPage() {
     0
   );
 
+  const trabalhadoresFiltrados = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return trabalhadores.filter((t) => {
+      if (statusFilter === "Ativos" && !t.ativo) return false;
+      if (statusFilter === "Inativos" && t.ativo) return false;
+      if (!q) return true;
+      return (
+        t.nome.toLowerCase().includes(q) ||
+        (t.funcao ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [trabalhadores, search, statusFilter]);
+
+  const dadosGrafico = useMemo(
+    () => agruparPorMes(registros12m, folhas, ultimosMeses(12)),
+    [registros12m, folhas]
+  );
+
   // worker detail monthly cost
   const workerCustoMes = workerRegistros
     .filter((r) => {
