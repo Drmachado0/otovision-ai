@@ -199,6 +199,7 @@ export function calcularFolhaMensal(
         inss: 0,
         total: 0,
         incide_encargos: incide,
+        ...EMPTY_EXTRAS,
       } as FolhaItem);
 
     cur.dias += 1;
@@ -224,6 +225,13 @@ export function calcularFolhaMensal(
     total_diarias,
     total_fgts,
     total_inss,
+    total_quinzena: 0,
+    total_vales: 0,
+    total_vale_alim: 0,
+    total_encerramento: 0,
+    total_ferias: 0,
+    total_horas_extras: 0,
+    total_extras: 0,
     total_geral: total_diarias + total_fgts + total_inss,
   };
 }
