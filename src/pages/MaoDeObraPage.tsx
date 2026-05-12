@@ -359,6 +359,11 @@ export default function MaoDeObraPage() {
     (sum, t) => sum + (t.valor_diaria ?? 0) * 22,
     0
   );
+  const encargosEstimados = ativos.reduce((sum, t) => {
+    if (!t.incide_encargos) return sum;
+    const bruto = (t.valor_diaria ?? 0) * 22;
+    return sum + bruto * ((t.aliquota_fgts ?? 0) + (t.aliquota_inss ?? 0)) / 100;
+  }, 0);
   const totalRegistrosMes = registros.length;
   const custoAcumuladoMes = registros.reduce(
     (sum, r) => sum + (r.valor ?? 0),
@@ -413,7 +418,7 @@ export default function MaoDeObraPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
           {
             cls: "stat-card-info",
@@ -426,6 +431,13 @@ export default function MaoDeObraPage() {
             icon: <DollarSign className="w-4 h-4 text-warning" />,
             label: "Custo Mensal Est.",
             value: formatCurrency(custoMensalEstimado),
+            color: "text-warning",
+          },
+          {
+            cls: "stat-card-warning",
+            icon: <DollarSign className="w-4 h-4 text-warning" />,
+            label: "Encargos Est.",
+            value: formatCurrency(encargosEstimados),
             color: "text-warning",
           },
           {
