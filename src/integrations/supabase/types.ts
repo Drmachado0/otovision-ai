@@ -2198,6 +2198,8 @@ export type Database = {
       }
       obra_mao_de_obra: {
         Row: {
+          aliquota_fgts: number
+          aliquota_inss: number
           ativo: boolean
           created_at: string
           data_fim: string | null
@@ -2206,6 +2208,7 @@ export type Database = {
           etapa_id: string | null
           funcao: string | null
           id: string
+          incide_encargos: boolean
           nome: string
           observacoes: string | null
           telefone: string | null
@@ -2216,6 +2219,8 @@ export type Database = {
           valor_hora: number | null
         }
         Insert: {
+          aliquota_fgts?: number
+          aliquota_inss?: number
           ativo?: boolean
           created_at?: string
           data_fim?: string | null
@@ -2224,6 +2229,7 @@ export type Database = {
           etapa_id?: string | null
           funcao?: string | null
           id?: string
+          incide_encargos?: boolean
           nome: string
           observacoes?: string | null
           telefone?: string | null
@@ -2234,6 +2240,8 @@ export type Database = {
           valor_hora?: number | null
         }
         Update: {
+          aliquota_fgts?: number
+          aliquota_inss?: number
           ativo?: boolean
           created_at?: string
           data_fim?: string | null
@@ -2242,6 +2250,7 @@ export type Database = {
           etapa_id?: string | null
           funcao?: string | null
           id?: string
+          incide_encargos?: boolean
           nome?: string
           observacoes?: string | null
           telefone?: string | null
@@ -2250,6 +2259,57 @@ export type Database = {
           user_id?: string
           valor_diaria?: number
           valor_hora?: number | null
+        }
+        Relationships: []
+      }
+      obra_mao_obra_folha: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          detalhes: Json
+          id: string
+          mes_ref: string
+          observacoes: string | null
+          status: string
+          total_diarias: number
+          total_fgts: number
+          total_inss: number
+          transacao_fgts_id: string | null
+          transacao_inss_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          detalhes?: Json
+          id?: string
+          mes_ref: string
+          observacoes?: string | null
+          status?: string
+          total_diarias?: number
+          total_fgts?: number
+          total_inss?: number
+          transacao_fgts_id?: string | null
+          transacao_inss_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          detalhes?: Json
+          id?: string
+          mes_ref?: string
+          observacoes?: string | null
+          status?: string
+          total_diarias?: number
+          total_fgts?: number
+          total_inss?: number
+          transacao_fgts_id?: string | null
+          transacao_inss_id?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
