@@ -53,6 +53,9 @@ interface Trabalhador {
   data_inicio: string;
   data_fim: string | null;
   observacoes: string;
+  incide_encargos: boolean;
+  aliquota_fgts: number;
+  aliquota_inss: number;
   created_at: string;
   deleted_at: string | null;
 }
@@ -69,6 +72,21 @@ interface Registro {
   created_at: string;
 }
 
+interface Folha {
+  id: string;
+  mes_ref: string;
+  total_diarias: number;
+  total_fgts: number;
+  total_inss: number;
+  status: string;
+}
+
+interface Conta {
+  id: string;
+  nome: string;
+  tipo: string | null;
+}
+
 const EMPTY_FORM = {
   nome: "",
   funcao: "",
@@ -78,6 +96,9 @@ const EMPTY_FORM = {
   tipo_contrato: "Diária",
   data_inicio: todayLocalISO(),
   observacoes: "",
+  incide_encargos: false,
+  aliquota_fgts: "8",
+  aliquota_inss: "20",
 };
 
 const EMPTY_REGISTRO = {
