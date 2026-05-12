@@ -787,6 +787,48 @@ export default function MaoDeObraPage() {
               />
             </div>
 
+            {/* Encargos */}
+            <div className="space-y-3 rounded-md border border-border/50 p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm">Calcular encargos (FGTS / INSS)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Inclui este trabalhador no lançamento mensal de encargos
+                  </p>
+                </div>
+                <Switch
+                  checked={form.incide_encargos}
+                  onCheckedChange={(v) => setForm({ ...form, incide_encargos: v })}
+                />
+              </div>
+              {form.incide_encargos && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="aliquota_fgts">FGTS (%)</Label>
+                    <Input
+                      id="aliquota_fgts"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.aliquota_fgts}
+                      onChange={(e) => setForm({ ...form, aliquota_fgts: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="aliquota_inss">INSS (%)</Label>
+                    <Input
+                      id="aliquota_inss"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.aliquota_inss}
+                      onChange={(e) => setForm({ ...form, aliquota_inss: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3 pt-2">
               <Button
                 type="button"
