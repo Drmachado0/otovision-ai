@@ -169,17 +169,8 @@ export default function DashboardPage() {
   const kpis = useMemo(() => {
     const area = config.area_construida || 1;
     const custoM2 = totalGasto / area;
-    const inicio = config.data_inicio ? new Date(config.data_inicio) : null;
-    const diasDecorridos = inicio ? Math.max(1, Math.floor((Date.now() - inicio.getTime()) / 86400000)) : 1;
-    const burnRate = totalGasto / diasDecorridos;
-    const diasRestantes = burnRate > 0 ? saldo / burnRate : 0;
-    // Projeção financeira = burn rate até a data de término prevista
-    const fim = config.data_termino ? new Date(config.data_termino) : null;
-    const diasRestantesObra = fim ? Math.max(0, Math.floor((fim.getTime() - Date.now()) / 86400000)) : 0;
-    const projecao = burnRate > 0 ? totalGasto + burnRate * diasRestantesObra : orcamentoTotal;
-    const risco = projecao > orcamentoTotal * 1.1 ? "alto" : projecao > orcamentoTotal * 1.0 ? "medio" : "baixo";
-    return { custoM2, burnRate, diasRestantes, projecao, risco };
-  }, [totalGasto, config, saldo, orcamentoTotal]);
+    return { custoM2 };
+  }, [totalGasto, config]);
 
   const alerts: string[] = [];
   if (percentual > 90) alerts.push("⚠️ Orçamento acima de 90%!");
