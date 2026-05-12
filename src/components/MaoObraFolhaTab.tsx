@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,12 @@ import { formatCurrency } from "@/lib/formatters";
 import {
   calcularFolhaMensal,
   calcularFolhaEstimada,
+  aplicarExtras,
+  EMPTY_EXTRAS,
   mesRefAtual,
   type TrabalhadorEncargo,
   type RegistroValor,
+  type FolhaItemExtras,
 } from "@/lib/folhaMaoObra";
 
 interface Conta {
@@ -45,6 +48,15 @@ interface Props {
   onChange: () => void;
 }
 
+const EXTRA_FIELDS: { key: keyof FolhaItemExtras; label: string }[] = [
+  { key: "quinzena", label: "Quinzena" },
+  { key: "vales", label: "Vales" },
+  { key: "vale_alimentacao", label: "V. Alim." },
+  { key: "encerramento", label: "Encerram." },
+  { key: "ferias_decimo", label: "Férias/13°" },
+  { key: "horas_extras", label: "H. Extras" },
+];
+
 export default function MaoObraFolhaTab({
   userId,
   trabalhadores,
@@ -57,21 +69,124 @@ export default function MaoObraFolhaTab({
   const [showDialog, setShowDialog] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Mapa de extras por trabalhador (id -> extras)
+  const [extrasMap, setExtrasMap] = useState<Record<string, FolhaItemExtras>>({});
+  const [custosEng, setCustosEng] = useState(0);
+  const [exames, setExames] = useState(0);
+  const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
   const folhaReal = useMemo(
     () => calcularFolhaMensal(trabalhadores, registros, mesRef),
     [trabalhadores, registros, mesRef],
   );
-
-  const usarEstimativa = folhaReal.itens.length === 0;
   const folhaEstimada = useMemo(
     () => calcularFolhaEstimada(trabalhadores),
     [trabalhadores],
   );
-  const folha = usarEstimativa ? folhaEstimada : folhaReal;
+  const usarEstimativa = folhaReal.itens.length === 0;
+  const folhaBase = usarEstimativa ? folhaEstimada : folhaReal;
+  const folha = useMemo(
+    () => aplicarExtras(folhaBase, extrasMap),
+    [folhaBase, extrasMap],
+  );
+  const totalGeralMes = folha.total_geral + custosEng + exames;
 
   const folhaLancada = folhas.find((f) => f.mes_ref === mesRef);
 
-  // form do dialog
+  // ---------- Carrega extras do mês ----------
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("obra_mao_obra_folha_item")
+        .select("*")
+        .eq("mes_ref", mesRef)
+        .is("deleted_at", null);
+      if (cancel) return;
+      const map: Record<string, FolhaItemExtras> = {};
+      (data ?? []).forEach((r: any) => {
+        map[r.trabalhador_id] = {
+          quinzena: Number(r.quinzena) || 0,
+          vales: Number(r.vales) || 0,
+          vale_alimentacao: Number(r.vale_alimentacao) || 0,
+          encerramento: Number(r.encerramento) || 0,
+          ferias_decimo: Number(r.ferias_decimo) || 0,
+          horas_extras: Number(r.horas_extras) || 0,
+        };
+      });
+      setExtrasMap(map);
+
+      const { data: f } = await (supabase as any)
+        .from("obra_mao_obra_folha")
+        .select("custos_engenharia,exames")
+        .eq("mes_ref", mesRef)
+        .maybeSingle();
+      setCustosEng(Number(f?.custos_engenharia) || 0);
+      setExames(Number(f?.exames) || 0);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [mesRef]);
+
+  // ---------- Atualiza extra (debounce upsert) ----------
+  const updateExtra = (trabalhadorId: string, field: keyof FolhaItemExtras, value: number) => {
+    setExtrasMap((prev) => ({
+      ...prev,
+      [trabalhadorId]: { ...EMPTY_EXTRAS, ...(prev[trabalhadorId] ?? {}), [field]: value },
+    }));
+
+    const key = `${trabalhadorId}:${field}`;
+    if (debounceRef.current[key]) clearTimeout(debounceRef.current[key]);
+    debounceRef.current[key] = setTimeout(async () => {
+      const next = {
+        ...EMPTY_EXTRAS,
+        ...(extrasMap[trabalhadorId] ?? {}),
+        [field]: value,
+      };
+      const { error } = await (supabase as any)
+        .from("obra_mao_obra_folha_item")
+        .upsert(
+          {
+            user_id: userId,
+            trabalhador_id: trabalhadorId,
+            mes_ref: mesRef,
+            ...next,
+          },
+          { onConflict: "user_id,trabalhador_id,mes_ref" },
+        );
+      if (error) toast.error("Erro ao salvar: " + error.message);
+    }, 600);
+  };
+
+  // ---------- Atualiza custos do mês ----------
+  const upsertFolhaMes = async (patch: { custos_engenharia?: number; exames?: number }) => {
+    const { error } = await (supabase as any)
+      .from("obra_mao_obra_folha")
+      .upsert(
+        {
+          user_id: userId,
+          mes_ref: mesRef,
+          total_diarias: folha.total_diarias,
+          total_fgts: folha.total_fgts,
+          total_inss: folha.total_inss,
+          ...patch,
+          status: folhaLancada?.status ?? "rascunho",
+        },
+        { onConflict: "user_id,mes_ref" },
+      );
+    if (error) toast.error("Erro ao salvar custos: " + error.message);
+  };
+
+  const handleCustosBlur = (kind: "eng" | "exames") => {
+    upsertFolhaMes(
+      kind === "eng"
+        ? { custos_engenharia: custosEng }
+        : { exames },
+    );
+  };
+
+  // ---------- form do dialog (encargos) ----------
   const [contaId, setContaId] = useState<string>("");
   const [valorFgts, setValorFgts] = useState("");
   const [valorInss, setValorInss] = useState("");
@@ -96,7 +211,6 @@ export default function MaoObraFolhaTab({
     const inss = Number(valorInss) || 0;
 
     try {
-      // 1) cria as 2 transações
       const baseTx = {
         user_id: userId,
         tipo: "Saída",
@@ -136,20 +250,31 @@ export default function MaoObraFolhaTab({
         .single();
       if (e2) throw e2;
 
-      // 2) cria registro de folha
       const { error: e3 } = await (supabase as any)
         .from("obra_mao_obra_folha")
-        .insert({
-          user_id: userId,
-          mes_ref: mesRef,
-          total_diarias: folha.total_diarias,
-          total_fgts: fgts,
-          total_inss: inss,
-          detalhes: folha.itens,
-          transacao_fgts_id: txFgts.id,
-          transacao_inss_id: txInss.id,
-          status: "lancada",
-        });
+        .upsert(
+          {
+            user_id: userId,
+            mes_ref: mesRef,
+            total_diarias: folha.total_diarias,
+            total_fgts: fgts,
+            total_inss: inss,
+            total_quinzena: folha.total_quinzena,
+            total_vales: folha.total_vales,
+            total_vale_alim: folha.total_vale_alim,
+            total_encerramento: folha.total_encerramento,
+            total_ferias: folha.total_ferias,
+            total_horas_extras: folha.total_horas_extras,
+            custos_engenharia: custosEng,
+            exames,
+            total_geral: totalGeralMes,
+            detalhes: folha.itens,
+            transacao_fgts_id: txFgts.id,
+            transacao_inss_id: txInss.id,
+            status: "lancada",
+          },
+          { onConflict: "user_id,mes_ref" },
+        );
       if (e3) throw e3;
 
       toast.success("Encargos lançados em Contas a Pagar");
@@ -164,7 +289,7 @@ export default function MaoObraFolhaTab({
 
   return (
     <div className="space-y-4">
-      {/* Header da aba */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Label className="text-sm">Mês:</Label>
@@ -198,12 +323,13 @@ export default function MaoObraFolhaTab({
         </Button>
       </div>
 
-      {/* Totais */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <KPI label={usarEstimativa ? "Diárias est." : "Diárias"} value={folha.total_diarias} />
-        <KPI label="FGTS" value={folha.total_fgts} accent="warning" />
-        <KPI label="INSS" value={folha.total_inss} accent="info" />
-        <KPI label="Total Folha" value={folha.total_geral} accent="primary" />
+        <KPI label="Encargos" value={folha.total_fgts + folha.total_inss} accent="warning" />
+        <KPI label="Adicionais" value={folha.total_extras} accent="info" />
+        <KPI label="Custos do mês" value={custosEng + exames} />
+        <KPI label="Total Geral" value={totalGeralMes} accent="primary" />
       </div>
 
       {/* Tabela */}
@@ -214,32 +340,50 @@ export default function MaoObraFolhaTab({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/30 uppercase text-muted-foreground">
                 <tr>
-                  <th className="text-left px-4 py-2">Trabalhador</th>
-                  <th className="text-left px-4 py-2">Função</th>
-                  <th className="text-right px-4 py-2">Dias</th>
-                  <th className="text-right px-4 py-2">Bruto</th>
-                  <th className="text-right px-4 py-2">FGTS</th>
-                  <th className="text-right px-4 py-2">INSS</th>
-                  <th className="text-right px-4 py-2">Total</th>
+                  <th className="text-left px-3 py-2">Trabalhador</th>
+                  <th className="text-right px-2 py-2">Dias</th>
+                  <th className="text-right px-2 py-2">Bruto</th>
+                  <th className="text-right px-2 py-2">FGTS</th>
+                  <th className="text-right px-2 py-2">INSS</th>
+                  {EXTRA_FIELDS.map((f) => (
+                    <th key={f.key} className="text-right px-2 py-2">{f.label}</th>
+                  ))}
+                  <th className="text-right px-3 py-2">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {folha.itens.map((i) => (
                   <tr key={i.trabalhador_id} className="border-t border-border/40">
-                    <td className="px-4 py-2 font-medium">{i.nome}</td>
-                    <td className="px-4 py-2 text-muted-foreground">{i.funcao || "-"}</td>
-                    <td className="px-4 py-2 text-right">{i.dias}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(i.bruto)}</td>
-                    <td className="px-4 py-2 text-right text-warning">
+                    <td className="px-3 py-1.5">
+                      <div className="font-medium">{i.nome}</div>
+                      <div className="text-muted-foreground text-[11px]">{i.funcao || "-"}</div>
+                    </td>
+                    <td className="px-2 py-1.5 text-right">{i.dias}</td>
+                    <td className="px-2 py-1.5 text-right">{formatCurrency(i.bruto)}</td>
+                    <td className="px-2 py-1.5 text-right text-warning">
                       {i.incide_encargos ? formatCurrency(i.fgts) : "-"}
                     </td>
-                    <td className="px-4 py-2 text-right text-info">
+                    <td className="px-2 py-1.5 text-right text-info">
                       {i.incide_encargos ? formatCurrency(i.inss) : "-"}
                     </td>
-                    <td className="px-4 py-2 text-right font-semibold">
+                    {EXTRA_FIELDS.map((f) => (
+                      <td key={f.key} className="px-1 py-1 text-right">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={(i[f.key] as number) || ""}
+                          onChange={(e) =>
+                            updateExtra(i.trabalhador_id, f.key, Number(e.target.value) || 0)
+                          }
+                          className="h-7 w-20 text-right text-xs px-1.5"
+                          placeholder="0"
+                        />
+                      </td>
+                    ))}
+                    <td className="px-3 py-1.5 text-right font-semibold">
                       {formatCurrency(i.total)}
                     </td>
                   </tr>
@@ -247,11 +391,17 @@ export default function MaoObraFolhaTab({
               </tbody>
               <tfoot className="bg-muted/20 font-semibold">
                 <tr>
-                  <td colSpan={3} className="px-4 py-2 text-right">Totais</td>
-                  <td className="px-4 py-2 text-right">{formatCurrency(folha.total_diarias)}</td>
-                  <td className="px-4 py-2 text-right">{formatCurrency(folha.total_fgts)}</td>
-                  <td className="px-4 py-2 text-right">{formatCurrency(folha.total_inss)}</td>
-                  <td className="px-4 py-2 text-right">{formatCurrency(folha.total_geral)}</td>
+                  <td className="px-3 py-2 text-right" colSpan={2}>Subtotais</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_diarias)}</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_fgts)}</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_inss)}</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_quinzena)}</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_vales)}</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_vale_alim)}</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_encerramento)}</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_ferias)}</td>
+                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_horas_extras)}</td>
+                  <td className="px-3 py-2 text-right">{formatCurrency(folha.total_geral)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -259,7 +409,53 @@ export default function MaoObraFolhaTab({
         )}
       </div>
 
-      {/* Dialog de lançamento */}
+      {/* Custos do mês */}
+      <div className="glass-card p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold">Custos adicionais do mês</h3>
+          <p className="text-xs text-muted-foreground">
+            Lançamentos que não pertencem a um trabalhador específico
+          </p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Custos Engenharia</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={custosEng || ""}
+              onChange={(e) => setCustosEng(Number(e.target.value) || 0)}
+              onBlur={() => handleCustosBlur("eng")}
+              placeholder="0,00"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Exames Funcionários</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={exames || ""}
+              onChange={(e) => setExames(Number(e.target.value) || 0)}
+              onBlur={() => handleCustosBlur("exames")}
+              placeholder="0,00"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Subtotal Folha</Label>
+            <div className="h-10 flex items-center px-3 rounded-md border border-border/40 bg-muted/20 text-sm">
+              {formatCurrency(folha.total_geral)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-primary">TOTAL GERAL</Label>
+            <div className="h-10 flex items-center px-3 rounded-md border border-primary/40 bg-primary/10 text-sm font-bold text-primary">
+              {formatCurrency(totalGeralMes)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dialog encargos */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="glass-card sm:max-w-md">
           <DialogHeader>
@@ -267,10 +463,8 @@ export default function MaoObraFolhaTab({
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Os valores foram calculados automaticamente sobre os trabalhadores
-              com encargos ativos. Você pode ajustar antes de confirmar.
+              Os valores foram calculados automaticamente. Você pode ajustar antes de confirmar.
             </p>
-
             <div className="space-y-2">
               <Label>Conta de pagamento</Label>
               <select
@@ -284,52 +478,25 @@ export default function MaoObraFolhaTab({
                 ))}
               </select>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>FGTS (R$)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={valorFgts}
-                  onChange={(e) => setValorFgts(e.target.value)}
-                />
+                <Input type="number" min="0" step="0.01" value={valorFgts} onChange={(e) => setValorFgts(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>INSS (R$)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={valorInss}
-                  onChange={(e) => setValorInss(e.target.value)}
-                />
+                <Input type="number" min="0" step="0.01" value={valorInss} onChange={(e) => setValorInss(e.target.value)} />
               </div>
             </div>
-
             <div className="space-y-2">
               <Label>Data de vencimento</Label>
-              <Input
-                type="date"
-                value={dataPag}
-                onChange={(e) => setDataPag(e.target.value)}
-              />
+              <Input type="date" value={dataPag} onChange={(e) => setDataPag(e.target.value)} />
             </div>
-
             <div className="flex gap-3 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowDialog(false)}
-              >
+              <Button variant="outline" className="flex-1" onClick={() => setShowDialog(false)}>
                 Cancelar
               </Button>
-              <Button
-                className="flex-1 gap-1.5"
-                onClick={handleLancar}
-                disabled={saving}
-              >
+              <Button className="flex-1 gap-1.5" onClick={handleLancar} disabled={saving}>
                 <Send className="w-4 h-4" />
                 {saving ? "Lançando..." : "Confirmar"}
               </Button>

@@ -2265,15 +2265,24 @@ export type Database = {
       obra_mao_obra_folha: {
         Row: {
           created_at: string
+          custos_engenharia: number
           deleted_at: string | null
           detalhes: Json
+          exames: number
           id: string
           mes_ref: string
           observacoes: string | null
           status: string
           total_diarias: number
+          total_encerramento: number
+          total_ferias: number
           total_fgts: number
+          total_geral: number
+          total_horas_extras: number
           total_inss: number
+          total_quinzena: number
+          total_vale_alim: number
+          total_vales: number
           transacao_fgts_id: string | null
           transacao_inss_id: string | null
           updated_at: string
@@ -2281,15 +2290,24 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custos_engenharia?: number
           deleted_at?: string | null
           detalhes?: Json
+          exames?: number
           id?: string
           mes_ref: string
           observacoes?: string | null
           status?: string
           total_diarias?: number
+          total_encerramento?: number
+          total_ferias?: number
           total_fgts?: number
+          total_geral?: number
+          total_horas_extras?: number
           total_inss?: number
+          total_quinzena?: number
+          total_vale_alim?: number
+          total_vales?: number
           transacao_fgts_id?: string | null
           transacao_inss_id?: string | null
           updated_at?: string
@@ -2297,19 +2315,79 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custos_engenharia?: number
           deleted_at?: string | null
           detalhes?: Json
+          exames?: number
           id?: string
           mes_ref?: string
           observacoes?: string | null
           status?: string
           total_diarias?: number
+          total_encerramento?: number
+          total_ferias?: number
           total_fgts?: number
+          total_geral?: number
+          total_horas_extras?: number
           total_inss?: number
+          total_quinzena?: number
+          total_vale_alim?: number
+          total_vales?: number
           transacao_fgts_id?: string | null
           transacao_inss_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      obra_mao_obra_folha_item: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          encerramento: number
+          ferias_decimo: number
+          horas_extras: number
+          id: string
+          mes_ref: string
+          observacao: string | null
+          quinzena: number
+          trabalhador_id: string
+          updated_at: string
+          user_id: string
+          vale_alimentacao: number
+          vales: number
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          encerramento?: number
+          ferias_decimo?: number
+          horas_extras?: number
+          id?: string
+          mes_ref: string
+          observacao?: string | null
+          quinzena?: number
+          trabalhador_id: string
+          updated_at?: string
+          user_id: string
+          vale_alimentacao?: number
+          vales?: number
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          encerramento?: number
+          ferias_decimo?: number
+          horas_extras?: number
+          id?: string
+          mes_ref?: string
+          observacao?: string | null
+          quinzena?: number
+          trabalhador_id?: string
+          updated_at?: string
+          user_id?: string
+          vale_alimentacao?: number
+          vales?: number
         }
         Relationships: []
       }
