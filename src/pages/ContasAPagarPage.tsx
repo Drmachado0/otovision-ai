@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate, todayLocalISO } from "@/lib/formatters";
 import { processRecurrences } from "@/lib/recurrenceEngine";
+import { flattenParcelasPendentes, type CompraComParcelas, type ParcelaPendenteRow } from "@/lib/contasAPagarParcelas";
 import {
   Clock, AlertTriangle, DollarSign, CalendarCheck, Search,
-  ChevronLeft, ChevronRight, Filter, X, CheckCircle, XCircle,
+  ChevronLeft, ChevronRight, CheckCircle, XCircle, Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,25 +33,20 @@ interface ContaPagar {
   recorrencia: string;
   recorrencia_grupo_id: string | null;
   created_at: string;
+  origem?: "fluxo" | "compra-parcela";
+  compra_id?: string;
+  numero_parcela?: number;
 }
 
 const PAGE_SIZE = 50;
 
 export default function ContasAPagarPage() {
   const { user } = useAuth();
-  const [contas, setContas] = useState<ContaPagar[]>([]);
+  const [allContas, setAllContas] = useState<ContaPagar[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterCategoria, setFilterCategoria] = useState("todos");
   const [filterVencimento, setFilterVencimento] = useState<"todos" | "hoje" | "vencidas" | "semana">("todos");
   const [page, setPage] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-
-  // KPIs
-  const [totalPendente, setTotalPendente] = useState(0);
-  const [countVencidas, setCountVencidas] = useState(0);
-  const [totalVencidas, setTotalVencidas] = useState(0);
-  const [countHoje, setCountHoje] = useState(0);
 
   // Payment dialog
   const [pagamentoTarget, setPagamentoTarget] = useState<ContaPagar | null>(null);
@@ -62,52 +58,33 @@ export default function ContasAPagarPage() {
   const today = todayLocalISO();
 
   const fetchData = useCallback(async () => {
-    // KPIs query (all pending)
-    const kpiQuery = supabase
-      .from("obra_transacoes_fluxo")
-      .select("valor, data_vencimento" as any)
-      .is("deleted_at", null)
-      .eq("status" as any, "pendente")
-      .eq("tipo", "Saída");
+    const [fluxoRes, comprasRes] = await Promise.all([
+      supabase
+        .from("obra_transacoes_fluxo")
+        .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, conta_id, status, parcela_numero, parcela_total, recorrencia, recorrencia_grupo_id, created_at" as any)
+        .is("deleted_at", null)
+        .eq("status" as any, "pendente")
+        .eq("tipo", "Saída"),
+      supabase
+        .from("obra_compras")
+        .select("id, fornecedor, descricao, categoria, conta_id, parcelas, status_entrega")
+        .is("deleted_at", null)
+        .neq("status_entrega", "Cancelado"),
+    ]);
 
-    // Paginated list query
-    let query = supabase
-      .from("obra_transacoes_fluxo")
-      .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, conta_id, status, parcela_numero, parcela_total, recorrencia, recorrencia_grupo_id, created_at" as any, { count: "exact" })
-      .is("deleted_at", null)
-      .eq("status" as any, "pendente")
-      .eq("tipo", "Saída")
-      .order("data_vencimento" as any, { ascending: true, nullsFirst: false });
+    const fluxoRows: ContaPagar[] = ((fluxoRes.data as any) ?? []).map((r: any) => ({ ...r, origem: "fluxo" as const }));
+    const parcelaRows: ContaPagar[] = flattenParcelasPendentes(((comprasRes.data ?? []) as unknown) as CompraComParcelas[])
+      .map((p: ParcelaPendenteRow) => ({ ...p }));
 
-    if (search) query = query.or(`descricao.ilike.%${search}%,categoria.ilike.%${search}%`);
-    if (filterCategoria !== "todos") query = query.eq("categoria", filterCategoria);
-    if (filterVencimento === "hoje") query = query.eq("data_vencimento", today);
-    if (filterVencimento === "vencidas") query = query.lt("data_vencimento", today);
-    if (filterVencimento === "semana") {
-      const semana = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
-      query = query.lte("data_vencimento", semana);
-    }
+    const merged = [...fluxoRows, ...parcelaRows].sort((a, b) => {
+      const av = a.data_vencimento || "9999-12-31";
+      const bv = b.data_vencimento || "9999-12-31";
+      return av.localeCompare(bv);
+    });
 
-    const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    query = query.range(from, to);
-
-    const [{ data, count }, { data: kpiData }] = await Promise.all([query, kpiQuery]);
-
-    if (data) setContas(data as unknown as ContaPagar[]);
-    if (count !== null) setTotalCount(count);
-
-    if (kpiData) {
-      const rows = kpiData as unknown as { valor: number; data_vencimento: string | null }[];
-      setTotalPendente(rows.reduce((s, r) => s + Number(r.valor), 0));
-      const vencidas = rows.filter(r => r.data_vencimento && r.data_vencimento < today);
-      setCountVencidas(vencidas.length);
-      setTotalVencidas(vencidas.reduce((s, r) => s + Number(r.valor), 0));
-      setCountHoje(rows.filter(r => r.data_vencimento === today).length);
-    }
-
+    setAllContas(merged);
     setLoading(false);
-  }, [page, search, filterCategoria, filterVencimento, today]);
+  }, []);
 
   // Process recurring transactions on mount (once)
   const recurrenceRan = useRef(false);
@@ -118,7 +95,7 @@ export default function ContasAPagarPage() {
         if (n > 0) fetchData();
       });
     }
-  }, []);
+  }, [fetchData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
@@ -128,8 +105,41 @@ export default function ContasAPagarPage() {
     return () => { window.removeEventListener("focus", onFocus); clearInterval(interval); };
   }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
+  useRealtimeSubscription("obra_compras", fetchData);
 
+  // Filtros + busca em memória
+  const filtered = useMemo(() => {
+    const semana = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+    const q = search.trim().toLowerCase();
+    return allContas.filter((c) => {
+      if (q) {
+        const hay = `${c.descricao} ${c.categoria}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (filterVencimento === "hoje" && c.data_vencimento !== today) return false;
+      if (filterVencimento === "vencidas" && !(c.data_vencimento && c.data_vencimento < today)) return false;
+      if (filterVencimento === "semana" && !(c.data_vencimento && c.data_vencimento <= semana)) return false;
+      return true;
+    });
+  }, [allContas, search, filterVencimento, today]);
+
+  // KPIs sobre TUDO (não filtrado), seguindo comportamento anterior
+  const kpis = useMemo(() => {
+    const totalPendente = allContas.reduce((s, r) => s + Number(r.valor), 0);
+    const vencidas = allContas.filter(r => r.data_vencimento && r.data_vencimento < today);
+    const totalVencidas = vencidas.reduce((s, r) => s + Number(r.valor), 0);
+    const countHoje = allContas.filter(r => r.data_vencimento === today).length;
+    const semana = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+    const proximos7 = allContas.filter(r => r.data_vencimento && r.data_vencimento >= today && r.data_vencimento <= semana)
+      .reduce((s, r) => s + Number(r.valor), 0);
+    return { totalPendente, totalVencidas, countVencidas: vencidas.length, countHoje, proximos7 };
+  }, [allContas, today]);
+
+  const totalCount = filtered.length;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+  useEffect(() => { setPage(0); }, [search, filterVencimento]);
 
   const handlePagar = (conta: ContaPagar) => {
     setPagamentoTarget(conta);
@@ -138,6 +148,32 @@ export default function ContasAPagarPage() {
 
   const handleCancelar = async () => {
     if (!cancelTarget) return;
+    if (cancelTarget.origem === "compra-parcela" && cancelTarget.compra_id && cancelTarget.numero_parcela) {
+      // Marca a parcela como Cancelada dentro do JSONB
+      const { data: compra, error: e1 } = await supabase
+        .from("obra_compras")
+        .select("parcelas")
+        .eq("id", cancelTarget.compra_id)
+        .maybeSingle();
+      if (e1 || !compra) {
+        setCancelTarget(null);
+        toast.error("Erro ao localizar compra");
+        return;
+      }
+      const parcelas = Array.isArray((compra as any).parcelas) ? (compra as any).parcelas : [];
+      const novas = parcelas.map((p: any) =>
+        Number(p?.numero) === cancelTarget.numero_parcela ? { ...p, status: "Cancelada" } : p
+      );
+      const { error } = await supabase
+        .from("obra_compras")
+        .update({ parcelas: novas } as any)
+        .eq("id", cancelTarget.compra_id);
+      setCancelTarget(null);
+      if (error) toast.error("Erro ao cancelar parcela");
+      else { toast.success("Parcela cancelada"); fetchData(); }
+      return;
+    }
+
     const { error } = await supabase
       .from("obra_transacoes_fluxo")
       .update({ status: "cancelado" } as any)
@@ -151,22 +187,20 @@ export default function ContasAPagarPage() {
     }
   };
 
-  const categorias = [...new Set(contas.map(c => c.categoria).filter(Boolean))];
-
   return (
     <div className="space-y-6 animate-slide-in">
       <div className="page-header">
         <h1 className="text-2xl font-bold">Contas a Pagar</h1>
-        <p className="text-sm text-muted-foreground">Pagamentos pendentes de confirmacao</p>
+        <p className="text-sm text-muted-foreground">Lançamentos pendentes do fluxo + parcelas em aberto de compras</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         {[
-          { cls: "stat-card-warning", icon: <Clock className="w-4 h-4 text-warning" />, label: "Total Pendente", value: formatCurrency(totalPendente), sub: `${totalCount} lancamento(s)` },
-          { cls: "stat-card-danger", icon: <AlertTriangle className="w-4 h-4 text-destructive" />, label: "Vencidas", value: formatCurrency(totalVencidas), sub: `${countVencidas} vencida(s)`, color: "text-destructive" },
-          { cls: "stat-card-info", icon: <CalendarCheck className="w-4 h-4 text-info" />, label: "Vencem Hoje", value: String(countHoje), sub: "pagamento(s)" },
-          { cls: "stat-card-primary", icon: <DollarSign className="w-4 h-4 text-primary" />, label: "Proximos 7 dias", value: formatCurrency(totalPendente), sub: "a vencer" },
+          { cls: "stat-card-warning", icon: <Clock className="w-4 h-4 text-warning" />, label: "Total Pendente", value: formatCurrency(kpis.totalPendente), sub: `${allContas.length} lançamento(s)` },
+          { cls: "stat-card-danger", icon: <AlertTriangle className="w-4 h-4 text-destructive" />, label: "Vencidas", value: formatCurrency(kpis.totalVencidas), sub: `${kpis.countVencidas} vencida(s)`, color: "text-destructive" },
+          { cls: "stat-card-info", icon: <CalendarCheck className="w-4 h-4 text-info" />, label: "Vencem Hoje", value: String(kpis.countHoje), sub: "pagamento(s)" },
+          { cls: "stat-card-primary", icon: <DollarSign className="w-4 h-4 text-primary" />, label: "Próximos 7 dias", value: formatCurrency(kpis.proximos7), sub: "a vencer" },
         ].map((c, i) => (
           <div key={c.label} className={`${c.cls} p-4 animate-fade-in-up`} style={{ animationDelay: `${i * 80}ms` }}>
             <div className="flex items-center gap-2 mb-2">{c.icon}<span className="text-xs text-muted-foreground uppercase">{c.label}</span></div>
@@ -181,9 +215,9 @@ export default function ContasAPagarPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por descricao ou categoria..."
+            placeholder="Buscar por descrição ou categoria..."
             value={search}
-            onChange={e => { setSearch(e.target.value); setPage(0); }}
+            onChange={e => setSearch(e.target.value)}
             className="pl-10"
           />
         </div>
@@ -191,7 +225,7 @@ export default function ContasAPagarPage() {
           {(["todos", "hoje", "vencidas", "semana"] as const).map(f => (
             <button
               key={f}
-              onClick={() => { setFilterVencimento(f); setPage(0); }}
+              onClick={() => setFilterVencimento(f)}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                 filterVencimento === f ? "bg-primary text-primary-foreground" : "bg-accent/50 text-muted-foreground hover:bg-accent"
               }`}
@@ -208,7 +242,7 @@ export default function ContasAPagarPage() {
           <div className="flex justify-center py-12">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : contas.length === 0 ? (
+        ) : pageItems.length === 0 ? (
           <div className="text-center py-12">
             <CheckCircle className="w-10 h-10 mx-auto text-success mb-3" />
             <p className="text-muted-foreground">Nenhum pagamento pendente</p>
@@ -227,9 +261,10 @@ export default function ContasAPagarPage() {
                 </tr>
               </thead>
               <tbody>
-                {contas.map((c, i) => {
+                {pageItems.map((c, i) => {
                   const isVencida = c.data_vencimento && c.data_vencimento < today;
                   const isHoje = c.data_vencimento === today;
+                  const isParcelaCompra = c.origem === "compra-parcela";
                   return (
                     <tr
                       key={c.id}
@@ -246,13 +281,18 @@ export default function ContasAPagarPage() {
                           {isHoje && <Badge className="text-[9px] bg-warning text-warning-foreground">Hoje</Badge>}
                         </div>
                       </td>
-                      <td className="px-4 py-3 font-medium max-w-[200px] truncate">{c.descricao || "-"}</td>
+                      <td className="px-4 py-3 font-medium max-w-[260px] truncate">
+                        <div className="flex items-center gap-2">
+                          {isParcelaCompra && <Package className="w-3 h-3 text-primary shrink-0" />}
+                          <span className="truncate">{c.descricao || "-"}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3"><span className="badge-muted">{c.categoria || "-"}</span></td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         {c.parcela_numero && c.parcela_total ? (
                           <Badge variant="outline" className="text-xs">{c.parcela_numero}/{c.parcela_total}</Badge>
                         ) : (
-                          <span className="text-xs text-muted-foreground">{c.recorrencia || "Unica"}</span>
+                          <span className="text-xs text-muted-foreground">{c.recorrencia || "Única"}</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-destructive">
@@ -300,7 +340,21 @@ export default function ContasAPagarPage() {
           open={pagamentoOpen}
           onClose={() => { setPagamentoOpen(false); setPagamentoTarget(null); }}
           onSuccess={fetchData}
-          transacao={{...pagamentoTarget, data_vencimento: pagamentoTarget.data_vencimento ?? undefined, parcela_numero: pagamentoTarget.parcela_numero ?? undefined, parcela_total: pagamentoTarget.parcela_total ?? undefined}}
+          transacao={{
+            id: pagamentoTarget.id,
+            descricao: pagamentoTarget.descricao,
+            valor: pagamentoTarget.valor,
+            categoria: pagamentoTarget.categoria,
+            data_vencimento: pagamentoTarget.data_vencimento ?? undefined,
+            conta_id: pagamentoTarget.conta_id,
+            forma_pagamento: pagamentoTarget.forma_pagamento,
+            parcela_numero: pagamentoTarget.parcela_numero ?? undefined,
+            parcela_total: pagamentoTarget.parcela_total ?? undefined,
+          }}
+          parcelaCompra={pagamentoTarget.origem === "compra-parcela" ? {
+            compra_id: pagamentoTarget.compra_id!,
+            numero_parcela: pagamentoTarget.numero_parcela!,
+          } : undefined}
           userId={user.id}
         />
       )}
@@ -308,9 +362,9 @@ export default function ContasAPagarPage() {
       {/* Cancel Dialog */}
       <ConfirmDialog
         open={!!cancelTarget}
-        title="Cancelar Lançamento"
+        title={cancelTarget?.origem === "compra-parcela" ? "Cancelar Parcela" : "Cancelar Lançamento"}
         message={`Deseja cancelar "${cancelTarget?.descricao || ""}" de ${cancelTarget ? formatCurrency(Number(cancelTarget.valor)) : ""}?`}
-        confirmLabel="Cancelar Lançamento"
+        confirmLabel={cancelTarget?.origem === "compra-parcela" ? "Cancelar Parcela" : "Cancelar Lançamento"}
         variant="danger"
         onConfirm={handleCancelar}
         onCancel={() => setCancelTarget(null)}
