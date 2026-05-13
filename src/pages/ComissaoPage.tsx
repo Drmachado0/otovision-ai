@@ -429,12 +429,28 @@ export default function ComissaoPage() {
             Comissão do construtor — {PERCENTUAL_COMISSAO}% sobre gastos · controle mês a mês
           </p>
         </div>
-        <button
-          onClick={exportCSV}
-          className="px-3 py-2 rounded-lg bg-accent/50 hover:bg-accent text-sm font-medium flex items-center gap-2 transition-colors"
-        >
-          <Download className="w-4 h-4" /> Exportar CSV
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => gerarRelatorioAcerto(true)}
+            className="px-3 py-2 rounded-lg bg-warning/15 hover:bg-warning/25 text-warning text-sm font-medium flex items-center gap-2 transition-colors border border-warning/30"
+            title="Gera relatório PDF apenas com as comissões pendentes do filtro atual"
+          >
+            <FileText className="w-4 h-4" /> Acerto (pendentes)
+          </button>
+          <button
+            onClick={() => gerarRelatorioAcerto(false)}
+            className="px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary text-sm font-medium flex items-center gap-2 transition-colors border border-primary/30"
+            title="Gera relatório PDF completo do período filtrado para acerto com o construtor"
+          >
+            <FileText className="w-4 h-4" /> Relatório completo
+          </button>
+          <button
+            onClick={exportCSV}
+            className="px-3 py-2 rounded-lg bg-accent/50 hover:bg-accent text-sm font-medium flex items-center gap-2 transition-colors"
+          >
+            <Download className="w-4 h-4" /> Exportar CSV
+          </button>
+        </div>
       </div>
 
       {/* KPIs principais */}
