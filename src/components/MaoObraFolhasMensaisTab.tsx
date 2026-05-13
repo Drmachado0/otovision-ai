@@ -507,15 +507,20 @@ function FolhaEditorSheet({
             </div>
 
             {/* Conferência */}
-            <div className="glass-card p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div className="glass-card p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
               <div><span className="text-xs text-muted-foreground">Funcionários</span>
                 <p className="font-semibold">{itens.length}</p></div>
-              <div><span className="text-xs text-muted-foreground">Total funcionários</span>
+              <div><span className="text-xs text-muted-foreground">Bruto / Produção</span>
+                <p className="font-semibold">{formatCurrency(totais.total_diarias + totais.total_alimentacao + totais.total_encerramento + totais.total_ferias_13 + totais.total_horas_extras)}</p></div>
+              <div><span className="text-xs text-muted-foreground">(−) Vales</span>
+                <p className="font-semibold text-destructive">−{formatCurrency(totais.total_vales)}</p></div>
+              <div><span className="text-xs text-muted-foreground">(−) Quinzenas</span>
+                <p className="font-semibold text-destructive">−{formatCurrency(totais.total_quinzena)}</p></div>
+              <div><span className="text-xs text-muted-foreground">Líquido funcionários</span>
                 <p className="font-semibold">{formatCurrency(totais.total_funcionarios)}</p></div>
-              <div><span className="text-xs text-muted-foreground">Total encargos</span>
-                <p className="font-semibold">{formatCurrency(totais.total_encargos)}</p></div>
-              <div><span className="text-xs text-muted-foreground">Total geral</span>
-                <p className="font-bold text-primary text-lg">{formatCurrency(totais.total_geral)}</p></div>
+              <div><span className="text-xs text-muted-foreground">Total líquido folha</span>
+                <p className="font-bold text-primary text-lg">{formatCurrency(totais.total_geral)}</p>
+                <span className="text-[10px] text-muted-foreground">inclui encargos {formatCurrency(totais.total_encargos)}</span></div>
             </div>
 
             {(validacao.erros.length > 0 || validacao.alertas.length > 0) && (
