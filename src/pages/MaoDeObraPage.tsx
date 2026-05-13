@@ -474,9 +474,10 @@ export default function MaoDeObraPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="trabalhadores">
-        <TabsList className="grid grid-cols-3 w-full max-w-xl">
+        <TabsList className="grid grid-cols-4 w-full max-w-3xl">
           <TabsTrigger value="trabalhadores">Trabalhadores</TabsTrigger>
-          <TabsTrigger value="folha">Folha do mês</TabsTrigger>
+          <TabsTrigger value="folhas">Folhas mensais</TabsTrigger>
+          <TabsTrigger value="folha">Diárias do mês</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
