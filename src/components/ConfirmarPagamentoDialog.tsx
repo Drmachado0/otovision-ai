@@ -38,6 +38,11 @@ interface ConfirmarPagamentoDialogProps {
     parcela_numero?: number;
     parcela_total?: number;
   } | null;
+  /** Quando presente, paga uma parcela de obra_compras via RPC pagar_parcela_atomica em vez de atualizar obra_transacoes_fluxo. */
+  parcelaCompra?: {
+    compra_id: string;
+    numero_parcela: number;
+  };
   userId: string;
 }
 
