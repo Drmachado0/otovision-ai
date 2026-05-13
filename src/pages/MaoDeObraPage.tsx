@@ -36,6 +36,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import MaoObraFolhaTab from "@/components/MaoObraFolhaTab";
+import MaoObraFolhasMensaisTab from "@/components/MaoObraFolhasMensaisTab";
 import MaoObraHistoricoChart from "@/components/MaoObraHistoricoChart";
 import { agruparPorMes, ultimosMeses } from "@/lib/folhaMaoObra";
 
