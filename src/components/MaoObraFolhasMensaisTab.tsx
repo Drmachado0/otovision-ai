@@ -562,12 +562,15 @@ function FolhaEditorSheet({
                   </Button>
                 )}
               </div>
+              <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 mb-2 text-[11px] text-warning-foreground/80">
+                💡 <strong>Vales</strong> e <strong>Quinzenas</strong> são adiantamentos: informe sempre como <strong>valor positivo</strong>. Eles são <strong>subtraídos</strong> do total bruto do funcionário (não somam ao líquido).
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="text-[10px] uppercase text-muted-foreground border-b">
                     <tr>
-                      {["REF","Nome","CPF","Função","Qtd","V.Diária","T.Diárias","Quinz.","Vales","Alim.","Encerr.","Férias/13","HE","Total",""].map((h) => (
-                        <th key={h} className="px-1 py-1.5 text-left whitespace-nowrap">{h}</th>
+                      {["REF","Nome","CPF","Função","Qtd","V.Diária","T.Diárias","Quinz. (−)","Vales (−)","Alim.","Encerr.","Férias/13","HE","Total",""].map((h) => (
+                        <th key={h} className="px-1 py-1.5 text-left whitespace-nowrap" title={h.includes("(−)") ? "Adiantamento: subtraído do total" : undefined}>{h}</th>
                       ))}
                     </tr>
                   </thead>
