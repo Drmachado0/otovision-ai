@@ -173,3 +173,162 @@ export function printFluxoReport(params: {
     ],
   });
 }
+
+// ── Relatório de acerto com o construtor ──
+
+export interface AcertoMesItem {
+  data?: string;
+  fornecedor: string;
+  categoria: string;
+  origem: string;
+  valorBase: number;
+  comissao: number;
+  pago: boolean;
+}
+
+export interface AcertoMes {
+  mes: string;
+  mesLabel: string;
+  gastosMes: number;
+  comissaoMes: number;
+  pagoMes: number;
+  pendenteMes: number;
+  itens: AcertoMesItem[];
+}
+
+export function printAcertoConstrutorReport(params: {
+  nomeObra: string;
+  construtor?: string;
+  percentual: number;
+  periodoLabel: string;
+  totalGasto: number;
+  comissaoTotal: number;
+  comissaoPaga: number;
+  comissaoPendente: number;
+  meses: AcertoMes[];
+}): void {
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  const aReceber = params.comissaoPendente;
+
+  const mesesHtml = params.meses.map((m) => `
+    <div style="margin-top:18px;page-break-inside:avoid;">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#f0fdf4;border-left:4px solid #10B981;padding:8px 10px;">
+        <strong style="font-size:13px;color:#1a1a2e;">${escapeHtml(m.mesLabel)}</strong>
+        <div style="font-size:11px;color:#444;">
+          Gastos: <strong>${escapeHtml(formatCurrency(m.gastosMes))}</strong>
+          · Comissão (${params.percentual}%): <strong style="color:#0d9488;">${escapeHtml(formatCurrency(m.comissaoMes))}</strong>
+          · Pago: <strong style="color:#16a34a;">${escapeHtml(formatCurrency(m.pagoMes))}</strong>
+          · Pendente: <strong style="color:#d97706;">${escapeHtml(formatCurrency(m.pendenteMes))}</strong>
+        </div>
+      </div>
+      ${m.itens.length ? `
+      <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px;">
+        <thead>
+          <tr style="background:#fafafa;border-bottom:1px solid #e5e7eb;">
+            <th style="padding:5px;text-align:left;">Data</th>
+            <th style="padding:5px;text-align:left;">Fornecedor</th>
+            <th style="padding:5px;text-align:left;">Categoria</th>
+            <th style="padding:5px;text-align:center;">Origem</th>
+            <th style="padding:5px;text-align:right;">Valor Base</th>
+            <th style="padding:5px;text-align:right;">Comissão</th>
+            <th style="padding:5px;text-align:center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${m.itens.map((it, i) => `
+            <tr style="border-bottom:1px solid #f1f5f9;${i % 2 ? "background:#fcfcfd;" : ""}">
+              <td style="padding:5px;">${escapeHtml(it.data ? formatDate(it.data) : "-")}</td>
+              <td style="padding:5px;">${escapeHtml(it.fornecedor || "-")}</td>
+              <td style="padding:5px;">${escapeHtml(it.categoria || "-")}</td>
+              <td style="padding:5px;text-align:center;">${escapeHtml(it.origem)}</td>
+              <td style="padding:5px;text-align:right;">${escapeHtml(formatCurrency(it.valorBase))}</td>
+              <td style="padding:5px;text-align:right;font-weight:600;">${escapeHtml(formatCurrency(it.comissao))}</td>
+              <td style="padding:5px;text-align:center;color:${it.pago ? "#16a34a" : "#d97706"};font-weight:600;">${it.pago ? "Pago" : "Pendente"}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>` : `<p style="font-size:10px;color:#999;padding:6px 10px;">Sem lançamentos detalhados neste mês.</p>`}
+    </div>
+  `).join("");
+
+  const html = `
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8"><title>Acerto com o Construtor</title>
+    <style>
+      @page { margin: 18mm 14mm; size: A4; }
+      body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; margin: 0; }
+      @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    </style></head>
+    <body>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10B981;padding-bottom:12px;margin-bottom:14px;">
+        <div>
+          <h1 style="margin:0;font-size:22px;color:#0f172a;">Acerto com o Construtor</h1>
+          <p style="margin:4px 0 0;font-size:12px;color:#475569;">
+            ${escapeHtml(params.nomeObra || "Obra")} · ${escapeHtml(params.periodoLabel)}
+          </p>
+          ${params.construtor ? `<p style="margin:2px 0 0;font-size:11px;color:#64748b;">Construtor: <strong>${escapeHtml(params.construtor)}</strong></p>` : ""}
+        </div>
+        <div style="text-align:right;font-size:11px;color:#64748b;">
+          <p style="margin:0;">Gerado em ${hoje}</p>
+          <p style="margin:2px 0 0;">Comissão pactuada: <strong>${params.percentual}%</strong></p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+        <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px;">
+          <p style="margin:0;font-size:10px;color:#64748b;text-transform:uppercase;">Total Gasto</p>
+          <p style="margin:4px 0 0;font-size:15px;font-weight:700;">${escapeHtml(formatCurrency(params.totalGasto))}</p>
+        </div>
+        <div style="border:1px solid #10B981;border-radius:6px;padding:10px;background:#f0fdf4;">
+          <p style="margin:0;font-size:10px;color:#047857;text-transform:uppercase;">Comissão Total (${params.percentual}%)</p>
+          <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:#047857;">${escapeHtml(formatCurrency(params.comissaoTotal))}</p>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px;">
+          <p style="margin:0;font-size:10px;color:#64748b;text-transform:uppercase;">Já Pago</p>
+          <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:#16a34a;">${escapeHtml(formatCurrency(params.comissaoPaga))}</p>
+        </div>
+        <div style="border:1px solid #f59e0b;border-radius:6px;padding:10px;background:#fffbeb;">
+          <p style="margin:0;font-size:10px;color:#92400e;text-transform:uppercase;">A Pagar Agora</p>
+          <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:#b45309;">${escapeHtml(formatCurrency(aReceber))}</p>
+        </div>
+      </div>
+
+      <h2 style="font-size:13px;color:#0f172a;margin:16px 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px;">Detalhamento por mês</h2>
+      ${mesesHtml || `<p style="font-size:11px;color:#999;">Nenhum lançamento no período.</p>`}
+
+      <div style="margin-top:30px;padding:14px;border:1px dashed #94a3b8;border-radius:8px;background:#f8fafc;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#0f172a;">Resumo do acerto</p>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;">
+          <span>Comissão total apurada</span><strong>${escapeHtml(formatCurrency(params.comissaoTotal))}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;">
+          <span>(−) Já pago</span><strong style="color:#16a34a;">${escapeHtml(formatCurrency(params.comissaoPaga))}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-top:1px solid #cbd5e1;margin-top:6px;">
+          <strong>Saldo a pagar ao construtor</strong>
+          <strong style="color:#b45309;">${escapeHtml(formatCurrency(aReceber))}</strong>
+        </div>
+      </div>
+
+      <div style="margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:40px;">
+        <div style="text-align:center;border-top:1px solid #334155;padding-top:6px;font-size:11px;color:#475569;">
+          Contratante / Proprietário
+        </div>
+        <div style="text-align:center;border-top:1px solid #334155;padding-top:6px;font-size:11px;color:#475569;">
+          Construtor${params.construtor ? ` — ${escapeHtml(params.construtor)}` : ""}
+        </div>
+      </div>
+
+      <div style="margin-top:30px;text-align:center;font-size:9px;color:#94a3b8;border-top:1px solid #e5e7eb;padding-top:6px;">
+        ObraFlow · Documento gerado automaticamente em ${hoje}
+      </div>
+    </body></html>
+  `;
+
+  const win = window.open("", "_blank", "width=900,height=700");
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
+}
+
