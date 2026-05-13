@@ -47,7 +47,7 @@ interface ConfirmarPagamentoDialogProps {
 }
 
 export default function ConfirmarPagamentoDialog({
-  open, onClose, onSuccess, transacao, userId,
+  open, onClose, onSuccess, transacao, parcelaCompra, userId,
 }: ConfirmarPagamentoDialogProps) {
   const [contas, setContas] = useState<ContaFinanceira[]>([]);
   const [contaId, setContaId] = useState("");
