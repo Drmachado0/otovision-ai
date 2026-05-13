@@ -57,6 +57,9 @@ export default function ContasBancariasPage() {
   const [showForm, setShowForm] = useState(false);
   const [editConta, setEditConta] = useState<Conta | null>(null);
   const [extratoConta, setExtratoConta] = useState<Conta | null>(null);
+  const [ajusteConta, setAjusteConta] = useState<Conta | null>(null);
+  const [ajusteValor, setAjusteValor] = useState("");
+  const [ajusteObs, setAjusteObs] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
