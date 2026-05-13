@@ -624,7 +624,12 @@ export default function MaoDeObraPage() {
           )}
         </TabsContent>
 
-        {/* ---- Folha do mês ---- */}
+        {/* ---- Folhas mensais (consolidadas) ---- */}
+        <TabsContent value="folhas" className="mt-4">
+          <MaoObraFolhasMensaisTab />
+        </TabsContent>
+
+        {/* ---- Diárias do mês (registro avulso) ---- */}
         <TabsContent value="folha" className="mt-4">
           {user && (
             <MaoObraFolhaTab
