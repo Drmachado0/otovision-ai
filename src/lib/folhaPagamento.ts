@@ -69,14 +69,18 @@ export function calcularTotaisItem(it: Partial<FolhaItem>): FolhaItem {
   const qtd = Number(it.qtd_diaria) || 0;
   const vd = Number(it.valor_diaria) || 0;
   const total_diarias = +(qtd * vd).toFixed(2);
+  // Vales e quinzenas são adiantamentos: sempre tratados como valor absoluto positivo
+  // e SUBTRAÍDOS do total líquido do funcionário.
+  const quinzena = Math.abs(Number(it.quinzena) || 0);
+  const vales = Math.abs(Number(it.vales) || 0);
   const total_geral = +(
     total_diarias +
-    (Number(it.quinzena) || 0) +
-    (Number(it.vales) || 0) +
     (Number(it.alimentacao) || 0) +
     (Number(it.encerramento) || 0) +
     (Number(it.ferias_13) || 0) +
-    (Number(it.horas_extras) || 0)
+    (Number(it.horas_extras) || 0) -
+    quinzena -
+    vales
   ).toFixed(2);
   return {
     id: it.id,
@@ -88,8 +92,8 @@ export function calcularTotaisItem(it: Partial<FolhaItem>): FolhaItem {
     qtd_diaria: qtd,
     valor_diaria: vd,
     total_diarias,
-    quinzena: Number(it.quinzena) || 0,
-    vales: Number(it.vales) || 0,
+    quinzena,
+    vales,
     alimentacao: Number(it.alimentacao) || 0,
     encerramento: Number(it.encerramento) || 0,
     ferias_13: Number(it.ferias_13) || 0,
