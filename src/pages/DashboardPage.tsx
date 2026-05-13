@@ -7,7 +7,7 @@ import {
   DollarSign, TrendingDown, Wallet, Activity, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Ruler,
   ArrowRight, CreditCard, ShoppingCart,
-  Landmark, Receipt, Clock, Sparkles,
+  Landmark, Receipt, Clock, Sparkles, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OrigemBadge from "@/components/OrigemBadge";
@@ -271,6 +271,14 @@ export default function DashboardPage() {
         ].map((card, i) => (
           <StatCard key={card.label} {...card} delay={i * 100} />
         ))}
+      </div>
+
+      {/* Nota explicativa sobre Ajuste de saldo */}
+      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/50 text-xs text-muted-foreground animate-fade-in-up" style={{ animationDelay: "350ms" }}>
+        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary/70" />
+        <span>
+          Lançamentos da categoria <span className="font-medium text-foreground">"Ajuste de saldo"</span> afetam apenas o saldo da conta correspondente — não são contabilizados em <span className="font-medium text-foreground">Total Gasto</span> nem em <span className="font-medium text-foreground">Total Entradas</span>.
+        </span>
       </div>
 
       {/* Custo/m² + Contas a Pagar — destaque */}
