@@ -10,16 +10,28 @@ import {
 } from "@/lib/folhaPagamento";
 
 describe("folhaPagamento", () => {
-  it("calcula total de item", () => {
+  it("calcula total líquido do item descontando vales e quinzena", () => {
     const it = calcularTotaisItem({
       ref: 1, nome: "X", cpf: "", funcao: "", qtd_diaria: 24, valor_diaria: 140,
       quinzena: 900, vales: 0, alimentacao: 193, encerramento: 0, ferias_13: 0, horas_extras: 0,
     });
     expect(it.total_diarias).toBe(3360);
-    expect(it.total_geral).toBe(3360 + 900 + 193);
+    // 3360 + 193 - 900 (quinzena) = 2653
+    expect(it.total_geral).toBe(2653);
   });
 
-  it("calcula totais da folha", () => {
+  it("vales e quinzenas são sempre descontados (mesmo se vierem positivos do JSON)", () => {
+    const it = calcularTotaisItem({
+      ref: 1, nome: "Y", cpf: "", funcao: "", qtd_diaria: 0, valor_diaria: 0,
+      quinzena: 300, vales: 100, alimentacao: 0, encerramento: 0, ferias_13: 0, horas_extras: 0,
+      // valor base via horas_extras simulando bruto fixo de 1000
+    });
+    // base 1000 - 100 vales - 300 quinzenas = 600
+    const it2 = calcularTotaisItem({ ...it, horas_extras: 1000 });
+    expect(it2.total_geral).toBe(600);
+  });
+
+  it("não soma vales/quinzena ao total da folha", () => {
     const itens = [
       calcularTotaisItem({ ref: 1, nome: "A", cpf: "", funcao: "", qtd_diaria: 10, valor_diaria: 100, quinzena: 200, vales: 0, alimentacao: 0, encerramento: 0, ferias_13: 0, horas_extras: 0 }),
       calcularTotaisItem({ ref: 2, nome: "B", cpf: "", funcao: "", qtd_diaria: 5, valor_diaria: 200, quinzena: 0, vales: 50, alimentacao: 0, encerramento: 0, ferias_13: 0, horas_extras: 0 }),
@@ -27,9 +39,12 @@ describe("folhaPagamento", () => {
     const encargos = [{ tipo: "fgts", descricao: "FGTS", valor: 80 }];
     const t = calcularTotaisFolha(itens, encargos);
     expect(t.total_diarias).toBe(2000);
-    expect(t.total_funcionarios).toBe(2250); // 1200 + 1050
+    // A: 1000 - 200 = 800 ; B: 1000 - 50 = 950 ; soma = 1750
+    expect(t.total_funcionarios).toBe(1750);
+    expect(t.total_quinzena).toBe(200);
+    expect(t.total_vales).toBe(50);
     expect(t.total_encargos).toBe(80);
-    expect(t.total_geral).toBe(2330);
+    expect(t.total_geral).toBe(1830);
   });
 
   it("validação detecta diferença e duplicatas", () => {
