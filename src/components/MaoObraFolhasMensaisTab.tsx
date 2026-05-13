@@ -192,6 +192,10 @@ export default function MaoObraFolhasMensaisTab() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={recalcularTodas} disabled={recalculando || !folhas.length} className="gap-1.5">
+            <RefreshCw className={`w-4 h-4 ${recalculando ? "animate-spin" : ""}`} />
+            {recalculando ? "Recalculando..." : "Recalcular"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setOpenImport(true)} className="gap-1.5">
             <Upload className="w-4 h-4" /> Importar folha
           </Button>
