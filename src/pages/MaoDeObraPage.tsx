@@ -180,7 +180,7 @@ export default function MaoDeObraPage() {
   const fetchFolhas = useCallback(async () => {
     const { data } = await (supabase as any)
       .from("obra_mao_obra_folha")
-      .select("id,mes_ref,total_diarias,total_fgts,total_inss,status")
+      .select("id,mes_ref,total_diarias,total_fgts,total_inss,total_quinzena,total_vales,total_vale_alim,total_encerramento,total_ferias,total_horas_extras,total_geral,status")
       .is("deleted_at", null)
       .order("mes_ref", { ascending: false });
     setFolhas(data ?? []);
