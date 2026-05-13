@@ -441,7 +441,7 @@ export default function DashboardPage() {
                       <Cell fill="hsl(25 95% 58%)" />
                       <Cell fill="hsl(160 60% 45%)" />
                     </Pie>
-                    <Tooltip
+                    <RTooltip
                       contentStyle={{ background: "hsl(222 47% 9%)", border: "1px solid hsl(222 30% 20%)", borderRadius: "8px", fontSize: "12px", color: "hsl(0 0% 98%)" }}
                       itemStyle={{ color: "hsl(0 0% 98%)" }}
                       formatter={(value: number) => formatCurrency(value)}
@@ -478,7 +478,7 @@ export default function DashboardPage() {
                       axisLine={false}
                       tickLine={false}
                     />
-                    <Tooltip
+                    <RTooltip
                       contentStyle={{ background: "hsl(222 47% 9%)", border: "1px solid hsl(222 30% 16%)", borderRadius: "8px", fontSize: "12px" }}
                       formatter={(value: number) => formatCurrency(value)}
                     />
