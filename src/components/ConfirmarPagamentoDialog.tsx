@@ -140,7 +140,7 @@ export default function ConfirmarPagamentoDialog({
         gerarComissao,
         dataComissao: new Date().toISOString().slice(0, 10),
         transacao: {
-          id: transacao.id,
+          id: txIdParaComissao,
           user_id: userId,
           tipo: "Saída",
           valor: Number(transacao.valor),
