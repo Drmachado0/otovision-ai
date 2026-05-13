@@ -5219,6 +5219,15 @@ export type Database = {
       }
     }
     Functions: {
+      _folha_audit: {
+        Args: {
+          p_acao: string
+          p_dados: Json
+          p_folha_id: string
+          p_user: string
+        }
+        Returns: undefined
+      }
       _folha_competencia_label: { Args: { p: string }; Returns: string }
       add_targets_batch: {
         Args: {
