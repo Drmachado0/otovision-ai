@@ -219,6 +219,7 @@ export interface MesAgg {
   diarias: number;
   fgts: number;
   inss: number;
+  extras: number;
   total: number;
 }
 
@@ -241,9 +242,23 @@ export function labelMes(mesRef: string): string {
   return `${MES_LABEL[m - 1]}/${String(y).slice(2)}`;
 }
 
+export interface FolhaAgg {
+  mes_ref: string;
+  total_diarias?: number | null;
+  total_fgts?: number | null;
+  total_inss?: number | null;
+  total_quinzena?: number | null;
+  total_vales?: number | null;
+  total_vale_alim?: number | null;
+  total_encerramento?: number | null;
+  total_ferias?: number | null;
+  total_horas_extras?: number | null;
+  total_geral?: number | null;
+}
+
 export function agruparPorMes(
   registros: RegistroValor[],
-  folhas: { mes_ref: string; total_fgts: number; total_inss: number }[],
+  folhas: FolhaAgg[],
   meses: string[],
 ): MesAgg[] {
   const diariasPorMes = new Map<string, number>();
@@ -254,17 +269,29 @@ export function agruparPorMes(
   const folhaMap = new Map(folhas.map((f) => [f.mes_ref, f]));
 
   return meses.map((mes) => {
-    const diarias = diariasPorMes.get(mes) ?? 0;
     const f = folhaMap.get(mes);
+    // Quando há folha lançada, ela é a fonte de verdade do mês.
+    const diariasReg = diariasPorMes.get(mes) ?? 0;
+    const diarias = f ? Number(f.total_diarias ?? 0) || diariasReg : diariasReg;
     const fgts = Number(f?.total_fgts ?? 0);
     const inss = Number(f?.total_inss ?? 0);
+    const extras =
+      Number(f?.total_quinzena ?? 0) +
+      Number(f?.total_vales ?? 0) +
+      Number(f?.total_vale_alim ?? 0) +
+      Number(f?.total_encerramento ?? 0) +
+      Number(f?.total_ferias ?? 0) +
+      Number(f?.total_horas_extras ?? 0);
+    const totalGeral = Number(f?.total_geral ?? 0);
+    const total = totalGeral > 0 ? totalGeral : diarias + fgts + inss + extras;
     return {
       mes,
       label: labelMes(mes),
       diarias,
       fgts,
       inss,
-      total: diarias + fgts + inss,
+      extras,
+      total,
     };
   });
 }
