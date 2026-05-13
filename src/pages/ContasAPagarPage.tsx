@@ -43,6 +43,7 @@ const PAGE_SIZE = 50;
 export default function ContasAPagarPage() {
   const { user } = useAuth();
   const [allContas, setAllContas] = useState<ContaPagar[]>([]);
+  const [comprasRaw, setComprasRaw] = useState<Array<{ id: string; valor_total: number | string | null; status_entrega: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterVencimento, setFilterVencimento] = useState<"todos" | "hoje" | "vencidas" | "semana">("todos");
