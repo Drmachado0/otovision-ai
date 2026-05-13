@@ -590,10 +590,20 @@ function FolhaEditorSheet({
                         <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.valor_diaria}
                           onChange={(v) => updateItem(idx, { valor_diaria: Number(v) })} /></td>
                         <td className="px-1 py-1 text-right tabular-nums">{formatCurrency(it.total_diarias)}</td>
-                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.quinzena}
-                          onChange={(v) => updateItem(idx, { quinzena: Number(v) })} /></td>
-                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.vales}
-                          onChange={(v) => updateItem(idx, { vales: Number(v) })} /></td>
+                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" min={0} value={it.quinzena}
+                          title="Adiantamento — informe positivo (será subtraído do total)"
+                          onChange={(v) => {
+                            const n = Number(v);
+                            if (n < 0) toast.warning("Quinzena convertida para positivo (é descontada do total)");
+                            updateItem(idx, { quinzena: Math.abs(n) });
+                          }} /></td>
+                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" min={0} value={it.vales}
+                          title="Adiantamento — informe positivo (será subtraído do total)"
+                          onChange={(v) => {
+                            const n = Number(v);
+                            if (n < 0) toast.warning("Vales convertidos para positivo (são descontados do total)");
+                            updateItem(idx, { vales: Math.abs(n) });
+                          }} /></td>
                         <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.alimentacao}
                           onChange={(v) => updateItem(idx, { alimentacao: Number(v) })} /></td>
                         <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.encerramento}
