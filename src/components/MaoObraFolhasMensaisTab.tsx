@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Plus, Upload, Trash2, FileText, CheckCircle2, RotateCcw, Send, Wallet } from "lucide-react";
+import { Plus, Upload, Trash2, FileText, CheckCircle2, RotateCcw, Send, Wallet, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +80,24 @@ export default function MaoObraFolhasMensaisTab() {
   }, []);
 
   useEffect(() => { fetchFolhas(); }, [fetchFolhas]);
+
+  const [recalculando, setRecalculando] = useState(false);
+
+  const recalcularTodas = async () => {
+    if (!folhas.length) return;
+    setRecalculando(true);
+    let ok = 0; let fail = 0;
+    for (const f of folhas) {
+      try {
+        await recalcularFolhaDB(f.id);
+        ok++;
+      } catch { fail++; }
+    }
+    setRecalculando(false);
+    if (fail) toast.warning(`Recalculadas ${ok} folhas, ${fail} com erro`);
+    else toast.success(`Totais atualizados em ${ok} folha(s)`);
+    fetchFolhas();
+  };
 
   const criarFolha = async (params: {
     competencia: string;
@@ -174,6 +192,10 @@ export default function MaoObraFolhasMensaisTab() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={recalcularTodas} disabled={recalculando || !folhas.length} className="gap-1.5">
+            <RefreshCw className={`w-4 h-4 ${recalculando ? "animate-spin" : ""}`} />
+            {recalculando ? "Recalculando..." : "Recalcular"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setOpenImport(true)} className="gap-1.5">
             <Upload className="w-4 h-4" /> Importar folha
           </Button>
@@ -666,6 +688,27 @@ function FolhaEditorSheet({
                   <Button onClick={salvar} disabled={saving} variant="outline" className="gap-1.5">
                     {saving ? "Salvando..." : "Salvar"}
                   </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!folha) return;
+                      setSaving(true);
+                      try {
+                        await salvar();
+                        await recalcularFolhaDB(folha.id);
+                        toast.success("Totais recalculados");
+                        await fetchAll();
+                      } catch (e: any) {
+                        toast.error("Erro ao recalcular: " + e.message);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
+                    variant="outline"
+                    className="gap-1.5"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${saving ? "animate-spin" : ""}`} /> Recalcular
+                  </Button>
                   {folha.status === "rascunho" && (
                     <Button onClick={marcarConferida} disabled={saving} variant="outline" className="gap-1.5">
                       <CheckCircle2 className="w-4 h-4" /> Marcar conferida
@@ -767,3 +810,31 @@ async function upsertTrabalhadores(userId: string, itens: FolhaItem[]) {
     }
   }
 }
+
+export async function recalcularFolhaDB(folhaId: string): Promise<void> {
+  const [{ data: is }, { data: es }] = await Promise.all([
+    (supabase as any).from("obra_folha_pagamento_itens").select("*").eq("folha_id", folhaId).is("deleted_at", null),
+    (supabase as any).from("obra_folha_pagamento_encargos").select("*").eq("folha_id", folhaId).is("deleted_at", null),
+  ]);
+  const itens: FolhaItem[] = (is ?? []).map((i: any) => calcularTotaisItem(i));
+  const encargos: FolhaEncargo[] = es ?? [];
+
+  // atualizar totais por item
+  for (const it of itens) {
+    if ((it as any).id) {
+      await (supabase as any).from("obra_folha_pagamento_itens").update({
+        total_diarias: it.total_diarias,
+        total_geral: it.total_geral,
+      }).eq("id", (it as any).id);
+    }
+  }
+
+  const t = calcularTotaisFolha(itens, encargos);
+  const { data: f } = await (supabase as any)
+    .from("obra_folhas_pagamento").select("diferenca_conferencia").eq("id", folhaId).maybeSingle();
+  const diff = f ? Number(f.diferenca_conferencia ?? 0) : 0;
+  await (supabase as any).from("obra_folhas_pagamento").update({ ...t }).eq("id", folhaId);
+  // mantém o "total_informado" implícito quando havia diferença? Mantém diff inalterado.
+  void diff;
+}
+
