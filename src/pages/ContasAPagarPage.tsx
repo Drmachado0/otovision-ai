@@ -68,13 +68,14 @@ export default function ContasAPagarPage() {
         .eq("tipo", "Saída"),
       supabase
         .from("obra_compras")
-        .select("id, fornecedor, descricao, categoria, conta_id, parcelas, status_entrega")
+        .select("id, fornecedor, descricao, categoria, conta_id, parcelas, status_entrega, valor_total, numero_parcelas")
         .is("deleted_at", null)
         .neq("status_entrega", "Cancelado"),
     ]);
 
     const fluxoRows: ContaPagar[] = ((fluxoRes.data as any) ?? []).map((r: any) => ({ ...r, origem: "fluxo" as const }));
-    const parcelaRows: ContaPagar[] = flattenParcelasPendentes(((comprasRes.data ?? []) as unknown) as CompraComParcelas[])
+    const comprasData = (comprasRes.data ?? []) as any[];
+    const parcelaRows: ContaPagar[] = flattenParcelasPendentes((comprasData as unknown) as CompraComParcelas[])
       .map((p: ParcelaPendenteRow) => ({ ...p }));
 
     const merged = [...fluxoRows, ...parcelaRows].sort((a, b) => {
@@ -84,6 +85,7 @@ export default function ContasAPagarPage() {
     });
 
     setAllContas(merged);
+    setComprasRaw(comprasData.map((c) => ({ id: c.id, valor_total: c.valor_total, status_entrega: c.status_entrega })));
     setLoading(false);
   }, []);
 
