@@ -15,9 +15,10 @@ import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/Transaca
 import { calcularResumoCompras } from "@/lib/financeiro";
 import { flattenParcelasPendentes, type CompraComParcelas } from "@/lib/contasAPagarParcelas";
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface TransacaoRow {
   id: string;
@@ -265,9 +266,9 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           { variant: "info" as const, label: "Orçamento Total", value: formatCurrency(orcamentoTotal), icon: <DollarSign className="w-5 h-5" />, to: "/configuracoes" },
-          { variant: "danger" as const, label: "Total Gasto", value: formatCurrency(totalGasto), icon: <TrendingDown className="w-5 h-5" />, sub: `${formatPercent(percentual)} executado`, to: "/fluxo" },
-          { variant: "success" as const, label: "Saldo do Orçamento", value: formatCurrency(saldo), icon: <Wallet className="w-5 h-5" />, to: "/relatorios" },
-          { variant: "warning" as const, label: "Total Entradas", value: formatCurrency(totalEntradas), icon: <Activity className="w-5 h-5" />, to: "/fluxo" },
+          { variant: "danger" as const, label: "Total Gasto", value: formatCurrency(totalGasto), icon: <TrendingDown className="w-5 h-5" />, sub: `${formatPercent(percentual)} executado`, to: "/fluxo", tooltip: "Soma de todas as saídas (pagas + parcelas pendentes). Lançamentos da categoria \"Ajuste de saldo\" NÃO são contabilizados aqui — eles afetam apenas o saldo da conta correspondente." },
+          { variant: "success" as const, label: "Saldo do Orçamento", value: formatCurrency(saldo), icon: <Wallet className="w-5 h-5" />, to: "/relatorios", tooltip: "Orçamento Total − Total Gasto. Lançamentos da categoria \"Ajuste de saldo\" não impactam este cálculo, pois alteram apenas o saldo das contas bancárias, não o orçamento da obra." },
+          { variant: "warning" as const, label: "Total Entradas", value: formatCurrency(totalEntradas), icon: <Activity className="w-5 h-5" />, to: "/fluxo", tooltip: "Saldo inicial das contas ativas + entradas operacionais. Lançamentos da categoria \"Ajuste de saldo\" NÃO entram neste total — são apenas correções contábeis no saldo da conta." },
         ].map((card, i) => (
           <StatCard key={card.label} {...card} delay={i * 100} />
         ))}
@@ -440,7 +441,7 @@ export default function DashboardPage() {
                       <Cell fill="hsl(25 95% 58%)" />
                       <Cell fill="hsl(160 60% 45%)" />
                     </Pie>
-                    <Tooltip
+                    <RTooltip
                       contentStyle={{ background: "hsl(222 47% 9%)", border: "1px solid hsl(222 30% 20%)", borderRadius: "8px", fontSize: "12px", color: "hsl(0 0% 98%)" }}
                       itemStyle={{ color: "hsl(0 0% 98%)" }}
                       formatter={(value: number) => formatCurrency(value)}
@@ -477,7 +478,7 @@ export default function DashboardPage() {
                       axisLine={false}
                       tickLine={false}
                     />
-                    <Tooltip
+                    <RTooltip
                       contentStyle={{ background: "hsl(222 47% 9%)", border: "1px solid hsl(222 30% 16%)", borderRadius: "8px", fontSize: "12px" }}
                       formatter={(value: number) => formatCurrency(value)}
                     />
@@ -550,16 +551,35 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ variant, label, value, icon, sub, delay = 0, to }: {
+function StatCard({ variant, label, value, icon, sub, delay = 0, to, tooltip }: {
   variant: "success" | "danger" | "info" | "warning";
-  label: string; value: string; icon: React.ReactNode; sub?: string; delay?: number; to?: string;
+  label: string; value: string; icon: React.ReactNode; sub?: string; delay?: number; to?: string; tooltip?: string;
 }) {
   const classes = { success: "stat-card-success", danger: "stat-card-danger", info: "stat-card-info", warning: "stat-card-warning" };
   const iconColor = { success: "text-success", danger: "text-destructive", info: "text-info", warning: "text-warning" };
   const inner = (
     <>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+          {tooltip && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                  aria-label={`Sobre ${label}`}
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                {tooltip}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
         <div className={iconColor[variant]}>{icon}</div>
       </div>
       <p className="text-xl font-bold">{value}</p>
