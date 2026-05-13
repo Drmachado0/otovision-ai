@@ -95,18 +95,24 @@ export default function DashboardPage() {
       0
     );
 
+    // Parcelas pendentes de compras (compromissos futuros que ainda não viraram lançamento no fluxo)
+    const parcelasPendentes = flattenParcelasPendentes(((comprasRes.data ?? []) as unknown) as CompraComParcelas[]);
+    const totalParcelasPend = parcelasPendentes.reduce((s, p) => s + Number(p.valor), 0);
+
     if (allTransRes.data) {
       const rows = allTransRes.data as unknown as { tipo: string; valor: number; categoria: string; conta_id?: string }[];
       setAllTransForContas(rows);
       const saidas = rows.filter(t => t.tipo === "Saída");
-      setTotalGasto(saidas.reduce((s, t) => s + Number(t.valor), 0));
+      // Total Gasto inclui parcelas pendentes de compras parceladas (compromissos confirmados)
+      setTotalGasto(saidas.reduce((s, t) => s + Number(t.valor), 0) + totalParcelasPend);
       const entradasOp = rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
       // Total Entradas inclui o saldo inicial das contas ativas
       setTotalEntradas(saldoInicialTotal + entradasOp);
 
-      // Top 5 categories by spending
+      // Top 5 categories by spending (inclui parcelas pendentes)
       const catMap: Record<string, number> = {};
       saidas.forEach(t => { catMap[t.categoria || "Sem categoria"] = (catMap[t.categoria || "Sem categoria"] || 0) + Number(t.valor); });
+      parcelasPendentes.forEach(p => { catMap[p.categoria || "Sem categoria"] = (catMap[p.categoria || "Sem categoria"] || 0) + Number(p.valor); });
       const sorted = Object.entries(catMap).map(([categoria, total]) => ({ categoria, total })).sort((a, b) => b.total - a.total).slice(0, 5);
       setGastosPorCategoria(sorted);
     }
