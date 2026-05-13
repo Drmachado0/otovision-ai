@@ -143,16 +143,21 @@ export default function DashboardPage() {
     if (pendentesRes.data) {
       const pRows = pendentesRes.data as unknown as { valor: number; data_vencimento: string | null }[];
       const todayStr = todayLocalISO();
-      // Inclui parcelas pendentes de obra_compras (compromissos ainda não lançados no fluxo)
+      // Alinhado com a página Contas a Pagar:
+      // total = soma de lançamentos pendentes do fluxo + valor TOTAL de todas as compras ativas
+      const comprasAtivas = ((comprasRes.data ?? []) as any[]).filter(c => c.status_entrega !== "Cancelado");
+      const fluxoPendenteTotal = pRows.reduce((s, r) => s + Number(r.valor), 0);
+      const comprasValorTotal = comprasAtivas.reduce((s, c) => s + Number(c.valor_total || 0), 0);
+      // Vencidas continuam baseadas em parcelas com data de vencimento real
       const parcelasVirtuais = flattenParcelasPendentes((comprasRes.data ?? []) as unknown as CompraComParcelas[]);
-      const combinadas = [
+      const combinadasParaVenc = [
         ...pRows,
         ...parcelasVirtuais.map(p => ({ valor: p.valor, data_vencimento: p.data_vencimento })),
       ];
       setContasPagar({
-        total: combinadas.reduce((s, r) => s + Number(r.valor), 0),
-        count: combinadas.length,
-        vencidas: combinadas.filter(r => r.data_vencimento && r.data_vencimento < todayStr).length,
+        total: fluxoPendenteTotal + comprasValorTotal,
+        count: pRows.length + comprasAtivas.length,
+        vencidas: combinadasParaVenc.filter(r => r.data_vencimento && r.data_vencimento < todayStr).length,
       });
     }
 
