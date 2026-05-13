@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/formatters";
 import {
   Plus, Wallet, Building2, CreditCard, PiggyBank, TrendingUp,
-  ToggleLeft, ToggleRight, Pencil, X,
+  ToggleLeft, ToggleRight, Pencil, X, Scale,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,9 @@ export default function ContasBancariasPage() {
   const [showForm, setShowForm] = useState(false);
   const [editConta, setEditConta] = useState<Conta | null>(null);
   const [extratoConta, setExtratoConta] = useState<Conta | null>(null);
+  const [ajusteConta, setAjusteConta] = useState<Conta | null>(null);
+  const [ajusteValor, setAjusteValor] = useState("");
+  const [ajusteObs, setAjusteObs] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
@@ -142,6 +145,37 @@ export default function ContasBancariasPage() {
     else { toast.success(conta.ativa ? "Conta desativada" : "Conta reativada"); fetchData(); }
   };
 
+  const handleAjuste = async () => {
+    if (!ajusteConta) return;
+    const novoSaldo = Number(ajusteValor);
+    if (isNaN(novoSaldo)) { toast.error("Informe um valor válido"); return; }
+    const saldoAtual = getSaldo(ajusteConta);
+    const diff = Number((novoSaldo - saldoAtual).toFixed(2));
+    if (diff === 0) { toast.info("Saldo já está nesse valor"); return; }
+    setSaving(true);
+    const hoje = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from("obra_transacoes_fluxo").insert({
+      user_id: user!.id,
+      tipo: diff > 0 ? "Entrada" : "Saída",
+      valor: Math.abs(diff),
+      data: hoje,
+      data_pagamento: new Date().toISOString(),
+      descricao: `Ajuste de saldo - ${ajusteConta.nome}`,
+      categoria: "Ajuste de saldo",
+      conta_id: ajusteConta.id,
+      forma_pagamento: "Ajuste",
+      status: "pago",
+      observacoes: ajusteObs || `Saldo ajustado de ${formatCurrency(saldoAtual)} para ${formatCurrency(novoSaldo)}`,
+    } as any);
+    setSaving(false);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    toast.success("Saldo ajustado!");
+    setAjusteConta(null);
+    setAjusteValor("");
+    setAjusteObs("");
+    fetchData();
+  };
+
   const extratoTransacoes = extratoConta
     ? transacoes.filter(t => t.conta_id === extratoConta.id).sort((a, b) => b.data.localeCompare(a.data))
     : [];
@@ -205,6 +239,9 @@ export default function ContasBancariasPage() {
                     </div>
                   </div>
                   <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Ajustar saldo" onClick={e => { e.stopPropagation(); setAjusteConta(conta); setAjusteValor(String(getSaldo(conta).toFixed(2))); setAjusteObs(""); }}>
+                      <Scale className="w-3 h-3" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => { e.stopPropagation(); openEdit(conta); }}>
                       <Pencil className="w-3 h-3" />
                     </Button>
@@ -340,6 +377,43 @@ export default function ContasBancariasPage() {
               {saving ? "Salvando..." : editConta ? "Salvar Alterações" : "Criar Conta"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ajuste de saldo Dialog */}
+      <Dialog open={!!ajusteConta} onOpenChange={open => { if (!open) { setAjusteConta(null); setAjusteValor(""); setAjusteObs(""); } }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Ajustar saldo {ajusteConta ? `- ${ajusteConta.nome}` : ""}</DialogTitle>
+          </DialogHeader>
+          {ajusteConta && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-secondary/30 flex justify-between text-sm">
+                <span className="text-muted-foreground">Saldo atual</span>
+                <span className="font-semibold">{formatCurrency(getSaldo(ajusteConta))}</span>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Novo saldo (R$)</Label>
+                <Input type="number" step="0.01" value={ajusteValor} onChange={e => setAjusteValor(e.target.value)} className="mt-1" />
+              </div>
+              {ajusteValor !== "" && !isNaN(Number(ajusteValor)) && (
+                <div className="p-3 rounded-lg bg-secondary/20 text-xs text-muted-foreground">
+                  Será criado um lançamento de{" "}
+                  <span className={Number(ajusteValor) - getSaldo(ajusteConta) >= 0 ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                    {Number(ajusteValor) - getSaldo(ajusteConta) >= 0 ? "Entrada" : "Saída"} de {formatCurrency(Math.abs(Number(ajusteValor) - getSaldo(ajusteConta)))}
+                  </span>{" "}
+                  na categoria "Ajuste de saldo".
+                </div>
+              )}
+              <div>
+                <Label className="text-xs text-muted-foreground">Observações (opcional)</Label>
+                <Textarea value={ajusteObs} onChange={e => setAjusteObs(e.target.value)} rows={2} className="mt-1" placeholder="Motivo do ajuste..." />
+              </div>
+              <Button onClick={handleAjuste} disabled={saving} className="w-full">
+                {saving ? "Ajustando..." : "Confirmar ajuste"}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
