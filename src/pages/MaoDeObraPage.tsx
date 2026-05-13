@@ -36,6 +36,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import MaoObraFolhaTab from "@/components/MaoObraFolhaTab";
+import MaoObraFolhasMensaisTab from "@/components/MaoObraFolhasMensaisTab";
 import MaoObraHistoricoChart from "@/components/MaoObraHistoricoChart";
 import { agruparPorMes, ultimosMeses } from "@/lib/folhaMaoObra";
 
@@ -473,9 +474,10 @@ export default function MaoDeObraPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="trabalhadores">
-        <TabsList className="grid grid-cols-3 w-full max-w-xl">
+        <TabsList className="grid grid-cols-4 w-full max-w-3xl">
           <TabsTrigger value="trabalhadores">Trabalhadores</TabsTrigger>
-          <TabsTrigger value="folha">Folha do mês</TabsTrigger>
+          <TabsTrigger value="folhas">Folhas mensais</TabsTrigger>
+          <TabsTrigger value="folha">Diárias do mês</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
@@ -622,7 +624,12 @@ export default function MaoDeObraPage() {
           )}
         </TabsContent>
 
-        {/* ---- Folha do mês ---- */}
+        {/* ---- Folhas mensais (consolidadas) ---- */}
+        <TabsContent value="folhas" className="mt-4">
+          <MaoObraFolhasMensaisTab />
+        </TabsContent>
+
+        {/* ---- Diárias do mês (registro avulso) ---- */}
         <TabsContent value="folha" className="mt-4">
           {user && (
             <MaoObraFolhaTab

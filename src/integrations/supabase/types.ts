@@ -2049,6 +2049,223 @@ export type Database = {
           },
         ]
       }
+      obra_folha_pagamento_encargos: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          descricao: string
+          folha_id: string
+          id: string
+          observacoes: string
+          tipo: string
+          updated_at: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          descricao?: string
+          folha_id: string
+          id?: string
+          observacoes?: string
+          tipo: string
+          updated_at?: string
+          user_id: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          descricao?: string
+          folha_id?: string
+          id?: string
+          observacoes?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obra_folha_pagamento_encargos_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "obra_folhas_pagamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      obra_folha_pagamento_itens: {
+        Row: {
+          alimentacao: number
+          cpf: string
+          created_at: string
+          deleted_at: string | null
+          encerramento: number
+          ferias_13: number
+          folha_id: string
+          funcao: string
+          horas_extras: number
+          id: string
+          nome: string
+          observacoes: string
+          qtd_diaria: number
+          quinzena: number
+          ref: number
+          total_diarias: number
+          total_geral: number
+          trabalhador_id: string | null
+          updated_at: string
+          user_id: string
+          vales: number
+          valor_diaria: number
+        }
+        Insert: {
+          alimentacao?: number
+          cpf?: string
+          created_at?: string
+          deleted_at?: string | null
+          encerramento?: number
+          ferias_13?: number
+          folha_id: string
+          funcao?: string
+          horas_extras?: number
+          id?: string
+          nome: string
+          observacoes?: string
+          qtd_diaria?: number
+          quinzena?: number
+          ref?: number
+          total_diarias?: number
+          total_geral?: number
+          trabalhador_id?: string | null
+          updated_at?: string
+          user_id: string
+          vales?: number
+          valor_diaria?: number
+        }
+        Update: {
+          alimentacao?: number
+          cpf?: string
+          created_at?: string
+          deleted_at?: string | null
+          encerramento?: number
+          ferias_13?: number
+          folha_id?: string
+          funcao?: string
+          horas_extras?: number
+          id?: string
+          nome?: string
+          observacoes?: string
+          qtd_diaria?: number
+          quinzena?: number
+          ref?: number
+          total_diarias?: number
+          total_geral?: number
+          trabalhador_id?: string | null
+          updated_at?: string
+          user_id?: string
+          vales?: number
+          valor_diaria?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obra_folha_pagamento_itens_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "obra_folhas_pagamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      obra_folhas_pagamento: {
+        Row: {
+          comissao_id: string | null
+          competencia_mes: string
+          created_at: string
+          data_fechamento: string
+          deleted_at: string | null
+          diferenca_conferencia: number
+          financeiro_transacao_id: string | null
+          gerar_comissao: boolean
+          id: string
+          obra_nome: string
+          observacoes: string
+          origem: string
+          status: Database["public"]["Enums"]["folha_pagamento_status"]
+          titulo: string
+          total_alimentacao: number
+          total_diarias: number
+          total_encargos: number
+          total_encerramento: number
+          total_ferias_13: number
+          total_funcionarios: number
+          total_geral: number
+          total_horas_extras: number
+          total_quinzena: number
+          total_vales: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comissao_id?: string | null
+          competencia_mes: string
+          created_at?: string
+          data_fechamento: string
+          deleted_at?: string | null
+          diferenca_conferencia?: number
+          financeiro_transacao_id?: string | null
+          gerar_comissao?: boolean
+          id?: string
+          obra_nome?: string
+          observacoes?: string
+          origem?: string
+          status?: Database["public"]["Enums"]["folha_pagamento_status"]
+          titulo?: string
+          total_alimentacao?: number
+          total_diarias?: number
+          total_encargos?: number
+          total_encerramento?: number
+          total_ferias_13?: number
+          total_funcionarios?: number
+          total_geral?: number
+          total_horas_extras?: number
+          total_quinzena?: number
+          total_vales?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comissao_id?: string | null
+          competencia_mes?: string
+          created_at?: string
+          data_fechamento?: string
+          deleted_at?: string | null
+          diferenca_conferencia?: number
+          financeiro_transacao_id?: string | null
+          gerar_comissao?: boolean
+          id?: string
+          obra_nome?: string
+          observacoes?: string
+          origem?: string
+          status?: Database["public"]["Enums"]["folha_pagamento_status"]
+          titulo?: string
+          total_alimentacao?: number
+          total_diarias?: number
+          total_encargos?: number
+          total_encerramento?: number
+          total_ferias_13?: number
+          total_funcionarios?: number
+          total_geral?: number
+          total_horas_extras?: number
+          total_quinzena?: number
+          total_vales?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       obra_fornecedores: {
         Row: {
           agencia: string
@@ -2201,6 +2418,8 @@ export type Database = {
           aliquota_fgts: number
           aliquota_inss: number
           ativo: boolean
+          cpf: string | null
+          cpf_normalizado: string | null
           created_at: string
           data_fim: string | null
           data_inicio: string | null
@@ -2222,6 +2441,8 @@ export type Database = {
           aliquota_fgts?: number
           aliquota_inss?: number
           ativo?: boolean
+          cpf?: string | null
+          cpf_normalizado?: string | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string | null
@@ -2243,6 +2464,8 @@ export type Database = {
           aliquota_fgts?: number
           aliquota_inss?: number
           ativo?: boolean
+          cpf?: string | null
+          cpf_normalizado?: string | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string | null
@@ -4996,6 +5219,7 @@ export type Database = {
       }
     }
     Functions: {
+      _folha_competencia_label: { Args: { p: string }; Returns: string }
       add_targets_batch: {
         Args: {
           p_campaign_id?: string
@@ -5100,6 +5324,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      lancar_folha_financeiro: { Args: { p_folha_id: string }; Returns: Json }
+      marcar_folha_paga: {
+        Args: { p_conta_id: string; p_data: string; p_folha_id: string }
+        Returns: Json
+      }
       mark_targets_done: {
         Args: { p_ig_account_id: string; p_target_ids: string[] }
         Returns: number
@@ -5125,6 +5354,7 @@ export type Database = {
         }
         Returns: string
       }
+      reabrir_folha: { Args: { p_folha_id: string }; Returns: Json }
       refund_credits: {
         Args: { p_amount: number; p_user_id: string }
         Returns: number
@@ -5175,6 +5405,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "financeiro" | "construtor" | "visualizador"
+      folha_pagamento_status:
+        | "rascunho"
+        | "conferida"
+        | "lancada"
+        | "paga"
+        | "cancelada"
       scheduled_post_status: "draft" | "scheduled" | "published" | "failed"
     }
     CompositeTypes: {
@@ -5304,6 +5540,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "financeiro", "construtor", "visualizador"],
+      folha_pagamento_status: [
+        "rascunho",
+        "conferida",
+        "lancada",
+        "paga",
+        "cancelada",
+      ],
       scheduled_post_status: ["draft", "scheduled", "published", "failed"],
     },
   },
