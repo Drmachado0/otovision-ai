@@ -47,16 +47,16 @@ export default function Dashboard() {
 
         (transacoes ?? []).forEach((t) => {
           const val = Number(t.valor) || 0;
+          const cat = t.categoria || "Outros";
+          // "Ajuste de saldo" só afeta o saldo final da conta, não entra em KPIs
+          if (cat === "Ajuste de saldo") return;
           if (t.tipo === "Saída") {
             totalSaidas += val;
-            const cat = t.categoria || "Outros";
             catMap[cat] = (catMap[cat] || 0) + val;
+            const mes = t.data ? t.data.substring(0, 7) : "N/A";
+            mesMap[mes] = (mesMap[mes] || 0) + val;
           } else {
             totalEntradas += val;
-          }
-          const mes = t.data ? t.data.substring(0, 7) : "N/A";
-          if (t.tipo === "Saída") {
-            mesMap[mes] = (mesMap[mes] || 0) + val;
           }
         });
 
