@@ -379,6 +379,43 @@ export default function ContasBancariasPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Ajuste de saldo Dialog */}
+      <Dialog open={!!ajusteConta} onOpenChange={open => { if (!open) { setAjusteConta(null); setAjusteValor(""); setAjusteObs(""); } }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Ajustar saldo {ajusteConta ? `- ${ajusteConta.nome}` : ""}</DialogTitle>
+          </DialogHeader>
+          {ajusteConta && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-secondary/30 flex justify-between text-sm">
+                <span className="text-muted-foreground">Saldo atual</span>
+                <span className="font-semibold">{formatCurrency(getSaldo(ajusteConta))}</span>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Novo saldo (R$)</Label>
+                <Input type="number" step="0.01" value={ajusteValor} onChange={e => setAjusteValor(e.target.value)} className="mt-1" />
+              </div>
+              {ajusteValor !== "" && !isNaN(Number(ajusteValor)) && (
+                <div className="p-3 rounded-lg bg-secondary/20 text-xs text-muted-foreground">
+                  Será criado um lançamento de{" "}
+                  <span className={Number(ajusteValor) - getSaldo(ajusteConta) >= 0 ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                    {Number(ajusteValor) - getSaldo(ajusteConta) >= 0 ? "Entrada" : "Saída"} de {formatCurrency(Math.abs(Number(ajusteValor) - getSaldo(ajusteConta)))}
+                  </span>{" "}
+                  na categoria "Ajuste de saldo".
+                </div>
+              )}
+              <div>
+                <Label className="text-xs text-muted-foreground">Observações (opcional)</Label>
+                <Textarea value={ajusteObs} onChange={e => setAjusteObs(e.target.value)} rows={2} className="mt-1" placeholder="Motivo do ajuste..." />
+              </div>
+              <Button onClick={handleAjuste} disabled={saving} className="w-full">
+                {saving ? "Ajustando..." : "Confirmar ajuste"}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
