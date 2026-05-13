@@ -102,10 +102,12 @@ export default function DashboardPage() {
     if (allTransRes.data) {
       const rows = allTransRes.data as unknown as { tipo: string; valor: number; categoria: string; conta_id?: string }[];
       setAllTransForContas(rows);
-      const saidas = rows.filter(t => t.tipo === "Saída");
+      // Ajustes de saldo são meras correções contábeis — não devem entrar em Total Gasto nem Total Entradas
+      const semAjuste = rows.filter(t => (t.categoria || "") !== "Ajuste de saldo");
+      const saidas = semAjuste.filter(t => t.tipo === "Saída");
       // Total Gasto inclui parcelas pendentes de compras parceladas (compromissos confirmados)
       setTotalGasto(saidas.reduce((s, t) => s + Number(t.valor), 0) + totalParcelasPend);
-      const entradasOp = rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
+      const entradasOp = semAjuste.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
       // Total Entradas inclui o saldo inicial das contas ativas
       setTotalEntradas(saldoInicialTotal + entradasOp);
 
