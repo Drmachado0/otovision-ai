@@ -43,6 +43,7 @@ const PAGE_SIZE = 50;
 export default function ContasAPagarPage() {
   const { user } = useAuth();
   const [allContas, setAllContas] = useState<ContaPagar[]>([]);
+  const [comprasRaw, setComprasRaw] = useState<Array<{ id: string; valor_total: number | string | null; status_entrega: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterVencimento, setFilterVencimento] = useState<"todos" | "hoje" | "vencidas" | "semana">("todos");
@@ -67,13 +68,14 @@ export default function ContasAPagarPage() {
         .eq("tipo", "Saída"),
       supabase
         .from("obra_compras")
-        .select("id, fornecedor, descricao, categoria, conta_id, parcelas, status_entrega")
+        .select("id, fornecedor, descricao, categoria, conta_id, parcelas, status_entrega, valor_total, numero_parcelas")
         .is("deleted_at", null)
         .neq("status_entrega", "Cancelado"),
     ]);
 
     const fluxoRows: ContaPagar[] = ((fluxoRes.data as any) ?? []).map((r: any) => ({ ...r, origem: "fluxo" as const }));
-    const parcelaRows: ContaPagar[] = flattenParcelasPendentes(((comprasRes.data ?? []) as unknown) as CompraComParcelas[])
+    const comprasData = (comprasRes.data ?? []) as any[];
+    const parcelaRows: ContaPagar[] = flattenParcelasPendentes((comprasData as unknown) as CompraComParcelas[])
       .map((p: ParcelaPendenteRow) => ({ ...p }));
 
     const merged = [...fluxoRows, ...parcelaRows].sort((a, b) => {
@@ -83,6 +85,7 @@ export default function ContasAPagarPage() {
     });
 
     setAllContas(merged);
+    setComprasRaw(comprasData.map((c) => ({ id: c.id, valor_total: c.valor_total, status_entrega: c.status_entrega })));
     setLoading(false);
   }, []);
 
@@ -125,15 +128,22 @@ export default function ContasAPagarPage() {
 
   // KPIs sobre TUDO (não filtrado), seguindo comportamento anterior
   const kpis = useMemo(() => {
-    const totalPendente = allContas.reduce((s, r) => s + Number(r.valor), 0);
+    const fluxoPendente = allContas
+      .filter((r) => r.origem !== "compra-parcela")
+      .reduce((s, r) => s + Number(r.valor), 0);
+    const comprasTotal = comprasRaw.reduce((s, c) => s + Number(c.valor_total || 0), 0);
+    const totalPendente = fluxoPendente + comprasTotal;
+    const countFluxo = allContas.filter((r) => r.origem !== "compra-parcela").length;
+    const countCompras = comprasRaw.length;
+
     const vencidas = allContas.filter(r => r.data_vencimento && r.data_vencimento < today);
     const totalVencidas = vencidas.reduce((s, r) => s + Number(r.valor), 0);
     const countHoje = allContas.filter(r => r.data_vencimento === today).length;
     const semana = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
     const proximos7 = allContas.filter(r => r.data_vencimento && r.data_vencimento >= today && r.data_vencimento <= semana)
       .reduce((s, r) => s + Number(r.valor), 0);
-    return { totalPendente, totalVencidas, countVencidas: vencidas.length, countHoje, proximos7 };
-  }, [allContas, today]);
+    return { totalPendente, countFluxo, countCompras, totalVencidas, countVencidas: vencidas.length, countHoje, proximos7 };
+  }, [allContas, comprasRaw, today]);
 
   const totalCount = filtered.length;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -197,7 +207,7 @@ export default function ContasAPagarPage() {
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         {[
-          { cls: "stat-card-warning", icon: <Clock className="w-4 h-4 text-warning" />, label: "Total Pendente", value: formatCurrency(kpis.totalPendente), sub: `${allContas.length} lançamento(s)` },
+          { cls: "stat-card-warning", icon: <Clock className="w-4 h-4 text-warning" />, label: "Total Pendente", value: formatCurrency(kpis.totalPendente), sub: `${kpis.countFluxo} lançamento(s) + ${kpis.countCompras} compra(s)` },
           { cls: "stat-card-danger", icon: <AlertTriangle className="w-4 h-4 text-destructive" />, label: "Vencidas", value: formatCurrency(kpis.totalVencidas), sub: `${kpis.countVencidas} vencida(s)`, color: "text-destructive" },
           { cls: "stat-card-info", icon: <CalendarCheck className="w-4 h-4 text-info" />, label: "Vencem Hoje", value: String(kpis.countHoje), sub: "pagamento(s)" },
           { cls: "stat-card-primary", icon: <DollarSign className="w-4 h-4 text-primary" />, label: "Próximos 7 dias", value: formatCurrency(kpis.proximos7), sub: "a vencer" },
