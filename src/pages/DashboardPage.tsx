@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import OrigemBadge from "@/components/OrigemBadge";
 import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/TransacaoDetailDrawer";
 import { calcularResumoCompras } from "@/lib/financeiro";
+import { flattenParcelasPendentes, type CompraComParcelas } from "@/lib/contasAPagarParcelas";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
