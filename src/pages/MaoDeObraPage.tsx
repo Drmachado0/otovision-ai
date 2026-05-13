@@ -79,6 +79,13 @@ interface Folha {
   total_diarias: number;
   total_fgts: number;
   total_inss: number;
+  total_quinzena?: number | null;
+  total_vales?: number | null;
+  total_vale_alim?: number | null;
+  total_encerramento?: number | null;
+  total_ferias?: number | null;
+  total_horas_extras?: number | null;
+  total_geral?: number | null;
   status: string;
 }
 
