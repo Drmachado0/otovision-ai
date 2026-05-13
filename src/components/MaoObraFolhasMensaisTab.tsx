@@ -81,6 +81,24 @@ export default function MaoObraFolhasMensaisTab() {
 
   useEffect(() => { fetchFolhas(); }, [fetchFolhas]);
 
+  const [recalculando, setRecalculando] = useState(false);
+
+  const recalcularTodas = async () => {
+    if (!folhas.length) return;
+    setRecalculando(true);
+    let ok = 0; let fail = 0;
+    for (const f of folhas) {
+      try {
+        await recalcularFolhaDB(f.id);
+        ok++;
+      } catch { fail++; }
+    }
+    setRecalculando(false);
+    if (fail) toast.warning(`Recalculadas ${ok} folhas, ${fail} com erro`);
+    else toast.success(`Totais atualizados em ${ok} folha(s)`);
+    fetchFolhas();
+  };
+
   const criarFolha = async (params: {
     competencia: string;
     titulo?: string;
