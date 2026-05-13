@@ -562,12 +562,15 @@ function FolhaEditorSheet({
                   </Button>
                 )}
               </div>
+              <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 mb-2 text-[11px] text-warning-foreground/80">
+                💡 <strong>Vales</strong> e <strong>Quinzenas</strong> são adiantamentos: informe sempre como <strong>valor positivo</strong>. Eles são <strong>subtraídos</strong> do total bruto do funcionário (não somam ao líquido).
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="text-[10px] uppercase text-muted-foreground border-b">
                     <tr>
-                      {["REF","Nome","CPF","Função","Qtd","V.Diária","T.Diárias","Quinz.","Vales","Alim.","Encerr.","Férias/13","HE","Total",""].map((h) => (
-                        <th key={h} className="px-1 py-1.5 text-left whitespace-nowrap">{h}</th>
+                      {["REF","Nome","CPF","Função","Qtd","V.Diária","T.Diárias","Quinz. (−)","Vales (−)","Alim.","Encerr.","Férias/13","HE","Total",""].map((h) => (
+                        <th key={h} className="px-1 py-1.5 text-left whitespace-nowrap" title={h.includes("(−)") ? "Adiantamento: subtraído do total" : undefined}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -587,10 +590,20 @@ function FolhaEditorSheet({
                         <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.valor_diaria}
                           onChange={(v) => updateItem(idx, { valor_diaria: Number(v) })} /></td>
                         <td className="px-1 py-1 text-right tabular-nums">{formatCurrency(it.total_diarias)}</td>
-                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.quinzena}
-                          onChange={(v) => updateItem(idx, { quinzena: Number(v) })} /></td>
-                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.vales}
-                          onChange={(v) => updateItem(idx, { vales: Number(v) })} /></td>
+                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" min={0} value={it.quinzena}
+                          title="Adiantamento — informe positivo (será subtraído do total)"
+                          onChange={(v) => {
+                            const n = Number(v);
+                            if (n < 0) toast.warning("Quinzena convertida para positivo (é descontada do total)");
+                            updateItem(idx, { quinzena: Math.abs(n) });
+                          }} /></td>
+                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" min={0} value={it.vales}
+                          title="Adiantamento — informe positivo (será subtraído do total)"
+                          onChange={(v) => {
+                            const n = Number(v);
+                            if (n < 0) toast.warning("Vales convertidos para positivo (são descontados do total)");
+                            updateItem(idx, { vales: Math.abs(n) });
+                          }} /></td>
                         <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.alimentacao}
                           onChange={(v) => updateItem(idx, { alimentacao: Number(v) })} /></td>
                         <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.encerramento}

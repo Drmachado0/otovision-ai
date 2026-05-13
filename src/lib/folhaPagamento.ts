@@ -150,8 +150,19 @@ export function validarFolha(
   const nomeMap = new Map<string, number>();
   for (const i of itens) {
     if (!i.nome?.trim()) erros.push(`REF ${i.ref}: nome obrigatório`);
-    if (i.qtd_diaria < 0 || i.valor_diaria < 0 || i.total_geral < 0) {
-      erros.push(`${i.nome || "REF " + i.ref}: valores negativos`);
+    if (i.qtd_diaria < 0 || i.valor_diaria < 0) {
+      erros.push(`${i.nome || "REF " + i.ref}: quantidade ou valor de diária negativo`);
+    }
+    // Vales/quinzenas são adiantamentos: devem ser informados como POSITIVO (serão subtraídos)
+    if (Number(i.vales) < 0) {
+      alertas.push(`${i.nome || "REF " + i.ref}: vales informados como negativo — informe valor positivo (já é descontado do total)`);
+    }
+    if (Number(i.quinzena) < 0) {
+      alertas.push(`${i.nome || "REF " + i.ref}: quinzena informada como negativo — informe valor positivo (já é descontada do total)`);
+    }
+    // Total líquido negativo = vales/quinzena maiores que ganhos
+    if (i.total_geral < 0) {
+      alertas.push(`${i.nome || "REF " + i.ref}: vales/quinzena (R$ ${(Math.abs(i.vales) + Math.abs(i.quinzena)).toFixed(2)}) excedem o ganho bruto — total líquido R$ ${i.total_geral.toFixed(2)}`);
     }
     const cpf = normalizarCpf(i.cpf);
     if (cpf) cpfMap.set(cpf, (cpfMap.get(cpf) ?? 0) + 1);
