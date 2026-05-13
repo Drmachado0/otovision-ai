@@ -5,8 +5,9 @@ import { formatCurrency, formatMes, todayLocalISO } from "@/lib/formatters";
 import {
   Percent, CheckCircle, Clock, DollarSign, TrendingUp, Calendar,
   Trash2, Download, Search, ChevronDown, ChevronRight, AlertTriangle,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, FileText,
 } from "lucide-react";
+import { printAcertoConstrutorReport, type AcertoMes } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Progress } from "@/components/ui/progress";
@@ -326,6 +327,65 @@ export default function ComissaoPage() {
     toast.success("CSV exportado");
   };
 
+  const gerarRelatorioAcerto = (apenasPendentes: boolean) => {
+    const baseList = filtered.length ? filtered : comissoes;
+    const lista = apenasPendentes ? baseList.filter((c) => !c.pago) : baseList;
+    if (!lista.length) {
+      toast.error(apenasPendentes ? "Nenhuma comissão pendente" : "Nenhum lançamento para gerar relatório");
+      return;
+    }
+    // Agrupa por mês de referência
+    const grupos = new Map<string, AcertoMes>();
+    for (const c of lista) {
+      const mes = c.mes || (c.created_at || "").slice(0, 7) || "—";
+      if (!grupos.has(mes)) {
+        grupos.set(mes, {
+          mes,
+          mesLabel: mes === "—" ? "Sem mês" : formatMes(mes),
+          gastosMes: agg.porMes[mes]?.gastosMes || 0,
+          comissaoMes: 0, pagoMes: 0, pendenteMes: 0,
+          itens: [],
+        });
+      }
+      const g = grupos.get(mes)!;
+      const valor = Number(c.valor);
+      const valorBase = valor / (PERCENTUAL_COMISSAO / 100);
+      const parsed = parseObservacoes(c.observacoes);
+      g.comissaoMes += valor;
+      if (c.pago) g.pagoMes += valor; else g.pendenteMes += valor;
+      g.itens.push({
+        data: c.data_pagamento || c.created_at,
+        fornecedor: c.fornecedor || parsed.fornecedor || "—",
+        categoria: c.categoria || "—",
+        origem: parsed.tipo || "Manual",
+        valorBase,
+        comissao: valor,
+        pago: c.pago,
+      });
+    }
+    const meses = Array.from(grupos.values()).sort((a, b) => a.mes.localeCompare(b.mes));
+    const totalGastoPeriodo = meses.reduce((s, m) => s + m.gastosMes, 0);
+    const comissaoTotal = meses.reduce((s, m) => s + m.comissaoMes, 0);
+    const comissaoPaga = meses.reduce((s, m) => s + m.pagoMes, 0);
+    const comissaoPendente = meses.reduce((s, m) => s + m.pendenteMes, 0);
+
+    const periodoLabel = apenasPendentes
+      ? `Acerto de pendências · ${meses[0].mesLabel}${meses.length > 1 ? ` a ${meses[meses.length - 1].mesLabel}` : ""}`
+      : `Período: ${meses[0].mesLabel}${meses.length > 1 ? ` a ${meses[meses.length - 1].mesLabel}` : ""}`;
+
+    printAcertoConstrutorReport({
+      nomeObra: "Obra",
+      percentual: PERCENTUAL_COMISSAO,
+      periodoLabel,
+      totalGasto: totalGastoPeriodo || agg.totalGasto,
+      comissaoTotal,
+      comissaoPaga,
+      comissaoPendente,
+      meses,
+    });
+    toast.success("Relatório gerado — pronto para imprimir/PDF");
+  };
+
   const toggleMonth = (m: string) => {
     setExpandedMonths(prev => {
       const next = new Set(prev);
@@ -369,12 +429,28 @@ export default function ComissaoPage() {
             Comissão do construtor — {PERCENTUAL_COMISSAO}% sobre gastos · controle mês a mês
           </p>
         </div>
-        <button
-          onClick={exportCSV}
-          className="px-3 py-2 rounded-lg bg-accent/50 hover:bg-accent text-sm font-medium flex items-center gap-2 transition-colors"
-        >
-          <Download className="w-4 h-4" /> Exportar CSV
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => gerarRelatorioAcerto(true)}
+            className="px-3 py-2 rounded-lg bg-warning/15 hover:bg-warning/25 text-warning text-sm font-medium flex items-center gap-2 transition-colors border border-warning/30"
+            title="Gera relatório PDF apenas com as comissões pendentes do filtro atual"
+          >
+            <FileText className="w-4 h-4" /> Acerto (pendentes)
+          </button>
+          <button
+            onClick={() => gerarRelatorioAcerto(false)}
+            className="px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary text-sm font-medium flex items-center gap-2 transition-colors border border-primary/30"
+            title="Gera relatório PDF completo do período filtrado para acerto com o construtor"
+          >
+            <FileText className="w-4 h-4" /> Relatório completo
+          </button>
+          <button
+            onClick={exportCSV}
+            className="px-3 py-2 rounded-lg bg-accent/50 hover:bg-accent text-sm font-medium flex items-center gap-2 transition-colors"
+          >
+            <Download className="w-4 h-4" /> Exportar CSV
+          </button>
+        </div>
       </div>
 
       {/* KPIs principais */}
