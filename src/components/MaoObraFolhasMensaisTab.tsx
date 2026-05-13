@@ -785,3 +785,31 @@ async function upsertTrabalhadores(userId: string, itens: FolhaItem[]) {
     }
   }
 }
+
+export async function recalcularFolhaDB(folhaId: string): Promise<void> {
+  const [{ data: is }, { data: es }] = await Promise.all([
+    (supabase as any).from("obra_folha_pagamento_itens").select("*").eq("folha_id", folhaId).is("deleted_at", null),
+    (supabase as any).from("obra_folha_pagamento_encargos").select("*").eq("folha_id", folhaId).is("deleted_at", null),
+  ]);
+  const itens: FolhaItem[] = (is ?? []).map((i: any) => calcularTotaisItem(i));
+  const encargos: FolhaEncargo[] = es ?? [];
+
+  // atualizar totais por item
+  for (const it of itens) {
+    if ((it as any).id) {
+      await (supabase as any).from("obra_folha_pagamento_itens").update({
+        total_diarias: it.total_diarias,
+        total_geral: it.total_geral,
+      }).eq("id", (it as any).id);
+    }
+  }
+
+  const t = calcularTotaisFolha(itens, encargos);
+  const { data: f } = await (supabase as any)
+    .from("obra_folhas_pagamento").select("diferenca_conferencia").eq("id", folhaId).maybeSingle();
+  const diff = f ? Number(f.diferenca_conferencia ?? 0) : 0;
+  await (supabase as any).from("obra_folhas_pagamento").update({ ...t }).eq("id", folhaId);
+  // mantém o "total_informado" implícito quando havia diferença? Mantém diff inalterado.
+  void diff;
+}
+
