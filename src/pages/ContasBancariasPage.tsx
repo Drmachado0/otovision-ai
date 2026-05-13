@@ -145,6 +145,37 @@ export default function ContasBancariasPage() {
     else { toast.success(conta.ativa ? "Conta desativada" : "Conta reativada"); fetchData(); }
   };
 
+  const handleAjuste = async () => {
+    if (!ajusteConta) return;
+    const novoSaldo = Number(ajusteValor);
+    if (isNaN(novoSaldo)) { toast.error("Informe um valor válido"); return; }
+    const saldoAtual = getSaldo(ajusteConta);
+    const diff = Number((novoSaldo - saldoAtual).toFixed(2));
+    if (diff === 0) { toast.info("Saldo já está nesse valor"); return; }
+    setSaving(true);
+    const hoje = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from("obra_transacoes_fluxo").insert({
+      user_id: user!.id,
+      tipo: diff > 0 ? "Entrada" : "Saída",
+      valor: Math.abs(diff),
+      data: hoje,
+      data_pagamento: new Date().toISOString(),
+      descricao: `Ajuste de saldo - ${ajusteConta.nome}`,
+      categoria: "Ajuste de saldo",
+      conta_id: ajusteConta.id,
+      forma_pagamento: "Ajuste",
+      status: "pago",
+      observacoes: ajusteObs || `Saldo ajustado de ${formatCurrency(saldoAtual)} para ${formatCurrency(novoSaldo)}`,
+    } as any);
+    setSaving(false);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    toast.success("Saldo ajustado!");
+    setAjusteConta(null);
+    setAjusteValor("");
+    setAjusteObs("");
+    fetchData();
+  };
+
   const extratoTransacoes = extratoConta
     ? transacoes.filter(t => t.conta_id === extratoConta.id).sort((a, b) => b.data.localeCompare(a.data))
     : [];
