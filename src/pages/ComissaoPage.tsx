@@ -5,8 +5,9 @@ import { formatCurrency, formatMes, todayLocalISO } from "@/lib/formatters";
 import {
   Percent, CheckCircle, Clock, DollarSign, TrendingUp, Calendar,
   Trash2, Download, Search, ChevronDown, ChevronRight, AlertTriangle,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, FileText,
 } from "lucide-react";
+import { printAcertoConstrutorReport, type AcertoMes } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Progress } from "@/components/ui/progress";
