@@ -688,6 +688,27 @@ function FolhaEditorSheet({
                   <Button onClick={salvar} disabled={saving} variant="outline" className="gap-1.5">
                     {saving ? "Salvando..." : "Salvar"}
                   </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!folha) return;
+                      setSaving(true);
+                      try {
+                        await salvar();
+                        await recalcularFolhaDB(folha.id);
+                        toast.success("Totais recalculados");
+                        await fetchAll();
+                      } catch (e: any) {
+                        toast.error("Erro ao recalcular: " + e.message);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
+                    variant="outline"
+                    className="gap-1.5"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${saving ? "animate-spin" : ""}`} /> Recalcular
+                  </Button>
                   {folha.status === "rascunho" && (
                     <Button onClick={marcarConferida} disabled={saving} variant="outline" className="gap-1.5">
                       <CheckCircle2 className="w-4 h-4" /> Marcar conferida
