@@ -590,15 +590,15 @@ function FolhaEditorSheet({
                         <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.valor_diaria}
                           onChange={(v) => updateItem(idx, { valor_diaria: Number(v) })} /></td>
                         <td className="px-1 py-1 text-right tabular-nums">{formatCurrency(it.total_diarias)}</td>
-                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" min={0} value={it.quinzena}
-                          title="Adiantamento — informe positivo (será subtraído do total)"
+                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.quinzena}
+                         
                           onChange={(v) => {
                             const n = Number(v);
                             if (n < 0) toast.warning("Quinzena convertida para positivo (é descontada do total)");
                             updateItem(idx, { quinzena: Math.abs(n) });
                           }} /></td>
-                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" min={0} value={it.vales}
-                          title="Adiantamento — informe positivo (será subtraído do total)"
+                        <td className="px-1 py-1"><MiniInput w={70} disabled={readonly} type="number" value={it.vales}
+                         
                           onChange={(v) => {
                             const n = Number(v);
                             if (n < 0) toast.warning("Vales convertidos para positivo (são descontados do total)");
