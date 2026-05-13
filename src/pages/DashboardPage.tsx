@@ -15,9 +15,10 @@ import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/Transaca
 import { calcularResumoCompras } from "@/lib/financeiro";
 import { flattenParcelasPendentes, type CompraComParcelas } from "@/lib/contasAPagarParcelas";
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface TransacaoRow {
   id: string;
