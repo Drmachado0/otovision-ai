@@ -128,15 +128,22 @@ export default function ContasAPagarPage() {
 
   // KPIs sobre TUDO (não filtrado), seguindo comportamento anterior
   const kpis = useMemo(() => {
-    const totalPendente = allContas.reduce((s, r) => s + Number(r.valor), 0);
+    const fluxoPendente = allContas
+      .filter((r) => r.origem !== "compra-parcela")
+      .reduce((s, r) => s + Number(r.valor), 0);
+    const comprasTotal = comprasRaw.reduce((s, c) => s + Number(c.valor_total || 0), 0);
+    const totalPendente = fluxoPendente + comprasTotal;
+    const countFluxo = allContas.filter((r) => r.origem !== "compra-parcela").length;
+    const countCompras = comprasRaw.length;
+
     const vencidas = allContas.filter(r => r.data_vencimento && r.data_vencimento < today);
     const totalVencidas = vencidas.reduce((s, r) => s + Number(r.valor), 0);
     const countHoje = allContas.filter(r => r.data_vencimento === today).length;
     const semana = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
     const proximos7 = allContas.filter(r => r.data_vencimento && r.data_vencimento >= today && r.data_vencimento <= semana)
       .reduce((s, r) => s + Number(r.valor), 0);
-    return { totalPendente, totalVencidas, countVencidas: vencidas.length, countHoje, proximos7 };
-  }, [allContas, today]);
+    return { totalPendente, countFluxo, countCompras, totalVencidas, countVencidas: vencidas.length, countHoje, proximos7 };
+  }, [allContas, comprasRaw, today]);
 
   const totalCount = filtered.length;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
