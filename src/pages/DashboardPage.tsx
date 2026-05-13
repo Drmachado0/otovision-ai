@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import OrigemBadge from "@/components/OrigemBadge";
 import TransacaoDetailDrawer, { type TransacaoFull } from "@/components/TransacaoDetailDrawer";
 import { calcularResumoCompras } from "@/lib/financeiro";
+import { flattenParcelasPendentes, type CompraComParcelas } from "@/lib/contasAPagarParcelas";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -133,10 +134,16 @@ export default function DashboardPage() {
     if (pendentesRes.data) {
       const pRows = pendentesRes.data as unknown as { valor: number; data_vencimento: string | null }[];
       const todayStr = todayLocalISO();
+      // Inclui parcelas pendentes de obra_compras (compromissos ainda não lançados no fluxo)
+      const parcelasVirtuais = flattenParcelasPendentes((comprasRes.data ?? []) as unknown as CompraComParcelas[]);
+      const combinadas = [
+        ...pRows,
+        ...parcelasVirtuais.map(p => ({ valor: p.valor, data_vencimento: p.data_vencimento })),
+      ];
       setContasPagar({
-        total: pRows.reduce((s, r) => s + Number(r.valor), 0),
-        count: pRows.length,
-        vencidas: pRows.filter(r => r.data_vencimento && r.data_vencimento < todayStr).length,
+        total: combinadas.reduce((s, r) => s + Number(r.valor), 0),
+        count: combinadas.length,
+        vencidas: combinadas.filter(r => r.data_vencimento && r.data_vencimento < todayStr).length,
       });
     }
 

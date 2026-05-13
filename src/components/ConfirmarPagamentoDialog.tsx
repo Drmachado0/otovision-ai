@@ -38,11 +38,16 @@ interface ConfirmarPagamentoDialogProps {
     parcela_numero?: number;
     parcela_total?: number;
   } | null;
+  /** Quando presente, paga uma parcela de obra_compras via RPC pagar_parcela_atomica em vez de atualizar obra_transacoes_fluxo. */
+  parcelaCompra?: {
+    compra_id: string;
+    numero_parcela: number;
+  };
   userId: string;
 }
 
 export default function ConfirmarPagamentoDialog({
-  open, onClose, onSuccess, transacao, userId,
+  open, onClose, onSuccess, transacao, parcelaCompra, userId,
 }: ConfirmarPagamentoDialogProps) {
   const [contas, setContas] = useState<ContaFinanceira[]>([]);
   const [contaId, setContaId] = useState("");
@@ -91,20 +96,42 @@ export default function ConfirmarPagamentoDialog({
         storagePath = path;
       }
 
-      // Update transaction to paid
-      const updateData: Record<string, unknown> = {
-        status: "pago",
-        data_pagamento: new Date().toISOString(),
-        conta_id: contaId,
-        forma_pagamento: metodo,
-      };
-      if (storagePath) updateData.comprovante_path = storagePath;
+      let txIdParaComissao = transacao.id;
 
-      const { error } = await supabase
-        .from("obra_transacoes_fluxo")
-        .update(updateData as any)
-        .eq("id", transacao.id);
-      if (error) throw error;
+      if (parcelaCompra) {
+        // Parcela de obra_compras → usa RPC atômica que marca parcela como Paga e cria transação no fluxo
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("pagar_parcela_atomica" as any, {
+          p_compra_id: parcelaCompra.compra_id,
+          p_numero_parcela: parcelaCompra.numero_parcela,
+          p_transacao: {
+            descricao: transacao.descricao,
+            categoria: transacao.categoria,
+            valor: Number(transacao.valor),
+            data: new Date().toISOString(),
+            forma_pagamento: metodo,
+            conta_id: contaId,
+            observacoes: storagePath ? `Comprovante: ${storagePath}` : "",
+            metodo_pagamento: metodo,
+          },
+        } as any);
+        if (rpcErr) throw rpcErr;
+        if (rpcData) txIdParaComissao = String(rpcData);
+      } else {
+        // Update transaction to paid
+        const updateData: Record<string, unknown> = {
+          status: "pago",
+          data_pagamento: new Date().toISOString(),
+          conta_id: contaId,
+          forma_pagamento: metodo,
+        };
+        if (storagePath) updateData.comprovante_path = storagePath;
+
+        const { error } = await supabase
+          .from("obra_transacoes_fluxo")
+          .update(updateData as any)
+          .eq("id", transacao.id);
+        if (error) throw error;
+      }
 
       // Create or reuse linked commission. This prevents duplicate commissions if the
       // payment confirmation is retried or the dialog is submitted again.
@@ -113,7 +140,7 @@ export default function ConfirmarPagamentoDialog({
         gerarComissao,
         dataComissao: new Date().toISOString().slice(0, 10),
         transacao: {
-          id: transacao.id,
+          id: txIdParaComissao,
           user_id: userId,
           tipo: "Saída",
           valor: Number(transacao.valor),
