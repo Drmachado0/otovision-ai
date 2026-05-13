@@ -208,6 +208,9 @@ export default function ContasBancariasPage() {
                     </div>
                   </div>
                   <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Ajustar saldo" onClick={e => { e.stopPropagation(); setAjusteConta(conta); setAjusteValor(String(getSaldo(conta).toFixed(2))); setAjusteObs(""); }}>
+                      <Scale className="w-3 h-3" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => { e.stopPropagation(); openEdit(conta); }}>
                       <Pencil className="w-3 h-3" />
                     </Button>
