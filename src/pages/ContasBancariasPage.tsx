@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/formatters";
 import {
   Plus, Wallet, Building2, CreditCard, PiggyBank, TrendingUp,
-  ToggleLeft, ToggleRight, Pencil, X,
+  ToggleLeft, ToggleRight, Pencil, X, Scale,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
