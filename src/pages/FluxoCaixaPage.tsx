@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatDate, CATEGORIAS_PADRAO, todayLocalISO } from "@/lib/formatters";
 import {
   Plus, ArrowUpRight, ArrowDownRight, Search, X,
@@ -77,6 +78,7 @@ export default function FluxoCaixaPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [filterCategoria, setFilterCategoria] = useState<string>("todos");
   const [dateFrom, setDateFrom] = useState("");
@@ -136,7 +138,7 @@ export default function FluxoCaixaPage() {
     if (filterStatus !== "todos") query = query.eq("status" as any, filterStatus);
     if (dateFrom) query = query.gte("data", dateFrom);
     if (dateTo) query = query.lte("data", dateTo);
-    if (search) query = query.or(`descricao.ilike.%${search}%,categoria.ilike.%${search}%`);
+    if (debouncedSearch) query = query.or(`descricao.ilike.%${debouncedSearch}%,categoria.ilike.%${debouncedSearch}%`);
 
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -162,7 +164,7 @@ export default function FluxoCaixaPage() {
       setSaidasPendentes(saidas.filter(t => t.status === "pendente" || !t.status).reduce((s, t) => s + Number(t.valor), 0));
     }
     setLoading(false);
-  }, [page, filterTipo, filterCategoria, filterStatus, dateFrom, dateTo, search]);
+  }, [page, filterTipo, filterCategoria, filterStatus, dateFrom, dateTo, debouncedSearch]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

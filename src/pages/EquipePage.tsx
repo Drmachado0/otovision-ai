@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency } from "@/lib/formatters";
 import {
   Users,
@@ -54,6 +55,7 @@ export default function EquipePage() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [filtroStatus, setFiltroStatus] = useState<"Todos" | "Ativos" | "Inativos">("Todos");
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -193,8 +195,8 @@ export default function EquipePage() {
   // ---------- derived ----------
   const filtered = funcionarios.filter((f) => {
     const matchSearch =
-      f.nome.toLowerCase().includes(search.toLowerCase()) ||
-      (f.funcao ?? "").toLowerCase().includes(search.toLowerCase());
+      f.nome.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (f.funcao ?? "").toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchStatus =
       filtroStatus === "Todos" ||
       (filtroStatus === "Ativos" && f.status === "ativo") ||

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatMes, todayLocalISO } from "@/lib/formatters";
 import {
   Percent, CheckCircle, Clock, DollarSign, TrendingUp, Calendar,
@@ -68,6 +69,7 @@ export default function ComissaoPage() {
   const [filtroMes, setFiltroMes] = useState<string>("todos");
   const [filtroOrigem, setFiltroOrigem] = useState<string>("todos");
   const [busca, setBusca] = useState("");
+  const debouncedBusca = useDebounce(busca, 300);
   const [sortField, setSortField] = useState<SortField>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -223,7 +225,7 @@ export default function ComissaoPage() {
 
   // ===== FILTRAGEM DA LISTA =====
   const filtered = useMemo(() => {
-    const buscaLower = busca.trim().toLowerCase();
+    const buscaLower = debouncedBusca.trim().toLowerCase();
     let arr = comissoes.filter(c => {
       if (filtroStatus === "pago" && !c.pago) return false;
       if (filtroStatus === "pendente" && c.pago) return false;
@@ -252,7 +254,7 @@ export default function ComissaoPage() {
       return 0;
     });
     return arr;
-  }, [comissoes, filtroStatus, filtroMes, filtroOrigem, busca, sortField, sortDir]);
+  }, [comissoes, filtroStatus, filtroMes, filtroOrigem, debouncedBusca, sortField, sortDir]);
 
   const handleQuickDelete = useCallback((c: ComissaoRow) => setDeleteTarget(c), []);
   const confirmQuickDelete = async () => {

@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatDate, todayLocalISO } from "@/lib/formatters";
 import { processRecurrences } from "@/lib/recurrenceEngine";
 import { flattenParcelasPendentes, type CompraComParcelas, type ParcelaPendenteRow } from "@/lib/contasAPagarParcelas";
@@ -104,6 +105,7 @@ export default function ContasAPagarPage() {
   const [comprasRaw, setComprasRaw] = useState<Array<{ id: string; valor_total: number | string | null; status_entrega: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [filterVencimento, setFilterVencimento] = useState<"todos" | "hoje" | "vencidas" | "semana">("todos");
   const [page, setPage] = useState(0);
 
@@ -171,7 +173,7 @@ export default function ContasAPagarPage() {
   // Filtros + busca em memória
   const filtered = useMemo(() => {
     const semana = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return allContas.filter((c) => {
       if (q) {
         const hay = `${c.descricao} ${c.categoria}`.toLowerCase();
@@ -182,7 +184,7 @@ export default function ContasAPagarPage() {
       if (filterVencimento === "semana" && !(c.data_vencimento && c.data_vencimento <= semana)) return false;
       return true;
     });
-  }, [allContas, search, filterVencimento, today]);
+  }, [allContas, debouncedSearch, filterVencimento, today]);
 
   // KPIs sobre TUDO (não filtrado), seguindo comportamento anterior
   const kpis = useMemo(() => {
@@ -207,7 +209,7 @@ export default function ContasAPagarPage() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
-  useEffect(() => { setPage(0); }, [search, filterVencimento]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, filterVencimento]);
 
   const handlePagar = useCallback((conta: ContaPagar) => {
     setPagamentoTarget(conta);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatDate, CATEGORIAS_PADRAO, todayLocalISO } from "@/lib/formatters";
 import { Plus, Search, Package, Truck, Clock, RefreshCw, CreditCard, Filter } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ export default function ComprasPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [saving, setSaving] = useState(false);
   const [selectedCompra, setSelectedCompra] = useState<CompraFull | null>(null);
   const [filtroTipo, setFiltroTipo] = useState<"Todos" | TipoCompra>("Todos");
@@ -158,10 +160,10 @@ export default function ComprasPage() {
   };
 
   const filtered = compras.filter((c) => {
-    const matchSearch = search === "" ||
-      c.fornecedor?.toLowerCase().includes(search.toLowerCase()) ||
-      c.descricao?.toLowerCase().includes(search.toLowerCase()) ||
-      c.categoria?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = debouncedSearch === "" ||
+      c.fornecedor?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      c.descricao?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      c.categoria?.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchTipo = filtroTipo === "Todos" || c.tipo_compra === filtroTipo;
     return matchSearch && matchTipo;
   });

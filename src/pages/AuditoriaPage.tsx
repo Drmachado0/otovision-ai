@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency } from "@/lib/formatters";
 import { History, Plus, Edit, Trash2, Search } from "lucide-react";
 import { SkeletonTable } from "@/components/SkeletonCard";
@@ -101,6 +102,7 @@ export default function AuditoriaPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [filterTabela, setFilterTabela] = useState("todos");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -118,10 +120,10 @@ export default function AuditoriaPage() {
   useRealtimeSubscription("obra_audit_log", fetchLogs);
 
   const filtered = logs.filter((l) => {
-    const matchSearch = search === "" ||
-      l.user_email?.toLowerCase().includes(search.toLowerCase()) ||
-      l.tabela?.toLowerCase().includes(search.toLowerCase()) ||
-      l.acao?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = debouncedSearch === "" ||
+      l.user_email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      l.tabela?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      l.acao?.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchTabela = filterTabela === "todos" || l.tabela === filterTabela;
     return matchSearch && matchTabela;
   });

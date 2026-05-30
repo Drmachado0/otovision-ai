@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatDate, todayLocalISO } from "@/lib/formatters";
 import {
   Plus,
@@ -230,6 +231,7 @@ export default function MaoDeObraPage() {
   const [savingRegistro, setSavingRegistro] = useState(false);
   const [workerRegistros, setWorkerRegistros] = useState<Registro[]>([]);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState<"Todos" | "Ativos" | "Inativos">("Todos");
 
   // ---------- fetch trabalhadores ----------
@@ -479,7 +481,7 @@ export default function MaoDeObraPage() {
   );
 
   const trabalhadoresFiltrados = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return trabalhadores.filter((t) => {
       if (statusFilter === "Ativos" && !t.ativo) return false;
       if (statusFilter === "Inativos" && t.ativo) return false;
@@ -489,7 +491,7 @@ export default function MaoDeObraPage() {
         (t.funcao ?? "").toLowerCase().includes(q)
       );
     });
-  }, [trabalhadores, search, statusFilter]);
+  }, [trabalhadores, debouncedSearch, statusFilter]);
 
   const dadosGrafico = useMemo(
     () => agruparPorMes(registros12m, folhas, ultimosMeses(12)),

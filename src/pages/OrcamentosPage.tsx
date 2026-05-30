@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatDate, CATEGORIAS_PADRAO, todayLocalISO } from "@/lib/formatters";
 import { Plus, FileText, Check, X, Clock, AlertTriangle, ShoppingCart, Trash2, Search, CreditCard } from "lucide-react";
 import FornecedorCombobox from "@/components/FornecedorCombobox";
@@ -77,6 +78,7 @@ export default function OrcamentosPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [saving, setSaving] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<StatusFilter>("Todos");
   const [selectedOrcamento, setSelectedOrcamento] = useState<Orcamento | null>(null);
@@ -228,10 +230,10 @@ export default function OrcamentosPage() {
   };
 
   const filtered = orcamentos.filter((o) => {
-    const matchSearch = search === "" ||
-      o.fornecedor?.toLowerCase().includes(search.toLowerCase()) ||
-      o.descricao?.toLowerCase().includes(search.toLowerCase()) ||
-      o.categoria?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = debouncedSearch === "" ||
+      o.fornecedor?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      o.descricao?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      o.categoria?.toLowerCase().includes(debouncedSearch.toLowerCase());
     const displayStatus = getDisplayStatus(o);
     const matchStatus = filtroStatus === "Todos" || displayStatus === filtroStatus;
     return matchSearch && matchStatus;

@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { useDocumentos, type DocumentoProcessado } from "@/hooks/useDocumentos";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency } from "@/lib/formatters";
 import {
   Upload, FileText, CheckCircle2, AlertTriangle, XCircle, Clock, Loader2,
@@ -176,6 +177,7 @@ export default function PastaMonitorPage() {
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [selectedDoc, setSelectedDoc] = useState<DocumentoProcessado | null>(null);
   const [docToDelete, setDocToDelete] = useState<DocumentoProcessado | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -200,15 +202,15 @@ export default function PastaMonitorPage() {
     return documentos.filter((d) => {
       if (filterStatus !== "todos" && d.status_processamento !== filterStatus) return false;
       if (filterTipo !== "todos" && (d.tipo_documento || "outro") !== filterTipo) return false;
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
+      if (debouncedSearchTerm) {
+        const term = debouncedSearchTerm.toLowerCase();
         const fornecedor = getPayloadField(d, "fornecedor_ou_origem").toLowerCase();
         const descricao = getPayloadField(d, "descricao").toLowerCase();
         if (!d.nome_arquivo.toLowerCase().includes(term) && !fornecedor.includes(term) && !descricao.includes(term)) return false;
       }
       return true;
     });
-  }, [documentos, filterStatus, filterTipo, searchTerm]);
+  }, [documentos, filterStatus, filterTipo, debouncedSearchTerm]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, DocumentoProcessado[]> = {};

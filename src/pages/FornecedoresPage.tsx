@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency } from "@/lib/formatters";
 import {
   Plus, Search, Star, Building2, Phone, Mail, MapPin,
@@ -140,6 +141,7 @@ export default function FornecedoresPage() {
   const [editFornecedor, setEditFornecedor] = useState<Fornecedor | null>(null);
   const [detalheFornecedor, setDetalheFornecedor] = useState<Fornecedor | null>(null);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
@@ -210,8 +212,8 @@ export default function FornecedoresPage() {
     : { nome: "-", gasto: 0 };
 
   const filtered = fornecedores.filter((f) => {
-    if (search === "") return true;
-    const s = search.toLowerCase();
+    if (debouncedSearch === "") return true;
+    const s = debouncedSearch.toLowerCase();
     return f.nome?.toLowerCase().includes(s) || f.cnpj?.toLowerCase().includes(s);
   });
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export default function NotasFiscaisPage() {
   const [nfs, setNfs] = useState<NotaFiscal[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [tab, setTab] = useState("ativas");
 
   // Payment dialog
@@ -66,15 +68,15 @@ export default function NotasFiscaisPage() {
 
   const listToShow = tab === "ativas" ? ativas : arquivadas;
   const filtered = useMemo(() => {
-    if (!search) return listToShow;
-    const s = search.toLowerCase();
+    if (!debouncedSearch) return listToShow;
+    const s = debouncedSearch.toLowerCase();
     return listToShow.filter(
       (n) =>
         n.numero?.toLowerCase().includes(s) ||
         n.fornecedor?.toLowerCase().includes(s) ||
         n.descricao?.toLowerCase().includes(s)
     );
-  }, [listToShow, search]);
+  }, [listToShow, debouncedSearch]);
 
   // Summary
   const totalNfs = ativas.length;
