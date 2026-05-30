@@ -1161,19 +1161,19 @@ export type Database = {
       }
       n8n_eventos_processados: {
         Row: {
-          event: string
-          evento_id: string
-          processado_em: string
+          event_id: string
+          evento: string | null
+          recebido_em: string | null
         }
         Insert: {
-          event: string
-          evento_id: string
-          processado_em?: string
+          event_id: string
+          evento?: string | null
+          recebido_em?: string | null
         }
         Update: {
-          event?: string
-          evento_id?: string
-          processado_em?: string
+          event_id?: string
+          evento?: string | null
+          recebido_em?: string | null
         }
         Relationships: []
       }
@@ -1198,6 +1198,39 @@ export type Database = {
           mensagem?: string
           telefone?: string
           timestamp?: string
+        }
+        Relationships: []
+      }
+      n8n_followups: {
+        Row: {
+          atualizado_em: string | null
+          criado_em: string | null
+          followup_1_em: string | null
+          followup_2_em: string | null
+          proxima_acao: string
+          telefone: string
+          ultima_msg_paciente_em: string | null
+          ultima_resposta_bot_em: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          followup_1_em?: string | null
+          followup_2_em?: string | null
+          proxima_acao?: string
+          telefone: string
+          ultima_msg_paciente_em?: string | null
+          ultima_resposta_bot_em?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          followup_1_em?: string | null
+          followup_2_em?: string | null
+          proxima_acao?: string
+          telefone?: string
+          ultima_msg_paciente_em?: string | null
+          ultima_resposta_bot_em?: string | null
         }
         Relationships: []
       }
@@ -1263,22 +1296,70 @@ export type Database = {
       }
       n8n_pausas_humano: {
         Row: {
+          instancia: string | null
           motivo: string | null
+          origem: string | null
           pausado_ate: string
+          payload_disparou: Json | null
           telefone: string
+          texto_disparou: string | null
           ultima_msg_humano: string
         }
         Insert: {
+          instancia?: string | null
           motivo?: string | null
+          origem?: string | null
           pausado_ate: string
+          payload_disparou?: Json | null
           telefone: string
+          texto_disparou?: string | null
           ultima_msg_humano?: string
         }
         Update: {
+          instancia?: string | null
           motivo?: string | null
+          origem?: string | null
           pausado_ate?: string
+          payload_disparou?: Json | null
           telefone?: string
+          texto_disparou?: string | null
           ultima_msg_humano?: string
+        }
+        Relationships: []
+      }
+      n8n_pausas_humano_log: {
+        Row: {
+          criado_em: string | null
+          id: number
+          instancia: string | null
+          motivo: string | null
+          origem: string | null
+          pausado_ate: string | null
+          payload_disparou: Json | null
+          telefone: string
+          texto_disparou: string | null
+        }
+        Insert: {
+          criado_em?: string | null
+          id?: number
+          instancia?: string | null
+          motivo?: string | null
+          origem?: string | null
+          pausado_ate?: string | null
+          payload_disparou?: Json | null
+          telefone: string
+          texto_disparou?: string | null
+        }
+        Update: {
+          criado_em?: string | null
+          id?: number
+          instancia?: string | null
+          motivo?: string | null
+          origem?: string | null
+          pausado_ate?: string | null
+          payload_disparou?: Json | null
+          telefone?: string
+          texto_disparou?: string | null
         }
         Relationships: []
       }
