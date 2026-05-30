@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { formatCurrency, formatMes, todayLocalISO } from "@/lib/formatters";
@@ -42,7 +42,7 @@ interface TransacaoRow {
   valor: number;
 }
 
-function OrigemBadgeSmall({ obs }: { obs: string }) {
+const OrigemBadgeSmall = memo(function OrigemBadgeSmall({ obs }: { obs: string }) {
   const { tipo } = parseObservacoes(obs);
   const cls: Record<string, string> = {
     NF: "badge-info",
@@ -51,7 +51,7 @@ function OrigemBadgeSmall({ obs }: { obs: string }) {
     Manual: "badge-muted",
   };
   return <span className={`${cls[tipo] || cls.Manual} text-[10px]`}>{tipo}</span>;
-}
+});
 
 type SortField = "data" | "valor";
 type SortDir = "asc" | "desc";
@@ -254,7 +254,7 @@ export default function ComissaoPage() {
     return arr;
   }, [comissoes, filtroStatus, filtroMes, filtroOrigem, busca, sortField, sortDir]);
 
-  const handleQuickDelete = (c: ComissaoRow) => setDeleteTarget(c);
+  const handleQuickDelete = useCallback((c: ComissaoRow) => setDeleteTarget(c), []);
   const confirmQuickDelete = async () => {
     if (!deleteTarget) return;
     const { error } = await supabase
@@ -266,13 +266,13 @@ export default function ComissaoPage() {
     else { toast.success("Comissão excluída"); fetchData(); }
   };
 
-  const toggleSelect = (id: string) => {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  };
+  }, []);
 
   const selectedPendentes = useMemo(
     () => Array.from(selectedIds).filter(id => {

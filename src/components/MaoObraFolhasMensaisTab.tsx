@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -80,6 +80,11 @@ export default function MaoObraFolhasMensaisTab() {
   }, []);
 
   useEffect(() => { fetchFolhas(); }, [fetchFolhas]);
+
+  const handleSelectFolha = useCallback((id: string) => {
+    setEditingId(id);
+    setOpenEditor(true);
+  }, []);
 
   const [recalculando, setRecalculando] = useState(false);
 
@@ -215,27 +220,7 @@ export default function MaoObraFolhasMensaisTab() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {folhas.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => { setEditingId(f.id); setOpenEditor(true); }}
-              className="glass-card p-4 text-left hover:border-primary/50 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-semibold">{competenciaLabel(f.competencia_mes)}</p>
-                  <p className="text-xs text-muted-foreground">{referenciaFolha(f.competencia_mes)}</p>
-                </div>
-                <Badge className={STATUS_COLORS[f.status]}>{f.status}</Badge>
-              </div>
-              <p className="text-2xl font-bold">{formatCurrency(Number(f.total_geral))}</p>
-              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                <div>Funcionários: {formatCurrency(Number(f.total_funcionarios))}</div>
-                <div>Encargos: {formatCurrency(Number(f.total_encargos))}</div>
-                {Math.abs(Number(f.diferenca_conferencia)) > 0.5 && (
-                  <div className="text-warning">Diferença: {formatCurrency(Number(f.diferenca_conferencia))}</div>
-                )}
-              </div>
-            </button>
+            <FolhaCard key={f.id} folha={f} onSelect={handleSelectFolha} />
           ))}
         </div>
       )}
@@ -756,7 +741,7 @@ function FolhaEditorSheet({
   );
 }
 
-function MiniInput({
+const MiniInput = memo(function MiniInput({
   value, onChange, type = "text", w, disabled, placeholder,
 }: {
   value: string | number;
@@ -777,7 +762,39 @@ function MiniInput({
       className="h-7 rounded border border-input bg-background px-1.5 text-xs disabled:opacity-60"
     />
   );
+});
+
+// ============================== FOLHA CARD ==============================
+
+interface FolhaCardProps {
+  folha: FolhaRow;
+  onSelect: (id: string) => void;
 }
+
+const FolhaCard = memo(function FolhaCard({ folha: f, onSelect }: FolhaCardProps) {
+  return (
+    <button
+      onClick={() => onSelect(f.id)}
+      className="glass-card p-4 text-left hover:border-primary/50 transition-colors"
+    >
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <p className="font-semibold">{competenciaLabel(f.competencia_mes)}</p>
+          <p className="text-xs text-muted-foreground">{referenciaFolha(f.competencia_mes)}</p>
+        </div>
+        <Badge className={STATUS_COLORS[f.status]}>{f.status}</Badge>
+      </div>
+      <p className="text-2xl font-bold">{formatCurrency(Number(f.total_geral))}</p>
+      <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+        <div>Funcionários: {formatCurrency(Number(f.total_funcionarios))}</div>
+        <div>Encargos: {formatCurrency(Number(f.total_encargos))}</div>
+        {Math.abs(Number(f.diferenca_conferencia)) > 0.5 && (
+          <div className="text-warning">Diferença: {formatCurrency(Number(f.diferenca_conferencia))}</div>
+        )}
+      </div>
+    </button>
+  );
+});
 
 // ============================== HELPERS ==============================
 

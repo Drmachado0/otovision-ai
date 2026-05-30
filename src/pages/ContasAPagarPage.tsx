@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, useMemo } from "react";
+import { memo, useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +39,64 @@ interface ContaPagar {
 }
 
 const PAGE_SIZE = 50;
+
+interface ContaRowProps {
+  conta: ContaPagar;
+  index: number;
+  today: string;
+  onPagar: (c: ContaPagar) => void;
+  onCancelar: (c: ContaPagar) => void;
+}
+
+const ContaRow = memo(function ContaRow({ conta: c, index: i, today, onPagar, onCancelar }: ContaRowProps) {
+  const isVencida = c.data_vencimento && c.data_vencimento < today;
+  const isHoje = c.data_vencimento === today;
+  const isParcelaCompra = c.origem === "compra-parcela";
+  return (
+    <tr
+      className={`border-b border-border/30 transition-colors hover:bg-accent/30 animate-fade-in-up ${isVencida ? "bg-destructive/5" : ""}`}
+      style={{ animationDelay: `${i * 30}ms` }}
+    >
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          {isVencida && <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />}
+          <span className={isVencida ? "text-destructive font-medium" : isHoje ? "text-warning font-medium" : "text-muted-foreground"}>
+            {c.data_vencimento ? formatDate(c.data_vencimento) : "-"}
+          </span>
+          {isVencida && <Badge variant="destructive" className="text-[9px]">Vencida</Badge>}
+          {isHoje && <Badge className="text-[9px] bg-warning text-warning-foreground">Hoje</Badge>}
+        </div>
+      </td>
+      <td className="px-4 py-3 font-medium max-w-[260px] truncate">
+        <div className="flex items-center gap-2">
+          {isParcelaCompra && <Package className="w-3 h-3 text-primary shrink-0" />}
+          <span className="truncate">{c.descricao || "-"}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3"><span className="badge-muted">{c.categoria || "-"}</span></td>
+      <td className="px-4 py-3 hidden md:table-cell">
+        {c.parcela_numero && c.parcela_total ? (
+          <Badge variant="outline" className="text-xs">{c.parcela_numero}/{c.parcela_total}</Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">{c.recorrencia || "Única"}</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-right font-semibold text-destructive">
+        {formatCurrency(Number(c.valor))}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-center gap-1">
+          <Button size="sm" onClick={() => onPagar(c)} className="gap-1 h-7 text-xs">
+            <CheckCircle className="w-3 h-3" /> Pagar
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onCancelar(c)} className="h-7 text-xs text-muted-foreground hover:text-destructive">
+            <XCircle className="w-3 h-3" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+});
 
 export default function ContasAPagarPage() {
   const { user } = useAuth();
@@ -151,10 +209,14 @@ export default function ContasAPagarPage() {
 
   useEffect(() => { setPage(0); }, [search, filterVencimento]);
 
-  const handlePagar = (conta: ContaPagar) => {
+  const handlePagar = useCallback((conta: ContaPagar) => {
     setPagamentoTarget(conta);
     setPagamentoOpen(true);
-  };
+  }, []);
+
+  const handleCancelarClick = useCallback((conta: ContaPagar) => {
+    setCancelTarget(conta);
+  }, []);
 
   const handleCancelar = async () => {
     if (!cancelTarget) return;
@@ -271,56 +333,16 @@ export default function ContasAPagarPage() {
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map((c, i) => {
-                  const isVencida = c.data_vencimento && c.data_vencimento < today;
-                  const isHoje = c.data_vencimento === today;
-                  const isParcelaCompra = c.origem === "compra-parcela";
-                  return (
-                    <tr
-                      key={c.id}
-                      className={`border-b border-border/30 transition-colors hover:bg-accent/30 animate-fade-in-up ${isVencida ? "bg-destructive/5" : ""}`}
-                      style={{ animationDelay: `${i * 30}ms` }}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {isVencida && <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />}
-                          <span className={isVencida ? "text-destructive font-medium" : isHoje ? "text-warning font-medium" : "text-muted-foreground"}>
-                            {c.data_vencimento ? formatDate(c.data_vencimento) : "-"}
-                          </span>
-                          {isVencida && <Badge variant="destructive" className="text-[9px]">Vencida</Badge>}
-                          {isHoje && <Badge className="text-[9px] bg-warning text-warning-foreground">Hoje</Badge>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-medium max-w-[260px] truncate">
-                        <div className="flex items-center gap-2">
-                          {isParcelaCompra && <Package className="w-3 h-3 text-primary shrink-0" />}
-                          <span className="truncate">{c.descricao || "-"}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3"><span className="badge-muted">{c.categoria || "-"}</span></td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        {c.parcela_numero && c.parcela_total ? (
-                          <Badge variant="outline" className="text-xs">{c.parcela_numero}/{c.parcela_total}</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">{c.recorrencia || "Única"}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-destructive">
-                        {formatCurrency(Number(c.valor))}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button size="sm" onClick={() => handlePagar(c)} className="gap-1 h-7 text-xs">
-                            <CheckCircle className="w-3 h-3" /> Pagar
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setCancelTarget(c)} className="h-7 text-xs text-muted-foreground hover:text-destructive">
-                            <XCircle className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {pageItems.map((c, i) => (
+                  <ContaRow
+                    key={c.id}
+                    conta={c}
+                    index={i}
+                    today={today}
+                    onPagar={handlePagar}
+                    onCancelar={handleCancelarClick}
+                  />
+                ))}
               </tbody>
             </table>
           </div>

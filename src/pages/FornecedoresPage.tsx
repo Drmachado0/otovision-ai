@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,7 +48,7 @@ interface Transacao {
 
 const TIPOS_PIX = ["CPF", "CNPJ", "Email", "Telefone", "Aleatória"];
 
-function StarRating({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
+const StarRating = memo(function StarRating({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
@@ -65,7 +65,71 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
       ))}
     </div>
   );
+});
+
+interface FornecedorCardProps {
+  fornecedor: Fornecedor;
+  gasto: number;
+  index: number;
+  onSelect: (f: Fornecedor) => void;
+  onEdit: (f: Fornecedor) => void;
+  onToggleAtivo: (f: Fornecedor) => void;
 }
+
+const FornecedorCard = memo(function FornecedorCard({
+  fornecedor: forn,
+  gasto,
+  index: i,
+  onSelect,
+  onEdit,
+  onToggleAtivo,
+}: FornecedorCardProps) {
+  return (
+    <div
+      className={`glass-card p-5 cursor-pointer transition-all hover:scale-[1.02] animate-fade-in-up ${!forn.ativo ? "opacity-50" : ""}`}
+      style={{ animationDelay: `${i * 80}ms` }}
+      onClick={() => onSelect(forn)}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">{forn.nome}</h3>
+            {forn.cnpj && <p className="text-xs text-muted-foreground">{forn.cnpj}</p>}
+          </div>
+        </div>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit(forn); }}>
+            <Pencil className="w-3 h-3" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onToggleAtivo(forn); }}>
+            {forn.ativo ? <ToggleRight className="w-4 h-4 text-success" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {forn.telefone && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Phone className="w-3 h-3" />
+            <span>{forn.telefone}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <StarRating value={forn.avaliacao || 0} />
+          <span className={`text-sm font-semibold ${gasto > 0 ? "text-warning" : "text-muted-foreground"}`}>
+            {formatCurrency(gasto)}
+          </span>
+        </div>
+        {!forn.ativo && (
+          <Badge variant="secondary" className="text-xs">Inativo</Badge>
+        )}
+      </div>
+    </div>
+  );
+});
 
 export default function FornecedoresPage() {
   const { user } = useAuth();
@@ -157,7 +221,9 @@ export default function FornecedoresPage() {
     avaliacao: 5, observacoes: "",
   });
 
-  const openEdit = (f: Fornecedor) => {
+  const handleSelect = useCallback((f: Fornecedor) => setDetalheFornecedor(f), []);
+
+  const openEdit = useCallback((f: Fornecedor) => {
     setEditFornecedor(f);
     setForm({
       nome: f.nome || "",
@@ -174,7 +240,7 @@ export default function FornecedoresPage() {
       observacoes: f.observacoes || "",
     });
     setShowForm(true);
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,7 +278,7 @@ export default function FornecedoresPage() {
     fetchData();
   };
 
-  const toggleAtivo = async (f: Fornecedor) => {
+  const toggleAtivo = useCallback(async (f: Fornecedor) => {
     // "ativo" é derivado de deleted_at — toggle = soft delete / restore
     const { error } = await supabase
       .from("obra_fornecedores")
@@ -220,7 +286,7 @@ export default function FornecedoresPage() {
       .eq("id", f.id);
     if (error) toast.error("Erro ao atualizar");
     else { toast.success(f.ativo ? "Fornecedor desativado" : "Fornecedor reativado"); fetchData(); }
-  };
+  }, [fetchData]);
 
   const softDelete = async (f: Fornecedor) => {
     const { error } = await supabase.from("obra_fornecedores").update({ deleted_at: new Date().toISOString() }).eq("id", f.id);
@@ -287,55 +353,17 @@ export default function FornecedoresPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((forn, i) => {
-            const gasto = getGastoFornecedor(forn.nome);
-            return (
-              <div
-                key={forn.id}
-                className={`glass-card p-5 cursor-pointer transition-all hover:scale-[1.02] animate-fade-in-up ${!forn.ativo ? "opacity-50" : ""}`}
-                style={{ animationDelay: `${i * 80}ms` }}
-                onClick={() => setDetalheFornecedor(forn)}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
-                      <Building2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-sm">{forn.nome}</h3>
-                      {forn.cnpj && <p className="text-xs text-muted-foreground">{forn.cnpj}</p>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(forn); }}>
-                      <Pencil className="w-3 h-3" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); toggleAtivo(forn); }}>
-                      {forn.ativo ? <ToggleRight className="w-4 h-4 text-success" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  {forn.telefone && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Phone className="w-3 h-3" />
-                      <span>{forn.telefone}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <StarRating value={forn.avaliacao || 0} />
-                    <span className={`text-sm font-semibold ${gasto > 0 ? "text-warning" : "text-muted-foreground"}`}>
-                      {formatCurrency(gasto)}
-                    </span>
-                  </div>
-                  {!forn.ativo && (
-                    <Badge variant="secondary" className="text-xs">Inativo</Badge>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {filtered.map((forn, i) => (
+            <FornecedorCard
+              key={forn.id}
+              fornecedor={forn}
+              gasto={getGastoFornecedor(forn.nome)}
+              index={i}
+              onSelect={handleSelect}
+              onEdit={openEdit}
+              onToggleAtivo={toggleAtivo}
+            />
+          ))}
         </div>
       )}
 

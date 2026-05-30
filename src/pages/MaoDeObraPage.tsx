@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -115,6 +115,104 @@ const EMPTY_REGISTRO = {
   observacoes: "",
 };
 
+interface TrabalhadorCardProps {
+  trabalhador: Trabalhador;
+  onOpenDetail: (t: Trabalhador) => void;
+  onEdit: (t: Trabalhador) => void;
+  onToggleAtivo: (t: Trabalhador) => void;
+}
+
+const TrabalhadorCard = memo(function TrabalhadorCard({
+  trabalhador: t,
+  onOpenDetail,
+  onEdit,
+  onToggleAtivo,
+}: TrabalhadorCardProps) {
+  return (
+    <div
+      className="glass-card-interactive p-5 space-y-3 animate-fade-in-up cursor-pointer"
+      onClick={() => onOpenDetail(t)}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="font-semibold truncate">{t.nome}</h3>
+          {t.funcao && (
+            <Badge variant="secondary" className="mt-1 text-xs">
+              <HardHat className="w-3 h-3 mr-1" />
+              {t.funcao}
+            </Badge>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <Badge className={t.ativo ? "badge-success" : "badge-muted"}>
+            {t.ativo ? "Ativo" : "Inativo"}
+          </Badge>
+          {t.incide_encargos && (
+            <Badge variant="outline" className="text-[10px]">
+              FGTS+INSS
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-1.5 text-sm text-muted-foreground">
+        {t.telefone && (
+          <div className="flex items-center gap-2">
+            <Phone className="w-3.5 h-3.5" />
+            <span>{t.telefone}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <DollarSign className="w-3.5 h-3.5" />
+          <span className="font-medium text-foreground">
+            {formatCurrency(t.valor_diaria ?? 0)}
+          </span>
+          <span className="text-xs">/diária</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Clock className="w-3.5 h-3.5" />
+          <Badge variant="outline" className="text-xs">
+            {t.tipo_contrato || "Diária"}
+          </Badge>
+        </div>
+      </div>
+
+      <div
+        className="flex items-center gap-2 pt-1 border-t border-border/50"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onEdit(t)}
+          className="gap-1 text-xs"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Editar
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onToggleAtivo(t)}
+          className="gap-1 text-xs"
+        >
+          {t.ativo ? (
+            <>
+              <ToggleRight className="w-3.5 h-3.5" />
+              Desativar
+            </>
+          ) : (
+            <>
+              <ToggleLeft className="w-3.5 h-3.5" />
+              Ativar
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+});
+
 export default function MaoDeObraPage() {
   const { user } = useAuth();
   const [trabalhadores, setTrabalhadores] = useState<Trabalhador[]>([]);
@@ -203,11 +301,13 @@ export default function MaoDeObraPage() {
     fetchContas();
   }, [fetchTrabalhadores, fetchRegistros, fetchRegistros12m, fetchFolhas, fetchContas]);
 
-  useRealtimeSubscription("obra_mao_de_obra", fetchTrabalhadores);
-  useRealtimeSubscription("obra_mao_obra_registros", () => {
+  const onRegistrosChange = useCallback(() => {
     fetchRegistros();
     fetchRegistros12m();
-  });
+  }, [fetchRegistros, fetchRegistros12m]);
+
+  useRealtimeSubscription("obra_mao_de_obra", fetchTrabalhadores);
+  useRealtimeSubscription("obra_mao_obra_registros", onRegistrosChange);
 
   // ---------- fetch worker registros ----------
   const fetchWorkerRegistros = useCallback(async (trabalhadorId: string) => {
@@ -231,7 +331,7 @@ export default function MaoDeObraPage() {
     setShowForm(true);
   };
 
-  const openEdit = (t: Trabalhador) => {
+  const openEdit = useCallback((t: Trabalhador) => {
     setEditingId(t.id);
     setForm({
       nome: t.nome,
@@ -247,13 +347,13 @@ export default function MaoDeObraPage() {
       aliquota_inss: String(t.aliquota_inss ?? "20"),
     });
     setShowForm(true);
-  };
+  }, []);
 
-  const openDetail = (t: Trabalhador) => {
+  const openDetail = useCallback((t: Trabalhador) => {
     setSelectedTrabalhador(t);
     setRegistroForm(EMPTY_REGISTRO);
     fetchWorkerRegistros(t.id);
-  };
+  }, [fetchWorkerRegistros]);
 
   // ---------- save trabalhador ----------
   const handleSubmit = async (e: React.FormEvent) => {
@@ -308,7 +408,7 @@ export default function MaoDeObraPage() {
   };
 
   // ---------- toggle ativo ----------
-  const toggleAtivo = async (t: Trabalhador) => {
+  const toggleAtivo = useCallback(async (t: Trabalhador) => {
     const novoAtivo = !t.ativo;
     const { error } = await (supabase as any)
       .from("obra_mao_de_obra")
@@ -320,7 +420,7 @@ export default function MaoDeObraPage() {
       toast.success(`Trabalhador ${novoAtivo ? "ativado" : "desativado"}`);
       fetchTrabalhadores();
     }
-  };
+  }, [fetchTrabalhadores]);
 
   // ---------- registrar dia ----------
   const handleRegistro = async (e: React.FormEvent) => {
@@ -544,88 +644,13 @@ export default function MaoDeObraPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {trabalhadoresFiltrados.map((t) => (
-                <div
+                <TrabalhadorCard
                   key={t.id}
-                  className="glass-card-interactive p-5 space-y-3 animate-fade-in-up cursor-pointer"
-                  onClick={() => openDetail(t)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold truncate">{t.nome}</h3>
-                      {t.funcao && (
-                        <Badge variant="secondary" className="mt-1 text-xs">
-                          <HardHat className="w-3 h-3 mr-1" />
-                          {t.funcao}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge className={t.ativo ? "badge-success" : "badge-muted"}>
-                        {t.ativo ? "Ativo" : "Inativo"}
-                      </Badge>
-                      {t.incide_encargos && (
-                        <Badge variant="outline" className="text-[10px]">
-                          FGTS+INSS
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 text-sm text-muted-foreground">
-                    {t.telefone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5" />
-                        <span>{t.telefone}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-3.5 h-3.5" />
-                      <span className="font-medium text-foreground">
-                        {formatCurrency(t.valor_diaria ?? 0)}
-                      </span>
-                      <span className="text-xs">/diária</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5" />
-                      <Badge variant="outline" className="text-xs">
-                        {t.tipo_contrato || "Diária"}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div
-                    className="flex items-center gap-2 pt-1 border-t border-border/50"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEdit(t)}
-                      className="gap-1 text-xs"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Editar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleAtivo(t)}
-                      className="gap-1 text-xs"
-                    >
-                      {t.ativo ? (
-                        <>
-                          <ToggleRight className="w-3.5 h-3.5" />
-                          Desativar
-                        </>
-                      ) : (
-                        <>
-                          <ToggleLeft className="w-3.5 h-3.5" />
-                          Ativar
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
+                  trabalhador={t}
+                  onOpenDetail={openDetail}
+                  onEdit={openEdit}
+                  onToggleAtivo={toggleAtivo}
+                />
               ))}
             </div>
           )}
