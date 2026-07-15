@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -60,26 +61,35 @@ function ultimoDiaMes(comp: string): string {
 
 export default function MaoObraFolhasMensaisTab() {
   const { user } = useAuth();
-  const [folhas, setFolhas] = useState<FolhaRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [openEditor, setOpenEditor] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openImport, setOpenImport] = useState(false);
   const [openNew, setOpenNew] = useState(false);
   const [novaComp, setNovaComp] = useState(compAtualISO());
 
-  const fetchFolhas = useCallback(async () => {
-    const { data, error } = await (supabase as any)
-      .from("obra_folhas_pagamento")
-      .select("*")
-      .is("deleted_at", null)
-      .order("competencia_mes", { ascending: false });
-    if (error) toast.error("Erro ao carregar folhas");
-    setFolhas(data ?? []);
-    setLoading(false);
-  }, []);
+  const { data: folhasData, isLoading: loading, isError } = useQuery({
+    queryKey: ["folhas-pagamento", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await (supabase as any)
+        .from("obra_folhas_pagamento")
+        .select("*")
+        .is("deleted_at", null)
+        .order("competencia_mes", { ascending: false });
+      if (res.error) throw res.error;
+      return (res.data ?? []) as FolhaRow[];
+    },
+  });
+  const folhas = folhasData ?? [];
 
-  useEffect(() => { fetchFolhas(); }, [fetchFolhas]);
+  const fetchFolhas = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["folhas-pagamento", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar folhas");
+  }, [isError]);
 
   const handleSelectFolha = useCallback((id: string) => {
     setEditingId(id);
@@ -327,26 +337,40 @@ function FolhaEditorSheet({
   folhaId, open, onOpenChange,
 }: { folhaId: string; open: boolean; onOpenChange: (v: boolean) => void }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [folha, setFolha] = useState<FolhaRow | null>(null);
   const [itens, setItens] = useState<FolhaItem[]>([]);
   const [encargos, setEncargos] = useState<FolhaEncargo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    const [{ data: f }, { data: is }, { data: es }] = await Promise.all([
-      (supabase as any).from("obra_folhas_pagamento").select("*").eq("id", folhaId).maybeSingle(),
-      (supabase as any).from("obra_folha_pagamento_itens").select("*").eq("folha_id", folhaId).is("deleted_at", null).order("ref"),
-      (supabase as any).from("obra_folha_pagamento_encargos").select("*").eq("folha_id", folhaId).is("deleted_at", null),
-    ]);
-    setFolha(f ?? null);
-    setItens((is ?? []).map((i: any) => calcularTotaisItem(i)));
-    setEncargos(es ?? []);
-    setLoading(false);
-  }, [folhaId]);
+  const { data: detalhe, isLoading: loading } = useQuery({
+    queryKey: ["folha-detalhe", folhaId],
+    enabled: !!folhaId && open,
+    queryFn: async () => {
+      const [{ data: f }, { data: is }, { data: es }] = await Promise.all([
+        (supabase as any).from("obra_folhas_pagamento").select("*").eq("id", folhaId).maybeSingle(),
+        (supabase as any).from("obra_folha_pagamento_itens").select("*").eq("folha_id", folhaId).is("deleted_at", null).order("ref"),
+        (supabase as any).from("obra_folha_pagamento_encargos").select("*").eq("folha_id", folhaId).is("deleted_at", null),
+      ]);
+      return {
+        folha: (f ?? null) as FolhaRow | null,
+        itens: ((is ?? []) as any[]).map((i: any) => calcularTotaisItem(i)) as FolhaItem[],
+        encargos: (es ?? []) as FolhaEncargo[],
+      };
+    },
+  });
 
-  useEffect(() => { if (open) fetchAll(); }, [open, fetchAll]);
+  // sincroniza dados carregados para o estado editável local
+  useEffect(() => {
+    if (!detalhe) return;
+    setFolha(detalhe.folha);
+    setItens(detalhe.itens);
+    setEncargos(detalhe.encargos);
+  }, [detalhe]);
+
+  const fetchAll = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["folha-detalhe", folhaId] });
+  }, [queryClient, folhaId]);
 
   const totais = useMemo(() => calcularTotaisFolha(itens, encargos), [itens, encargos]);
   const validacao = useMemo(

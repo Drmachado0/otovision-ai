@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -216,12 +217,7 @@ const TrabalhadorCard = memo(function TrabalhadorCard({
 
 export default function MaoDeObraPage() {
   const { user } = useAuth();
-  const [trabalhadores, setTrabalhadores] = useState<Trabalhador[]>([]);
-  const [registros, setRegistros] = useState<Registro[]>([]);
-  const [registros12m, setRegistros12m] = useState<Registro[]>([]);
-  const [folhas, setFolhas] = useState<Folha[]>([]);
-  const [contas, setContas] = useState<Conta[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -235,73 +231,116 @@ export default function MaoDeObraPage() {
   const [statusFilter, setStatusFilter] = useState<"Todos" | "Ativos" | "Inativos">("Todos");
 
   // ---------- fetch trabalhadores ----------
-  const fetchTrabalhadores = useCallback(async () => {
-    const { data, error } = await (supabase as any)
-      .from("obra_mao_de_obra")
-      .select("*")
-      .is("deleted_at", null)
-      .order("nome", { ascending: true });
+  const {
+    data: trabalhadoresData,
+    isLoading: loading,
+    isError: trabalhadoresError,
+  } = useQuery({
+    queryKey: ["mao-obra-trabalhadores", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("obra_mao_de_obra")
+        .select("*")
+        .is("deleted_at", null)
+        .order("nome", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Trabalhador[];
+    },
+  });
+  const trabalhadores = trabalhadoresData ?? [];
 
-    if (error) {
-      toast.error("Erro ao carregar trabalhadores");
-      setLoading(false);
-      return;
-    }
-    setTrabalhadores(data ?? []);
-    setLoading(false);
-  }, []);
+  const fetchTrabalhadores = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["mao-obra-trabalhadores", user?.id] });
+  }, [queryClient, user?.id]);
 
   // ---------- fetch registros do mes ----------
-  const fetchRegistros = useCallback(async () => {
-    const now = new Date();
-    const inicioMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-    const { data } = await (supabase as any)
-      .from("obra_mao_obra_registros")
-      .select("*")
-      .gte("data", inicioMes)
-      .order("data", { ascending: false });
-    setRegistros(data ?? []);
-  }, []);
+  const { data: registrosData } = useQuery({
+    queryKey: ["mao-obra-registros-mes", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const now = new Date();
+      const inicioMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const res = await (supabase as any)
+        .from("obra_mao_obra_registros")
+        .select("*")
+        .gte("data", inicioMes)
+        .order("data", { ascending: false });
+      if (res.error) throw res.error;
+      return (res.data ?? []) as Registro[];
+    },
+  });
+  const registros = registrosData ?? [];
+
+  const fetchRegistros = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["mao-obra-registros-mes", user?.id] });
+  }, [queryClient, user?.id]);
 
   // ---------- fetch registros 12 meses (gráfico histórico) ----------
-  const fetchRegistros12m = useCallback(async () => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 11);
-    const inicio = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-    const { data } = await (supabase as any)
-      .from("obra_mao_obra_registros")
-      .select("*")
-      .gte("data", inicio)
-      .order("data", { ascending: false });
-    setRegistros12m(data ?? []);
-  }, []);
+  const { data: registros12mData } = useQuery({
+    queryKey: ["mao-obra-registros-12m", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - 11);
+      const inicio = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+      const res = await (supabase as any)
+        .from("obra_mao_obra_registros")
+        .select("*")
+        .gte("data", inicio)
+        .order("data", { ascending: false });
+      if (res.error) throw res.error;
+      return (res.data ?? []) as Registro[];
+    },
+  });
+  const registros12m = registros12mData ?? [];
+
+  const fetchRegistros12m = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["mao-obra-registros-12m", user?.id] });
+  }, [queryClient, user?.id]);
 
   // ---------- fetch folhas / contas ----------
-  const fetchFolhas = useCallback(async () => {
-    const { data } = await (supabase as any)
-      .from("obra_mao_obra_folha")
-      .select("id,mes_ref,total_diarias,total_fgts,total_inss,total_quinzena,total_vales,total_vale_alim,total_encerramento,total_ferias,total_horas_extras,total_geral,status")
-      .is("deleted_at", null)
-      .order("mes_ref", { ascending: false });
-    setFolhas(data ?? []);
-  }, []);
+  const { data: folhasData } = useQuery({
+    queryKey: ["mao-obra-folhas", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await (supabase as any)
+        .from("obra_mao_obra_folha")
+        .select("id,mes_ref,total_diarias,total_fgts,total_inss,total_quinzena,total_vales,total_vale_alim,total_encerramento,total_ferias,total_horas_extras,total_geral,status")
+        .is("deleted_at", null)
+        .order("mes_ref", { ascending: false });
+      if (res.error) throw res.error;
+      return (res.data ?? []) as Folha[];
+    },
+  });
+  const folhas = folhasData ?? [];
 
-  const fetchContas = useCallback(async () => {
-    const { data } = await (supabase as any)
-      .from("obra_contas_financeiras")
-      .select("id,nome,tipo")
-      .eq("ativa", true)
-      .order("nome");
-    setContas(data ?? []);
-  }, []);
+  const fetchFolhas = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["mao-obra-folhas", user?.id] });
+  }, [queryClient, user?.id]);
+
+  const { data: contasData } = useQuery({
+    queryKey: ["mao-obra-contas", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await (supabase as any)
+        .from("obra_contas_financeiras")
+        .select("id,nome,tipo")
+        .eq("ativa", true)
+        .order("nome");
+      if (res.error) throw res.error;
+      return (res.data ?? []) as Conta[];
+    },
+  });
+  const contas = contasData ?? [];
+
+  const fetchContas = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["mao-obra-contas", user?.id] });
+  }, [queryClient, user?.id]);
 
   useEffect(() => {
-    fetchTrabalhadores();
-    fetchRegistros();
-    fetchRegistros12m();
-    fetchFolhas();
-    fetchContas();
-  }, [fetchTrabalhadores, fetchRegistros, fetchRegistros12m, fetchFolhas, fetchContas]);
+    if (trabalhadoresError) toast.error("Erro ao carregar trabalhadores");
+  }, [trabalhadoresError]);
 
   const onRegistrosChange = useCallback(() => {
     fetchRegistros();

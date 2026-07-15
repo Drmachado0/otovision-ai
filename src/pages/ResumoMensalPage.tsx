@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/formatters";
 import {
   Calendar, TrendingUp, TrendingDown, DollarSign, BarChart3,
@@ -28,83 +30,94 @@ const MESES_PT: Record<string, string> = {
 };
 
 export default function ResumoMensalPage() {
-  const [meses, setMeses] = useState<MesData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [periodo, setPeriodo] = useState<"3" | "6" | "12" | "all">("6");
-  const [saldoInicialBase, setSaldoInicialBase] = useState(0);
 
-  const fetchData = useCallback(async () => {
-    const [{ data }, { data: contas }] = await Promise.all([
-      supabase
-        .from("obra_transacoes_fluxo")
-        .select("tipo, valor, categoria, data")
-        .is("deleted_at", null)
-        .eq("status", "pago")
-        .order("data", { ascending: true }),
-      supabase
-        .from("obra_contas_financeiras")
-        .select("saldo_inicial")
-        .eq("ativa", true),
-    ]);
+  const { data: queryData, isLoading: loading } = useQuery({
+    queryKey: ["resumo-mensal", user?.id, periodo],
+    enabled: !!user,
+    queryFn: async () => {
+      const [transRes, contasRes] = await Promise.all([
+        supabase
+          .from("obra_transacoes_fluxo")
+          .select("tipo, valor, categoria, data")
+          .is("deleted_at", null)
+          .eq("status", "pago")
+          .order("data", { ascending: true }),
+        supabase
+          .from("obra_contas_financeiras")
+          .select("saldo_inicial")
+          .eq("ativa", true),
+      ]);
+      if (transRes.error) throw transRes.error;
+      if (contasRes.error) throw contasRes.error;
+      const data = transRes.data;
+      const contas = contasRes.data;
 
-    if (!data) { setLoading(false); return; }
+      if (!data) { return { meses: [] as MesData[], saldoInicialBase: 0 }; }
 
-    const saldoInicialTotal = (contas ?? []).reduce(
-      (s, c: { saldo_inicial: number | string }) => s + Number(c.saldo_inicial || 0),
-      0
-    );
+      const saldoInicialTotal = (contas ?? []).reduce(
+        (s, c: { saldo_inicial: number | string }) => s + Number(c.saldo_inicial || 0),
+        0
+      );
 
-    // Group by month
-    const porMes: Record<string, { entradas: number; saidas: number; categorias: Record<string, number> }> = {};
-    for (const t of data as { tipo: string; valor: number; categoria: string; data: string }[]) {
-      const mes = t.data?.slice(0, 7); // YYYY-MM
-      if (!mes) continue;
-      if (!porMes[mes]) porMes[mes] = { entradas: 0, saidas: 0, categorias: {} };
-      const val = Number(t.valor);
-      if (t.tipo === "Entrada") porMes[mes].entradas += val;
-      else {
-        porMes[mes].saidas += val;
-        porMes[mes].categorias[t.categoria || "Outro"] = (porMes[mes].categorias[t.categoria || "Outro"] || 0) + val;
+      // Group by month
+      const porMes: Record<string, { entradas: number; saidas: number; categorias: Record<string, number> }> = {};
+      for (const t of data as { tipo: string; valor: number; categoria: string; data: string }[]) {
+        const mes = t.data?.slice(0, 7); // YYYY-MM
+        if (!mes) continue;
+        if (!porMes[mes]) porMes[mes] = { entradas: 0, saidas: 0, categorias: {} };
+        const val = Number(t.valor);
+        if (t.tipo === "Entrada") porMes[mes].entradas += val;
+        else {
+          porMes[mes].saidas += val;
+          porMes[mes].categorias[t.categoria || "Outro"] = (porMes[mes].categorias[t.categoria || "Outro"] || 0) + val;
+        }
       }
-    }
 
-    // Sort and limit by periodo
-    const sorted = Object.entries(porMes).sort((a, b) => a[0].localeCompare(b[0]));
-    const limited = periodo === "all" ? sorted : sorted.slice(-parseInt(periodo));
+      // Sort and limit by periodo
+      const sorted = Object.entries(porMes).sort((a, b) => a[0].localeCompare(b[0]));
+      const limited = periodo === "all" ? sorted : sorted.slice(-parseInt(periodo));
 
-    // Saldo inicial das contas é a base do acumulado
-    let acumulado = saldoInicialTotal;
-    // Calculate accumulated balance from all months before the limited window
-    if (periodo !== "all") {
-      const before = sorted.slice(0, sorted.length - limited.length);
-      for (const [, m] of before) acumulado += m.entradas - m.saidas;
-    }
+      // Saldo inicial das contas é a base do acumulado
+      let acumulado = saldoInicialTotal;
+      // Calculate accumulated balance from all months before the limited window
+      if (periodo !== "all") {
+        const before = sorted.slice(0, sorted.length - limited.length);
+        for (const [, m] of before) acumulado += m.entradas - m.saidas;
+      }
 
-    const result: MesData[] = limited.map(([mes, m]) => {
-      const saldo = m.entradas - m.saidas;
-      acumulado += saldo;
-      const parts = mes.split("-");
-      const topCat = Object.entries(m.categorias)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([categoria, total]) => ({ categoria, total }));
-      return {
-        mes,
-        mesLabel: `${MESES_PT[parts[1]] || parts[1]}/${parts[0].slice(2)}`,
-        entradas: m.entradas,
-        saidas: m.saidas,
-        saldo,
-        saldoAcumulado: acumulado,
-        topCategorias: topCat,
-      };
-    });
+      const result: MesData[] = limited.map(([mes, m]) => {
+        const saldo = m.entradas - m.saidas;
+        acumulado += saldo;
+        const parts = mes.split("-");
+        const topCat = Object.entries(m.categorias)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([categoria, total]) => ({ categoria, total }));
+        return {
+          mes,
+          mesLabel: `${MESES_PT[parts[1]] || parts[1]}/${parts[0].slice(2)}`,
+          entradas: m.entradas,
+          saidas: m.saidas,
+          saldo,
+          saldoAcumulado: acumulado,
+          topCategorias: topCat,
+        };
+      });
 
-    setMeses(result);
-    setSaldoInicialBase(saldoInicialTotal);
-    setLoading(false);
-  }, [periodo]);
+      return { meses: result, saldoInicialBase: saldoInicialTotal };
+    },
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const meses = queryData?.meses ?? [];
+  const saldoInicialBase = queryData?.saldoInicialBase ?? 0;
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["resumo-mensal", user?.id] });
+  }, [queryClient, user?.id]);
+
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
 
   const totalEntradas = saldoInicialBase + meses.reduce((s, m) => s + m.entradas, 0);

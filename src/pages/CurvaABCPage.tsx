@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
 import {
   BarChart3,
@@ -57,22 +59,30 @@ const tooltipStyle = {
 };
 
 export default function CurvaABCPage() {
-  const [transacoes, setTransacoes] = useState<TransacaoSaida[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const fetchData = useCallback(async () => {
-    const { data } = await supabase
-      .from("obra_transacoes_fluxo")
-      .select("tipo, valor, categoria, descricao")
-      .eq("tipo", "Saída")
-      .is("deleted_at", null);
-    if (data) setTransacoes(data.map(d => ({ ...d, descricao: d.descricao || "" })));
-    setLoading(false);
-  }, []);
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["curva-abc", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await supabase
+        .from("obra_transacoes_fluxo")
+        .select("tipo, valor, categoria, descricao")
+        .eq("tipo", "Saída")
+        .is("deleted_at", null);
+      if (res.error) throw res.error;
+      const transacoes: TransacaoSaida[] = (res.data ?? []).map(d => ({ ...d, descricao: d.descricao || "" }));
+      return { transacoes };
+    },
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const transacoes = data?.transacoes ?? [];
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["curva-abc", user?.id] });
+  }, [queryClient, user?.id]);
+
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
 
   const abcData = useMemo((): CategoriaABC[] => {

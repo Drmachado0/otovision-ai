@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,8 +53,7 @@ const EMPTY_FORM = {
 
 export default function EquipePage() {
   const { user } = useAuth();
-  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [filtroStatus, setFiltroStatus] = useState<"Todos" | "Ativos" | "Inativos">("Todos");
@@ -64,24 +64,28 @@ export default function EquipePage() {
   const [deleteTarget, setDeleteTarget] = useState<Funcionario | null>(null);
 
   // ---------- fetch ----------
-  const fetchData = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("obra_funcionarios")
-      .select("*")
-      .order("nome", { ascending: true }) as any;
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["equipe", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await supabase
+        .from("obra_funcionarios")
+        .select("*")
+        .order("nome", { ascending: true }) as any;
+      if (res.error) throw res.error;
+      return { funcionarios: (res.data ?? []) as Funcionario[] };
+    },
+  });
 
-    if (error) {
-      toast.error("Erro ao carregar equipe");
-      setLoading(false);
-      return;
-    }
-    setFuncionarios(data ?? []);
-    setLoading(false);
-  }, []);
+  const funcionarios = data?.funcionarios ?? [];
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["equipe", user?.id] });
+  }, [queryClient, user?.id]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (isError) toast.error("Erro ao carregar dados. Tentando novamente...");
+  }, [isError]);
 
   useRealtimeSubscription("obra_funcionarios", fetchData);
 

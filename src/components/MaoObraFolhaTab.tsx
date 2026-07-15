@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -96,17 +97,25 @@ export default function MaoObraFolhaTab({
   const folhaLancada = folhas.find((f) => f.mes_ref === mesRef);
 
   // ---------- Carrega extras do mês ----------
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      const { data } = await (supabase as any)
-        .from("obra_mao_obra_folha_item")
-        .select("*")
-        .eq("mes_ref", mesRef)
-        .is("deleted_at", null);
-      if (cancel) return;
+  const { data: folhaMesData } = useQuery({
+    queryKey: ["mao-obra-folha-item", userId, mesRef],
+    enabled: !!userId && !!mesRef,
+    queryFn: async () => {
+      const [itemRes, folhaRes] = await Promise.all([
+        (supabase as any)
+          .from("obra_mao_obra_folha_item")
+          .select("*")
+          .eq("mes_ref", mesRef)
+          .is("deleted_at", null),
+        (supabase as any)
+          .from("obra_mao_obra_folha")
+          .select("custos_engenharia,exames")
+          .eq("mes_ref", mesRef)
+          .maybeSingle(),
+      ]);
+      if (itemRes.error) throw itemRes.error;
       const map: Record<string, FolhaItemExtras> = {};
-      (data ?? []).forEach((r: any) => {
+      (itemRes.data ?? []).forEach((r: any) => {
         map[r.trabalhador_id] = {
           fgts: Number(r.fgts) || 0,
           inss: Number(r.inss) || 0,
@@ -118,20 +127,22 @@ export default function MaoObraFolhaTab({
           horas_extras: Number(r.horas_extras) || 0,
         };
       });
-      setExtrasMap(map);
+      const f = folhaRes.data;
+      return {
+        extrasMap: map,
+        custosEng: Number(f?.custos_engenharia) || 0,
+        exames: Number(f?.exames) || 0,
+      };
+    },
+  });
 
-      const { data: f } = await (supabase as any)
-        .from("obra_mao_obra_folha")
-        .select("custos_engenharia,exames")
-        .eq("mes_ref", mesRef)
-        .maybeSingle();
-      setCustosEng(Number(f?.custos_engenharia) || 0);
-      setExames(Number(f?.exames) || 0);
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, [mesRef]);
+  // sincroniza dados carregados para o estado editável local
+  useEffect(() => {
+    if (!folhaMesData) return;
+    setExtrasMap(folhaMesData.extrasMap);
+    setCustosEng(folhaMesData.custosEng);
+    setExames(folhaMesData.exames);
+  }, [folhaMesData]);
 
   // ---------- Atualiza extra (debounce upsert) ----------
   const updateExtra = (trabalhadorId: string, field: keyof FolhaItemExtras, value: number) => {

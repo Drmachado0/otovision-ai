@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { exportCSV, filterByDateRange, filterByCategoria, type TransacaoRow, type CompraRow, type ComissaoRow, type JsonRecord } from "@/lib/types";
 import { toast } from "sonner";
@@ -19,11 +21,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const PAGE_SIZE = 50;
 
 export default function RelatoriosPage() {
-  const [transacoes, setTransacoes] = useState<TransacaoRow[]>([]);
-  const [compras, setCompras] = useState<CompraRow[]>([]);
-  const [comissoes, setComissoes] = useState<ComissaoRow[]>([]);
-  const [orcamento, setOrcamento] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState("todas");
@@ -33,21 +32,41 @@ export default function RelatoriosPage() {
   const [pageCompras, setPageCompras] = useState(0);
   const [pageComissoes, setPageComissoes] = useState(0);
 
-  const fetchData = useCallback(async () => {
-    const [configRes, transRes, comprasRes, comRes] = await Promise.all([
-      supabase.from("obra_config").select("orcamento_total").limit(1).maybeSingle(),
-      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, data, categoria, descricao, forma_pagamento, observacoes").is("deleted_at", null).order("data", { ascending: false }),
-      supabase.from("obra_compras").select("id, fornecedor, descricao, categoria, valor_total, data, status_entrega, forma_pagamento, numero_parcelas, observacoes, nf_vinculada").is("deleted_at", null).order("data", { ascending: false }),
-      supabase.from("obra_comissao_pagamentos").select("id, mes, valor, pago, data_pagamento, observacoes, auto, categoria, fornecedor, forma_pagamento, transacao_id, created_at").is("deleted_at", null).order("created_at", { ascending: false }),
-    ]);
-    if (configRes.data) setOrcamento(Number(configRes.data.orcamento_total) || 0);
-    if (transRes.data) setTransacoes(transRes.data as TransacaoRow[]);
-    if (comprasRes.data) setCompras(comprasRes.data as CompraRow[]);
-    if (comRes.data) setComissoes(comRes.data as ComissaoRow[]);
-    setLoading(false);
-  }, []);
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["relatorios", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const [configRes, transRes, comprasRes, comRes] = await Promise.all([
+        supabase.from("obra_config").select("orcamento_total").limit(1).maybeSingle(),
+        supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, data, categoria, descricao, forma_pagamento, observacoes").is("deleted_at", null).order("data", { ascending: false }),
+        supabase.from("obra_compras").select("id, fornecedor, descricao, categoria, valor_total, data, status_entrega, forma_pagamento, numero_parcelas, observacoes, nf_vinculada").is("deleted_at", null).order("data", { ascending: false }),
+        supabase.from("obra_comissao_pagamentos").select("id, mes, valor, pago, data_pagamento, observacoes, auto, categoria, fornecedor, forma_pagamento, transacao_id, created_at").is("deleted_at", null).order("created_at", { ascending: false }),
+      ]);
+      if (configRes.error) throw configRes.error;
+      if (transRes.error) throw transRes.error;
+      if (comprasRes.error) throw comprasRes.error;
+      if (comRes.error) throw comRes.error;
+      return {
+        orcamento: configRes.data ? Number(configRes.data.orcamento_total) || 0 : 0,
+        transacoes: (transRes.data as TransacaoRow[]) ?? [],
+        compras: (comprasRes.data as CompraRow[]) ?? [],
+        comissoes: (comRes.data as ComissaoRow[]) ?? [],
+      };
+    },
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const transacoes = data?.transacoes ?? [];
+  const compras = data?.compras ?? [];
+  const comissoes = data?.comissoes ?? [];
+  const orcamento = data?.orcamento ?? 0;
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["relatorios", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar dados. Tentando novamente...");
+  }, [isError]);
 
   // Reset pages when filters change
   useEffect(() => {

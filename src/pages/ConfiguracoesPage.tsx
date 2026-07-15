@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -63,15 +64,12 @@ const defaultObraConfig: ObraConfig = {
 export default function ConfiguracoesPage() {
   const { user } = useAuth();
   const { role } = useUserRole();
-  const [users, setUsers] = useState<UserWithRole[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
   const [showDangerDialog, setShowDangerDialog] = useState(false);
   const [dangerConfirm, setDangerConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [comissaoRate, setComissaoRate] = useState("8");
-  const [autoBackups, setAutoBackups] = useState<{ name: string; created_at?: string | null }[]>([]);
-  const [loadingBackups, setLoadingBackups] = useState(false);
   const [backupPrefs, setBackupPrefs] = useState<BackupPrefs>(DEFAULT_PREFS);
   const [savingPrefs, setSavingPrefs] = useState(false);
 
@@ -83,9 +81,6 @@ export default function ConfiguracoesPage() {
 
   useEffect(() => {
     fetchObraConfig();
-    if (role === "admin") {
-      fetchUsers();
-    }
   }, [role]);
 
   const fetchObraConfig = async () => {
@@ -151,21 +146,28 @@ export default function ConfiguracoesPage() {
     setSavingObra(false);
   };
 
-  const fetchUsers = async () => {
-    setLoadingUsers(true);
-    const { data: roles } = await (supabase as any)
-      .from("user_roles")
-      .select("user_id, role");
-
-    if (roles) {
-      const userList: UserWithRole[] = (roles as any[]).map((r: { user_id: string; role: string }) => ({
+  const { data: usersData, isLoading: loadingUsers } = useQuery({
+    queryKey: ["config-users", user?.id],
+    enabled: !!user && role === "admin",
+    queryFn: async () => {
+      const res = await (supabase as any)
+        .from("user_roles")
+        .select("user_id, role");
+      if (res.error) throw res.error;
+      const roles = res.data;
+      const userList: UserWithRole[] = ((roles as any[]) ?? []).map((r: { user_id: string; role: string }) => ({
         id: r.user_id,
         email: r.user_id === user?.id ? (user?.email || r.user_id) : r.user_id,
         role: r.role,
       }));
-      setUsers(userList);
-    }
-    setLoadingUsers(false);
+      return { users: userList };
+    },
+  });
+
+  const users = usersData?.users ?? [];
+
+  const fetchUsers = () => {
+    queryClient.invalidateQueries({ queryKey: ["config-users", user?.id] });
   };
 
   const updateRole = async (userId: string, newRole: string) => {
@@ -207,19 +209,19 @@ export default function ConfiguracoesPage() {
     setExporting(false);
   };
 
-  const fetchAutoBackups = async () => {
-    if (!user) return;
-    setLoadingBackups(true);
-    const { data, error } = await supabase.storage
-      .from("backups-automaticos")
-      .list(user.id, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
-    if (!error && data) {
-      setAutoBackups(data.filter((f) => f.name.endsWith(".json")));
-    }
-    setLoadingBackups(false);
-  };
+  const { data: backupsData, isLoading: loadingBackups } = useQuery({
+    queryKey: ["config-auto-backups", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await supabase.storage
+        .from("backups-automaticos")
+        .list(user!.id, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+      if (res.error) throw res.error;
+      return { autoBackups: (res.data ?? []).filter((f) => f.name.endsWith(".json")) };
+    },
+  });
 
-  useEffect(() => { fetchAutoBackups(); }, [user]);
+  const autoBackups = backupsData?.autoBackups ?? [];
 
   const handleDownloadAutoBackup = async (name: string) => {
     if (!user) return;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,8 +75,7 @@ function getDisplayStatus(orcamento: Orcamento): string {
 
 export default function OrcamentosPage() {
   const { user } = useAuth();
-  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -96,31 +96,44 @@ export default function OrcamentosPage() {
   });
   const [formItens, setFormItens] = useState<OrcamentoItem[]>([{ ...EMPTY_ITEM }]);
 
-  const fetchData = useCallback(async () => {
-    const { data } = await supabase
-      .from("obra_orcamentos")
-      .select("id, user_id, fornecedor, descricao, categoria, valor_total, data, validade, status, condicoes_pagamento, observacoes, itens, created_at")
-      .is("deleted_at", null)
-      .order("data", { ascending: false })
-      .limit(500);
-    if (data) {
-      setOrcamentos(data.map((o: any) => ({
-        ...o,
-        fornecedor: o.fornecedor || "",
-        descricao: o.descricao || "",
-        categoria: o.categoria || "",
-        status: o.status || "Pendente",
-        condicoes_pagamento: o.condicoes_pagamento || "",
-        observacoes: o.observacoes || "",
-        itens: parseItens(o.itens),
-        aprovado_por: null,
-        aprovado_em: null,
-      })));
-    }
-    setLoading(false);
-  }, []);
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["orcamentos", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await supabase
+        .from("obra_orcamentos")
+        .select("id, user_id, fornecedor, descricao, categoria, valor_total, data, validade, status, condicoes_pagamento, observacoes, itens, created_at")
+        .is("deleted_at", null)
+        .order("data", { ascending: false })
+        .limit(500);
+      if (res.error) throw res.error;
+      return {
+        orcamentos: (res.data ?? []).map((o: any) => ({
+          ...o,
+          fornecedor: o.fornecedor || "",
+          descricao: o.descricao || "",
+          categoria: o.categoria || "",
+          status: o.status || "Pendente",
+          condicoes_pagamento: o.condicoes_pagamento || "",
+          observacoes: o.observacoes || "",
+          itens: parseItens(o.itens),
+          aprovado_por: null,
+          aprovado_em: null,
+        })) as Orcamento[],
+      };
+    },
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const orcamentos = data?.orcamentos ?? [];
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["orcamentos", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar dados. Tentando novamente...");
+  }, [isError]);
+
   useRealtimeSubscription("obra_orcamentos", fetchData);
 
   const resetForm = () => {

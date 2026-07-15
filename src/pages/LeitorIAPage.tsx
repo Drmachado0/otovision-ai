@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentos } from "@/hooks/useDocumentos";
@@ -40,7 +41,6 @@ export default function LeitorIAPage() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [contas, setContas] = useState<ContaFinanceira[]>([]);
   const [pagamento, setPagamento] = useState({
     recorrencia_tipo: "Única" as RecorrenciaTipo,
     data_vencimento: "",
@@ -50,22 +50,28 @@ export default function LeitorIAPage() {
     periodicidade: "Mensal",
   });
 
+  const { data: contasData } = useQuery({
+    queryKey: ["leitor-ia-contas", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await supabase
+        .from("obra_contas_financeiras")
+        .select("id, nome, tipo")
+        .eq("user_id", user!.id)
+        .eq("ativa", true)
+        .order("nome");
+      if (res.error) throw res.error;
+      return { contas: (res.data ?? []) as ContaFinanceira[] };
+    },
+  });
+
+  const contas = contasData?.contas ?? [];
+
   useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("obra_contas_financeiras")
-      .select("id, nome, tipo")
-      .eq("user_id", user.id)
-      .eq("ativa", true)
-      .order("nome")
-      .then(({ data }) => {
-        const lista = data ?? [];
-        setContas(lista);
-        if (lista.length > 0) {
-          setPagamento(p => (p.conta_id ? p : { ...p, conta_id: lista[0].id }));
-        }
-      });
-  }, [user]);
+    if (contas.length > 0) {
+      setPagamento(p => (p.conta_id ? p : { ...p, conta_id: contas[0].id }));
+    }
+  }, [contas]);
 
   const hasInput = !!(file || texto.trim());
 

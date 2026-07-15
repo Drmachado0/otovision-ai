@@ -1,6 +1,8 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatMes, todayLocalISO } from "@/lib/formatters";
 import {
@@ -57,9 +59,8 @@ type SortField = "data" | "valor";
 type SortDir = "asc" | "desc";
 
 export default function ComissaoPage() {
-  const [transacoes, setTransacoes] = useState<TransacaoRow[]>([]);
-  const [comissoes, setComissoes] = useState<ComissaoRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<ComissaoRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -82,25 +83,41 @@ export default function ComissaoPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<ComissaoRow | null>(null);
 
-  const fetchData = useCallback(async () => {
-    const [transRes, comRes] = await Promise.all([
-      supabase
-        .from("obra_transacoes_fluxo")
-        .select("data, valor")
-        .eq("tipo", "Saída")
-        .is("deleted_at", null),
-      supabase.from("obra_comissao_pagamentos")
-        .select("id, mes, valor, pago, data_pagamento, observacoes, auto, categoria, fornecedor, forma_pagamento, transacao_id, created_at")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false }),
-    ]);
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["comissao", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const [transRes, comRes] = await Promise.all([
+        supabase
+          .from("obra_transacoes_fluxo")
+          .select("data, valor")
+          .eq("tipo", "Saída")
+          .is("deleted_at", null),
+        supabase.from("obra_comissao_pagamentos")
+          .select("id, mes, valor, pago, data_pagamento, observacoes, auto, categoria, fornecedor, forma_pagamento, transacao_id, created_at")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false }),
+      ]);
+      if (transRes.error) throw transRes.error;
+      if (comRes.error) throw comRes.error;
+      return {
+        transacoes: (transRes.data as TransacaoRow[]) ?? [],
+        comissoes: (comRes.data as ComissaoRow[]) ?? [],
+      };
+    },
+  });
 
-    if (transRes.data) setTransacoes(transRes.data as TransacaoRow[]);
-    if (comRes.data) setComissoes(comRes.data as ComissaoRow[]);
-    setLoading(false);
-  }, []);
+  const transacoes = data?.transacoes ?? [];
+  const comissoes = data?.comissoes ?? [];
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["comissao", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar dados. Tentando novamente...");
+  }, [isError]);
+
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
   useRealtimeSubscription("obra_comissao_pagamentos", fetchData);
 

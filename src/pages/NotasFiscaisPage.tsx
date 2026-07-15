@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,8 +38,7 @@ interface NotaFiscal {
 
 export default function NotasFiscaisPage() {
   const { user } = useAuth();
-  const [nfs, setNfs] = useState<NotaFiscal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [tab, setTab] = useState("ativas");
@@ -49,19 +49,29 @@ export default function NotasFiscaisPage() {
   // Delete dialog
   const [deleteNf, setDeleteNf] = useState<NotaFiscal | null>(null);
 
-  const fetchNfs = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data } = await supabase
-      .from("obra_notas_fiscais")
-      .select("id, numero, fornecedor, descricao, categoria, valor_bruto, valor_liquido, data_emissao, data_vencimento, status, forma_pagamento, deleted_at")
-      .eq("user_id", user.id)
-      .order("data_emissao", { ascending: false });
-    setNfs((data as NotaFiscal[]) || []);
-    setLoading(false);
-  };
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["notas-fiscais", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await supabase
+        .from("obra_notas_fiscais")
+        .select("id, numero, fornecedor, descricao, categoria, valor_bruto, valor_liquido, data_emissao, data_vencimento, status, forma_pagamento, deleted_at")
+        .eq("user_id", user!.id)
+        .order("data_emissao", { ascending: false });
+      if (res.error) throw res.error;
+      return { nfs: (res.data as NotaFiscal[]) || [] };
+    },
+  });
 
-  useEffect(() => { fetchNfs(); }, [user]);
+  const nfs = data?.nfs ?? [];
+
+  const fetchNfs = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["notas-fiscais", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar dados. Tentando novamente...");
+  }, [isError]);
 
   const ativas = useMemo(() => nfs.filter((n) => !n.deleted_at), [nfs]);
   const arquivadas = useMemo(() => nfs.filter((n) => n.deleted_at), [nfs]);

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency } from "@/lib/formatters";
 import { History, Plus, Edit, Trash2, Search } from "lucide-react";
@@ -99,24 +101,33 @@ function buildChangeSummary(anterior: Record<string, unknown> | null, novo: Reco
 }
 
 export default function AuditoriaPage() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [filterTabela, setFilterTabela] = useState("todos");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const fetchLogs = useCallback(async () => {
-    const { data } = await supabase
-      .from("obra_audit_log")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (data) setLogs(data as AuditLog[]);
-    setLoading(false);
-  }, []);
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["auditoria", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await supabase
+        .from("obra_audit_log")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (res.error) throw res.error;
+      return { logs: (res.data as AuditLog[]) ?? [] };
+    },
+  });
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  const logs = data?.logs ?? [];
+
+  const fetchLogs = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["auditoria", user?.id] });
+  }, [queryClient, user?.id]);
+
   useRealtimeSubscription("obra_audit_log", fetchLogs);
 
   const filtered = logs.filter((l) => {
