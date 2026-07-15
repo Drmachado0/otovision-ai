@@ -1,137 +1,18 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency } from "@/lib/formatters";
-import {
-  Plus, Search, Star, Building2, Phone, Mail, MapPin,
-  CreditCard, Copy, ToggleLeft, ToggleRight, Pencil, Trash2, Users,
-} from "lucide-react";
+import { Plus, Search, Star, Building2, CreditCard, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-
-interface Fornecedor {
-  id: string;
-  user_id: string;
-  nome: string;
-  cnpj: string;
-  telefone: string;
-  email: string;
-  endereco: string;
-  banco: string;
-  agencia: string;
-  conta: string;
-  pix: string;
-  tipo_pix: string;
-  avaliacao: number;
-  observacoes: string;
-  ativo: boolean;
-  created_at: string;
-  deleted_at: string | null;
-}
-
-interface Transacao {
-  id: string;
-  tipo: string;
-  valor: number;
-  data: string;
-  descricao: string;
-  categoria: string;
-  observacoes: string;
-}
-
-const TIPOS_PIX = ["CPF", "CNPJ", "Email", "Telefone", "Aleatória"];
-
-const StarRating = memo(function StarRating({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => (
-        <button
-          key={s}
-          type="button"
-          className={onChange ? "cursor-pointer hover:scale-110 transition-transform" : "cursor-default"}
-          onClick={() => onChange?.(s)}
-        >
-          <Star
-            className={`w-4 h-4 ${s <= value ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`}
-          />
-        </button>
-      ))}
-    </div>
-  );
-});
-
-interface FornecedorCardProps {
-  fornecedor: Fornecedor;
-  gasto: number;
-  index: number;
-  onSelect: (f: Fornecedor) => void;
-  onEdit: (f: Fornecedor) => void;
-  onToggleAtivo: (f: Fornecedor) => void;
-}
-
-const FornecedorCard = memo(function FornecedorCard({
-  fornecedor: forn,
-  gasto,
-  index: i,
-  onSelect,
-  onEdit,
-  onToggleAtivo,
-}: FornecedorCardProps) {
-  return (
-    <div
-      className={`glass-card p-5 cursor-pointer transition-all hover:scale-[1.02] animate-fade-in-up ${!forn.ativo ? "opacity-50" : ""}`}
-      style={{ animationDelay: `${i * 80}ms` }}
-      onClick={() => onSelect(forn)}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm">{forn.nome}</h3>
-            {forn.cnpj && <p className="text-xs text-muted-foreground">{forn.cnpj}</p>}
-          </div>
-        </div>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit(forn); }}>
-            <Pencil className="w-3 h-3" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onToggleAtivo(forn); }}>
-            {forn.ativo ? <ToggleRight className="w-4 h-4 text-success" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {forn.telefone && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Phone className="w-3 h-3" />
-            <span>{forn.telefone}</span>
-          </div>
-        )}
-        <div className="flex items-center justify-between">
-          <StarRating value={forn.avaliacao || 0} />
-          <span className={`text-sm font-semibold ${gasto > 0 ? "text-warning" : "text-muted-foreground"}`}>
-            {formatCurrency(gasto)}
-          </span>
-        </div>
-        {!forn.ativo && (
-          <Badge variant="secondary" className="text-xs">Inativo</Badge>
-        )}
-      </div>
-    </div>
-  );
-});
+import { FornecedorCard } from "./fornecedores/FornecedorCard";
+import { FornecedorDetailSheet } from "./fornecedores/FornecedorDetailSheet";
+import { FornecedorFormDialog } from "./fornecedores/FornecedorFormDialog";
+import { EMPTY_FORM, type Fornecedor, type Transacao } from "./fornecedores/types";
 
 export default function FornecedoresPage() {
   const { user } = useAuth();
@@ -143,20 +24,7 @@ export default function FornecedoresPage() {
   const debouncedSearch = useDebounce(search, 300);
   const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState({
-    nome: "",
-    cnpj: "",
-    telefone: "",
-    email: "",
-    endereco: "",
-    banco: "",
-    agencia: "",
-    conta: "",
-    pix: "",
-    tipo_pix: "CPF",
-    avaliacao: 5,
-    observacoes: "",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const { data, isLoading: loading, isError } = useQuery({
     queryKey: ["fornecedores-page", user?.id],
@@ -227,11 +95,7 @@ export default function FornecedoresPage() {
     return f.nome?.toLowerCase().includes(s) || f.cnpj?.toLowerCase().includes(s);
   });
 
-  const resetForm = () => setForm({
-    nome: "", cnpj: "", telefone: "", email: "", endereco: "",
-    banco: "", agencia: "", conta: "", pix: "", tipo_pix: "CPF",
-    avaliacao: 5, observacoes: "",
-  });
+  const resetForm = () => setForm(EMPTY_FORM);
 
   const handleSelect = useCallback((f: Fornecedor) => setDetalheFornecedor(f), []);
 
@@ -380,232 +244,25 @@ export default function FornecedoresPage() {
       )}
 
       {/* Detail Sheet */}
-      <Sheet open={!!detalheFornecedor} onOpenChange={(open) => !open && setDetalheFornecedor(null)}>
-        <SheetContent className="w-full sm:max-w-lg bg-card border-border overflow-y-auto">
-          {detalheFornecedor && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  {detalheFornecedor.nome}
-                </SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-4">
-                {/* Info */}
-                <div className="grid grid-cols-2 gap-3">
-                  {detalheFornecedor.cnpj && (
-                    <div className="p-3 rounded-lg bg-secondary/30">
-                      <p className="text-xs text-muted-foreground">CNPJ</p>
-                      <p className="text-sm font-medium">{detalheFornecedor.cnpj}</p>
-                    </div>
-                  )}
-                  <div className="p-3 rounded-lg bg-secondary/30">
-                    <p className="text-xs text-muted-foreground">Avaliacao</p>
-                    <StarRating value={detalheFornecedor.avaliacao || 0} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {detalheFornecedor.telefone && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/30">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Telefone</p>
-                        <p className="text-sm font-medium">{detalheFornecedor.telefone}</p>
-                      </div>
-                    </div>
-                  )}
-                  {detalheFornecedor.email && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/30">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">E-mail</p>
-                        <p className="text-sm font-medium">{detalheFornecedor.email}</p>
-                      </div>
-                    </div>
-                  )}
-                  {detalheFornecedor.endereco && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/30">
-                      <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Endereco</p>
-                        <p className="text-sm font-medium">{detalheFornecedor.endereco}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Banking */}
-                {(detalheFornecedor.banco || detalheFornecedor.pix) && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <CreditCard className="w-4 h-4" /> Dados Bancarios
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {detalheFornecedor.banco && (
-                        <div className="p-3 rounded-lg bg-secondary/30">
-                          <p className="text-xs text-muted-foreground">Banco</p>
-                          <p className="text-sm font-medium">{detalheFornecedor.banco}</p>
-                        </div>
-                      )}
-                      {detalheFornecedor.agencia && (
-                        <div className="p-3 rounded-lg bg-secondary/30">
-                          <p className="text-xs text-muted-foreground">Agencia</p>
-                          <p className="text-sm font-medium">{detalheFornecedor.agencia}</p>
-                        </div>
-                      )}
-                      {detalheFornecedor.conta && (
-                        <div className="p-3 rounded-lg bg-secondary/30">
-                          <p className="text-xs text-muted-foreground">Conta</p>
-                          <p className="text-sm font-medium">{detalheFornecedor.conta}</p>
-                        </div>
-                      )}
-                    </div>
-                    {detalheFornecedor.pix && (
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Chave PIX ({detalheFornecedor.tipo_pix || "---"})</p>
-                          <p className="text-sm font-medium">{detalheFornecedor.pix}</p>
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(detalheFornecedor.pix)}>
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {detalheFornecedor.observacoes && (
-                  <div className="p-3 rounded-lg bg-secondary/30">
-                    <p className="text-xs text-muted-foreground mb-1">Observações</p>
-                    <p className="text-sm">{detalheFornecedor.observacoes}</p>
-                  </div>
-                )}
-
-                {/* Transaction history */}
-                <div>
-                  <h4 className="text-sm font-semibold mb-3">
-                    Historico de Transacoes ({detalheTransacoes.length} movimentacoes)
-                  </h4>
-                  {detalheTransacoes.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">Nenhuma transacao vinculada</p>
-                  ) : (
-                    <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-                      {detalheTransacoes.map((t) => (
-                        <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors">
-                          <div>
-                            <p className="text-sm font-medium">{t.descricao || t.categoria}</p>
-                            <p className="text-xs text-muted-foreground">{t.data}</p>
-                          </div>
-                          <span className="text-sm font-semibold text-destructive">
-                            - {formatCurrency(Number(t.valor))}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" className="flex-1 gap-2" onClick={() => { openEdit(detalheFornecedor); setDetalheFornecedor(null); }}>
-                    <Pencil className="w-4 h-4" /> Editar
-                  </Button>
-                  <Button variant="destructive" className="gap-2" onClick={() => softDelete(detalheFornecedor)}>
-                    <Trash2 className="w-4 h-4" /> Excluir
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+      <FornecedorDetailSheet
+        detalheFornecedor={detalheFornecedor}
+        detalheTransacoes={detalheTransacoes}
+        onClose={() => setDetalheFornecedor(null)}
+        onCopy={copyToClipboard}
+        onEdit={(f) => { openEdit(f); setDetalheFornecedor(null); }}
+        onDelete={softDelete}
+      />
 
       {/* Form Dialog */}
-      <Dialog open={showForm} onOpenChange={(open) => { if (!open) { setShowForm(false); setEditFornecedor(null); resetForm(); } }}>
-        <DialogContent className="sm:max-w-lg bg-card border-border max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editFornecedor ? "Editar Fornecedor" : "Novo Fornecedor"}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground">Nome *</Label>
-              <Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} className="mt-1" placeholder="Ex: Materiais ABC Ltda" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs text-muted-foreground">CNPJ</Label>
-                <Input value={form.cnpj} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} className="mt-1" placeholder="00.000.000/0000-00" />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Telefone</Label>
-                <Input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))} className="mt-1" placeholder="(00) 00000-0000" />
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">E-mail</Label>
-              <Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="mt-1" placeholder="contato@fornecedor.com" />
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Endereco</Label>
-              <Input value={form.endereco} onChange={(e) => setForm((f) => ({ ...f, endereco: e.target.value }))} className="mt-1" placeholder="Rua, numero, bairro, cidade" />
-            </div>
-
-            {/* Banking */}
-            <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dados Bancarios</p>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Banco</Label>
-                  <Input value={form.banco} onChange={(e) => setForm((f) => ({ ...f, banco: e.target.value }))} className="mt-1" placeholder="Ex: Bradesco" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Agencia</Label>
-                  <Input value={form.agencia} onChange={(e) => setForm((f) => ({ ...f, agencia: e.target.value }))} className="mt-1" placeholder="0000" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Conta</Label>
-                  <Input value={form.conta} onChange={(e) => setForm((f) => ({ ...f, conta: e.target.value }))} className="mt-1" placeholder="00000-0" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Tipo PIX</Label>
-                  <select value={form.tipo_pix} onChange={(e) => setForm((f) => ({ ...f, tipo_pix: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1">
-                    {TIPOS_PIX.map((t) => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Chave PIX</Label>
-                  <Input value={form.pix} onChange={(e) => setForm((f) => ({ ...f, pix: e.target.value }))} className="mt-1" placeholder="Chave PIX" />
-                </div>
-              </div>
-            </div>
-
-            {/* Rating */}
-            <div>
-              <Label className="text-xs text-muted-foreground">Avaliacao</Label>
-              <div className="mt-1">
-                <StarRating value={form.avaliacao} onChange={(v) => setForm((f) => ({ ...f, avaliacao: v }))} />
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Observações</Label>
-              <Textarea value={form.observacoes} onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))} rows={2} className="mt-1" />
-            </div>
-
-            <Button type="submit" disabled={saving} className="w-full">
-              {saving ? "Salvando..." : editFornecedor ? "Salvar Alteracoes" : "Cadastrar Fornecedor"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <FornecedorFormDialog
+        open={showForm}
+        onOpenChange={(open) => { if (!open) { setShowForm(false); setEditFornecedor(null); resetForm(); } }}
+        editing={!!editFornecedor}
+        form={form}
+        setForm={setForm}
+        saving={saving}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 }

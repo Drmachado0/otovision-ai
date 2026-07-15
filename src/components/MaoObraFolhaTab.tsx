@@ -2,63 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { CheckCircle2, Send, Calculator, Sparkles } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
 import {
   calcularFolhaMensal,
   calcularFolhaEstimada,
   aplicarExtras,
   EMPTY_EXTRAS,
   mesRefAtual,
-  type TrabalhadorEncargo,
-  type RegistroValor,
   type FolhaItemExtras,
 } from "@/lib/folhaMaoObra";
-
-interface Conta {
-  id: string;
-  nome: string;
-  tipo?: string | null;
-}
-
-interface Folha {
-  id: string;
-  mes_ref: string;
-  total_diarias: number;
-  total_fgts: number;
-  total_inss: number;
-  status: string;
-}
-
-interface Props {
-  userId: string;
-  trabalhadores: TrabalhadorEncargo[];
-  registros: RegistroValor[];
-  contas: Conta[];
-  folhas: Folha[];
-  onChange: () => void;
-}
-
-const EXTRA_FIELDS: { key: keyof FolhaItemExtras; label: string }[] = [
-  { key: "fgts", label: "FGTS" },
-  { key: "inss", label: "INSS" },
-  { key: "quinzena", label: "Quinzena" },
-  { key: "vales", label: "Vales" },
-  { key: "vale_alimentacao", label: "V. Alim." },
-  { key: "encerramento", label: "Encerram." },
-  { key: "ferias_decimo", label: "Férias/13°" },
-  { key: "horas_extras", label: "H. Extras" },
-];
+import { FolhaHeader } from "@/components/maoObraFolha/FolhaHeader";
+import { FolhaKPIs } from "@/components/maoObraFolha/FolhaKPIs";
+import { FolhaTabela } from "@/components/maoObraFolha/FolhaTabela";
+import { CustosMesCard } from "@/components/maoObraFolha/CustosMesCard";
+import { LancarEncargosDialog } from "@/components/maoObraFolha/LancarEncargosDialog";
+import type { Props } from "@/components/maoObraFolha/types";
 
 export default function MaoObraFolhaTab({
   userId,
@@ -305,245 +262,55 @@ export default function MaoObraFolhaTab({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Label className="text-sm">Mês:</Label>
-          <Input
-            type="month"
-            value={mesRef}
-            onChange={(e) => setMesRef(e.target.value)}
-            className="w-44"
-          />
-          {folhaLancada && (
-            <Badge className="badge-success gap-1">
-              <CheckCircle2 className="w-3 h-3" />
-              Encargos lançados
-            </Badge>
-          )}
-          {!folhaLancada && usarEstimativa && folha.itens.length > 0 && (
-            <Badge variant="outline" className="gap-1 text-warning border-warning/40">
-              <Sparkles className="w-3 h-3" />
-              Estimativa (sem registros)
-            </Badge>
-          )}
-        </div>
-        <Button
-          size="sm"
-          onClick={() => setShowDialog(true)}
-          disabled={!!folhaLancada || folha.total_fgts + folha.total_inss === 0}
-          className="gap-1.5"
-        >
-          <Calculator className="w-4 h-4" />
-          Lançar encargos do mês
-        </Button>
-      </div>
+      <FolhaHeader
+        mesRef={mesRef}
+        onMesRefChange={setMesRef}
+        folha={folha}
+        folhaLancada={folhaLancada}
+        usarEstimativa={usarEstimativa}
+        onLancar={() => setShowDialog(true)}
+      />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <KPI label={usarEstimativa ? "Diárias est." : "Diárias"} value={folha.total_diarias} />
-        <KPI label="Encargos" value={folha.total_fgts + folha.total_inss} accent="warning" />
-        <KPI label="Adicionais" value={folha.total_extras} accent="info" />
-        <KPI label="Custos do mês" value={custosEng + exames} />
-        <KPI label="Total Geral" value={totalGeralMes} accent="primary" />
-      </div>
+      <FolhaKPIs
+        folha={folha}
+        usarEstimativa={usarEstimativa}
+        custosEng={custosEng}
+        exames={exames}
+        totalGeralMes={totalGeralMes}
+      />
 
       {/* Tabela */}
-      <div className="glass-card overflow-hidden">
-        {folha.itens.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            Nenhum trabalhador ativo para {mesRef}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/30 uppercase text-muted-foreground">
-                <tr>
-                  <th className="text-left px-3 py-2">Trabalhador</th>
-                  <th className="text-right px-2 py-2">Dias</th>
-                  <th className="text-right px-2 py-2">Bruto</th>
-                  {EXTRA_FIELDS.map((f) => (
-                    <th key={f.key} className="text-right px-2 py-2">{f.label}</th>
-                  ))}
-                  <th className="text-right px-3 py-2">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {folha.itens.map((i) => (
-                  <tr key={i.trabalhador_id} className="border-t border-border/40">
-                    <td className="px-3 py-1.5">
-                      <div className="font-medium">{i.nome}</div>
-                      <div className="text-muted-foreground text-[11px]">{i.funcao || "-"}</div>
-                    </td>
-                    <td className="px-2 py-1.5 text-right">{i.dias}</td>
-                    <td className="px-2 py-1.5 text-right">{formatCurrency(i.bruto)}</td>
-                    {EXTRA_FIELDS.map((f) => (
-                      <td key={f.key} className="px-1 py-1 text-right">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={(i[f.key] as number) || ""}
-                          onChange={(e) =>
-                            updateExtra(i.trabalhador_id, f.key, Number(e.target.value) || 0)
-                          }
-                          className="h-7 w-20 text-right text-xs px-1.5"
-                          placeholder="0"
-                        />
-                      </td>
-                    ))}
-                    <td className="px-3 py-1.5 text-right font-semibold">
-                      {formatCurrency(i.total)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-muted/20 font-semibold">
-                <tr>
-                  <td className="px-3 py-2 text-right" colSpan={2}>Subtotais</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_diarias)}</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_fgts)}</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_inss)}</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_quinzena)}</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_vales)}</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_vale_alim)}</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_encerramento)}</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_ferias)}</td>
-                  <td className="px-2 py-2 text-right">{formatCurrency(folha.total_horas_extras)}</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(folha.total_geral)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-      </div>
+      <FolhaTabela folha={folha} mesRef={mesRef} onUpdateExtra={updateExtra} />
 
       {/* Custos do mês */}
-      <div className="glass-card p-4 space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">Custos adicionais do mês</h3>
-          <p className="text-xs text-muted-foreground">
-            Lançamentos que não pertencem a um trabalhador específico
-          </p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Custos Engenharia</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={custosEng || ""}
-              onChange={(e) => setCustosEng(Number(e.target.value) || 0)}
-              onBlur={() => handleCustosBlur("eng")}
-              placeholder="0,00"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Exames Funcionários</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={exames || ""}
-              onChange={(e) => setExames(Number(e.target.value) || 0)}
-              onBlur={() => handleCustosBlur("exames")}
-              placeholder="0,00"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Subtotal Folha</Label>
-            <div className="h-10 flex items-center px-3 rounded-md border border-border/40 bg-muted/20 text-sm">
-              {formatCurrency(folha.total_geral)}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-primary">TOTAL GERAL</Label>
-            <div className="h-10 flex items-center px-3 rounded-md border border-primary/40 bg-primary/10 text-sm font-bold text-primary">
-              {formatCurrency(totalGeralMes)}
-            </div>
-          </div>
-        </div>
-      </div>
+      <CustosMesCard
+        folha={folha}
+        custosEng={custosEng}
+        exames={exames}
+        totalGeralMes={totalGeralMes}
+        onCustosEngChange={setCustosEng}
+        onExamesChange={setExames}
+        onCustosBlur={handleCustosBlur}
+      />
 
       {/* Dialog encargos */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="glass-card sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Lançar encargos — {mesRef}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              Os valores foram calculados automaticamente. Você pode ajustar antes de confirmar.
-            </p>
-            <div className="space-y-2">
-              <Label>Conta de pagamento</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={contaId}
-                onChange={(e) => setContaId(e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {contas.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>FGTS (R$)</Label>
-                <Input type="number" min="0" step="0.01" value={valorFgts} onChange={(e) => setValorFgts(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>INSS (R$)</Label>
-                <Input type="number" min="0" step="0.01" value={valorInss} onChange={(e) => setValorInss(e.target.value)} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Data de vencimento</Label>
-              <Input type="date" value={dataPag} onChange={(e) => setDataPag(e.target.value)} />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setShowDialog(false)}>
-                Cancelar
-              </Button>
-              <Button className="flex-1 gap-1.5" onClick={handleLancar} disabled={saving}>
-                <Send className="w-4 h-4" />
-                {saving ? "Lançando..." : "Confirmar"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function KPI({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent?: "primary" | "warning" | "info";
-}) {
-  const cls =
-    accent === "warning"
-      ? "stat-card-warning"
-      : accent === "info"
-      ? "stat-card-info"
-      : accent === "primary"
-      ? "stat-card-success"
-      : "glass-card";
-  const color =
-    accent === "warning"
-      ? "text-warning"
-      : accent === "info"
-      ? "text-info"
-      : accent === "primary"
-      ? "text-primary"
-      : "";
-  return (
-    <div className={`${cls} p-4`}>
-      <p className="text-xs text-muted-foreground uppercase">{label}</p>
-      <p className={`text-lg font-bold ${color}`}>{formatCurrency(value)}</p>
+      <LancarEncargosDialog
+        open={showDialog}
+        onOpenChange={setShowDialog}
+        mesRef={mesRef}
+        contas={contas}
+        contaId={contaId}
+        onContaIdChange={setContaId}
+        valorFgts={valorFgts}
+        onValorFgtsChange={setValorFgts}
+        valorInss={valorInss}
+        onValorInssChange={setValorInss}
+        dataPag={dataPag}
+        onDataPagChange={setDataPag}
+        saving={saving}
+        onLancar={handleLancar}
+      />
     </div>
   );
 }
