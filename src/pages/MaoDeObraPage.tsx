@@ -1,219 +1,31 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
-import { formatCurrency, formatDate, todayLocalISO } from "@/lib/formatters";
-import {
-  Plus,
-  Users,
-  HardHat,
-  Clock,
-  DollarSign,
-  Phone,
-  Calendar,
-  Pencil,
-  ToggleLeft,
-  ToggleRight,
-  Search,
-} from "lucide-react";
+import { formatCurrency } from "@/lib/formatters";
+import { Plus, Users, HardHat, DollarSign, Calendar, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import MaoObraFolhaTab from "@/components/MaoObraFolhaTab";
 import MaoObraFolhasMensaisTab from "@/components/MaoObraFolhasMensaisTab";
 import MaoObraHistoricoChart from "@/components/MaoObraHistoricoChart";
 import { agruparPorMes, ultimosMeses } from "@/lib/folhaMaoObra";
-
-interface Trabalhador {
-  id: string;
-  user_id: string;
-  nome: string;
-  funcao: string;
-  telefone: string;
-  valor_diaria: number;
-  valor_hora: number;
-  tipo_contrato: string;
-  etapa_id: string | null;
-  ativo: boolean;
-  data_inicio: string;
-  data_fim: string | null;
-  observacoes: string;
-  incide_encargos: boolean;
-  aliquota_fgts: number;
-  aliquota_inss: number;
-  created_at: string;
-  deleted_at: string | null;
-}
-
-interface Registro {
-  id: string;
-  user_id: string;
-  trabalhador_id: string;
-  data: string;
-  horas: number;
-  valor: number;
-  etapa: string;
-  observacoes: string;
-  created_at: string;
-}
-
-interface Folha {
-  id: string;
-  mes_ref: string;
-  total_diarias: number;
-  total_fgts: number;
-  total_inss: number;
-  total_quinzena?: number | null;
-  total_vales?: number | null;
-  total_vale_alim?: number | null;
-  total_encerramento?: number | null;
-  total_ferias?: number | null;
-  total_horas_extras?: number | null;
-  total_geral?: number | null;
-  status: string;
-}
-
-interface Conta {
-  id: string;
-  nome: string;
-  tipo: string | null;
-}
-
-const EMPTY_FORM = {
-  nome: "",
-  funcao: "",
-  telefone: "",
-  valor_diaria: "",
-  valor_hora: "",
-  tipo_contrato: "Diária",
-  data_inicio: todayLocalISO(),
-  observacoes: "",
-  incide_encargos: false,
-  aliquota_fgts: "8",
-  aliquota_inss: "20",
-};
-
-const EMPTY_REGISTRO = {
-  data: todayLocalISO(),
-  horas: "",
-  observacoes: "",
-};
-
-interface TrabalhadorCardProps {
-  trabalhador: Trabalhador;
-  onOpenDetail: (t: Trabalhador) => void;
-  onEdit: (t: Trabalhador) => void;
-  onToggleAtivo: (t: Trabalhador) => void;
-}
-
-const TrabalhadorCard = memo(function TrabalhadorCard({
-  trabalhador: t,
-  onOpenDetail,
-  onEdit,
-  onToggleAtivo,
-}: TrabalhadorCardProps) {
-  return (
-    <div
-      className="glass-card-interactive p-5 space-y-3 animate-fade-in-up cursor-pointer"
-      onClick={() => onOpenDetail(t)}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="font-semibold truncate">{t.nome}</h3>
-          {t.funcao && (
-            <Badge variant="secondary" className="mt-1 text-xs">
-              <HardHat className="w-3 h-3 mr-1" />
-              {t.funcao}
-            </Badge>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <Badge className={t.ativo ? "badge-success" : "badge-muted"}>
-            {t.ativo ? "Ativo" : "Inativo"}
-          </Badge>
-          {t.incide_encargos && (
-            <Badge variant="outline" className="text-[10px]">
-              FGTS+INSS
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-1.5 text-sm text-muted-foreground">
-        {t.telefone && (
-          <div className="flex items-center gap-2">
-            <Phone className="w-3.5 h-3.5" />
-            <span>{t.telefone}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <DollarSign className="w-3.5 h-3.5" />
-          <span className="font-medium text-foreground">
-            {formatCurrency(t.valor_diaria ?? 0)}
-          </span>
-          <span className="text-xs">/diária</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Clock className="w-3.5 h-3.5" />
-          <Badge variant="outline" className="text-xs">
-            {t.tipo_contrato || "Diária"}
-          </Badge>
-        </div>
-      </div>
-
-      <div
-        className="flex items-center gap-2 pt-1 border-t border-border/50"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onEdit(t)}
-          className="gap-1 text-xs"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-          Editar
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onToggleAtivo(t)}
-          className="gap-1 text-xs"
-        >
-          {t.ativo ? (
-            <>
-              <ToggleRight className="w-3.5 h-3.5" />
-              Desativar
-            </>
-          ) : (
-            <>
-              <ToggleLeft className="w-3.5 h-3.5" />
-              Ativar
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-});
+import { TrabalhadorCard } from "./maoDeObra/TrabalhadorCard";
+import { TrabalhadorFormDialog } from "./maoDeObra/TrabalhadorFormDialog";
+import { TrabalhadorDetailSheet } from "./maoDeObra/TrabalhadorDetailSheet";
+import { HistoricoFolhasTable } from "./maoDeObra/HistoricoFolhasTable";
+import {
+  EMPTY_FORM,
+  EMPTY_REGISTRO,
+  type Trabalhador,
+  type Registro,
+  type Folha,
+  type Conta,
+} from "./maoDeObra/types";
 
 export default function MaoDeObraPage() {
   const { user } = useAuth();
@@ -372,6 +184,11 @@ export default function MaoDeObraPage() {
     setShowForm(true);
   };
 
+  const closeForm = () => {
+    setShowForm(false);
+    resetForm();
+  };
+
   const openEdit = useCallback((t: Trabalhador) => {
     setEditingId(t.id);
     setForm({
@@ -381,7 +198,7 @@ export default function MaoDeObraPage() {
       valor_diaria: String(t.valor_diaria ?? ""),
       valor_hora: String(t.valor_hora ?? ""),
       tipo_contrato: t.tipo_contrato ?? "Diária",
-      data_inicio: t.data_inicio ?? todayLocalISO(),
+      data_inicio: t.data_inicio ?? EMPTY_FORM.data_inicio,
       observacoes: t.observacoes ?? "",
       incide_encargos: !!t.incide_encargos,
       aliquota_fgts: String(t.aliquota_fgts ?? "8"),
@@ -722,461 +539,32 @@ export default function MaoDeObraPage() {
         {/* ---- Histórico ---- */}
         <TabsContent value="historico" className="space-y-4 mt-4">
           <MaoObraHistoricoChart data={dadosGrafico} />
-          <div className="glass-card p-4 space-y-2">
-            <h3 className="text-sm font-semibold mb-2">Folhas lançadas</h3>
-            {folhas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma folha lançada ainda.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="text-left px-2 py-1">Mês</th>
-                      <th className="text-right px-2 py-1">Diárias</th>
-                      <th className="text-right px-2 py-1">FGTS</th>
-                      <th className="text-right px-2 py-1">INSS</th>
-                      <th className="text-right px-2 py-1">Extras</th>
-                      <th className="text-right px-2 py-1">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {folhas.map((f) => {
-                      const extras =
-                        Number(f.total_quinzena ?? 0) +
-                        Number(f.total_vales ?? 0) +
-                        Number(f.total_vale_alim ?? 0) +
-                        Number(f.total_encerramento ?? 0) +
-                        Number(f.total_ferias ?? 0) +
-                        Number(f.total_horas_extras ?? 0);
-                      const total =
-                        Number(f.total_geral ?? 0) ||
-                        Number(f.total_diarias) + Number(f.total_fgts) + Number(f.total_inss) + extras;
-                      return (
-                        <tr key={f.id} className="border-t border-border/40">
-                          <td className="px-2 py-1 font-medium">{f.mes_ref}</td>
-                          <td className="px-2 py-1 text-right">{formatCurrency(Number(f.total_diarias))}</td>
-                          <td className="px-2 py-1 text-right text-warning">{formatCurrency(Number(f.total_fgts))}</td>
-                          <td className="px-2 py-1 text-right text-info">{formatCurrency(Number(f.total_inss))}</td>
-                          <td className="px-2 py-1 text-right text-accent-foreground">{formatCurrency(extras)}</td>
-                          <td className="px-2 py-1 text-right font-semibold">{formatCurrency(total)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <HistoricoFolhasTable folhas={folhas} />
         </TabsContent>
       </Tabs>
 
       {/* Create / Edit Dialog */}
-      <Dialog
+      <TrabalhadorFormDialog
         open={showForm}
-        onOpenChange={(open) => {
-          if (!open) {
-            setShowForm(false);
-            resetForm();
-          }
-        }}
-      >
-        <DialogContent className="glass-card sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingId ? "Editar Trabalhador" : "Novo Trabalhador"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
-              <Input
-                id="nome"
-                placeholder="Nome completo"
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="funcao">Função</Label>
-              <Input
-                id="funcao"
-                placeholder="Ex: Pedreiro, Eletricista..."
-                value={form.funcao}
-                onChange={(e) => setForm({ ...form, funcao: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="telefone">Telefone</Label>
-              <Input
-                id="telefone"
-                placeholder="(00) 00000-0000"
-                value={form.telefone}
-                onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="valor_diaria">Valor Diária (R$)</Label>
-                <Input
-                  id="valor_diaria"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={form.valor_diaria}
-                  onChange={(e) =>
-                    setForm({ ...form, valor_diaria: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="valor_hora">Valor Hora (R$)</Label>
-                <Input
-                  id="valor_hora"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={form.valor_hora}
-                  onChange={(e) =>
-                    setForm({ ...form, valor_hora: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="tipo_contrato">Tipo de Contrato</Label>
-                <select
-                  id="tipo_contrato"
-                  value={form.tipo_contrato}
-                  onChange={(e) =>
-                    setForm({ ...form, tipo_contrato: e.target.value })
-                  }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option>Diária</option>
-                  <option>Hora</option>
-                  <option>Mensal</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="data_inicio">Data Início</Label>
-                <Input
-                  id="data_inicio"
-                  type="date"
-                  value={form.data_inicio}
-                  onChange={(e) =>
-                    setForm({ ...form, data_inicio: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Input
-                id="observacoes"
-                placeholder="Anotações sobre o trabalhador..."
-                value={form.observacoes}
-                onChange={(e) =>
-                  setForm({ ...form, observacoes: e.target.value })
-                }
-              />
-            </div>
-
-            {/* Encargos */}
-            <div className="space-y-3 rounded-md border border-border/50 p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm">Calcular encargos (FGTS / INSS)</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Inclui este trabalhador no lançamento mensal de encargos
-                  </p>
-                </div>
-                <Switch
-                  checked={form.incide_encargos}
-                  onCheckedChange={(v) => setForm({ ...form, incide_encargos: v })}
-                />
-              </div>
-              {form.incide_encargos && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="aliquota_fgts">FGTS (%)</Label>
-                    <Input
-                      id="aliquota_fgts"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.aliquota_fgts}
-                      onChange={(e) => setForm({ ...form, aliquota_fgts: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="aliquota_inss">INSS (%)</Label>
-                    <Input
-                      id="aliquota_inss"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.aliquota_inss}
-                      onChange={(e) => setForm({ ...form, aliquota_inss: e.target.value })}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" className="flex-1" disabled={saving}>
-                {saving
-                  ? "Salvando..."
-                  : editingId
-                  ? "Atualizar"
-                  : "Criar"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+        editingId={editingId}
+        form={form}
+        setForm={setForm}
+        saving={saving}
+        onSubmit={handleSubmit}
+        onClose={closeForm}
+      />
 
       {/* Worker Detail Sheet */}
-      <Sheet
-        open={!!selectedTrabalhador}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTrabalhador(null);
-        }}
-      >
-        <SheetContent className="sm:max-w-lg overflow-y-auto">
-          {selectedTrabalhador && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <HardHat className="w-5 h-5 text-primary" />
-                  {selectedTrabalhador.nome}
-                </SheetTitle>
-              </SheetHeader>
-
-              <div className="space-y-6 mt-6">
-                {/* Worker info summary */}
-                <div className="glass-card p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Função
-                    </span>
-                    <span className="text-sm font-medium">
-                      {selectedTrabalhador.funcao || "-"}
-                    </span>
-                  </div>
-                  {selectedTrabalhador.telefone && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Telefone
-                      </span>
-                      <span className="text-sm font-medium flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" />
-                        {selectedTrabalhador.telefone}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Valor Diária
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(selectedTrabalhador.valor_diaria ?? 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Valor Hora
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(selectedTrabalhador.valor_hora ?? 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Contrato
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {selectedTrabalhador.tipo_contrato || "Diária"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Início
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatDate(selectedTrabalhador.data_inicio)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Status
-                    </span>
-                    <Badge
-                      className={
-                        selectedTrabalhador.ativo
-                          ? "badge-success"
-                          : "badge-muted"
-                      }
-                    >
-                      {selectedTrabalhador.ativo ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Monthly cost summary */}
-                <div className="glass-card p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="w-4 h-4 text-primary" />
-                    <span className="text-xs text-muted-foreground uppercase">
-                      Custo do Mês
-                    </span>
-                  </div>
-                  <p className="text-xl font-bold">
-                    {formatCurrency(workerCustoMes)}
-                  </p>
-                </div>
-
-                {/* Registrar Dia form */}
-                <div className="glass-card p-4 space-y-3">
-                  <h4 className="text-sm font-semibold flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-primary" />
-                    Registrar Dia
-                  </h4>
-                  <form onSubmit={handleRegistro} className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          Data
-                        </Label>
-                        <Input
-                          type="date"
-                          value={registroForm.data}
-                          onChange={(e) =>
-                            setRegistroForm({
-                              ...registroForm,
-                              data: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          Horas
-                        </Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          placeholder="8"
-                          value={registroForm.horas}
-                          onChange={(e) =>
-                            setRegistroForm({
-                              ...registroForm,
-                              horas: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        Observações
-                      </Label>
-                      <Input
-                        placeholder="Ex: Serviço de alvenaria..."
-                        value={registroForm.observacoes}
-                        onChange={(e) =>
-                          setRegistroForm({
-                            ...registroForm,
-                            observacoes: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    {/* Auto-calc preview */}
-                    <div className="text-xs text-muted-foreground">
-                      Valor estimado:{" "}
-                      <span className="font-semibold text-foreground">
-                        {formatCurrency(
-                          selectedTrabalhador.tipo_contrato === "Hora"
-                            ? (Number(registroForm.horas) || 0) *
-                                (selectedTrabalhador.valor_hora || 0)
-                            : selectedTrabalhador.valor_diaria || 0
-                        )}
-                      </span>
-                    </div>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="w-full gap-1.5"
-                      disabled={savingRegistro}
-                    >
-                      <Plus className="w-4 h-4" />
-                      {savingRegistro ? "Salvando..." : "Registrar Dia"}
-                    </Button>
-                  </form>
-                </div>
-
-                {/* Recent registros */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-primary" />
-                    Registros Recentes
-                  </h4>
-                  {workerRegistros.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Nenhum registro encontrado
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {workerRegistros.map((r) => (
-                        <div
-                          key={r.id}
-                          className="glass-card p-3 flex items-center justify-between animate-fade-in-up"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">
-                              {formatDate(r.data)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {r.horas}h
-                              {r.observacoes ? ` - ${r.observacoes}` : ""}
-                            </p>
-                          </div>
-                          <span className="text-sm font-semibold">
-                            {formatCurrency(r.valor ?? 0)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+      <TrabalhadorDetailSheet
+        trabalhador={selectedTrabalhador}
+        onClose={() => setSelectedTrabalhador(null)}
+        workerCustoMes={workerCustoMes}
+        workerRegistros={workerRegistros}
+        registroForm={registroForm}
+        setRegistroForm={setRegistroForm}
+        savingRegistro={savingRegistro}
+        onRegistro={handleRegistro}
+      />
     </div>
   );
 }
