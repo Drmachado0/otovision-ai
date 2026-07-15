@@ -5,8 +5,10 @@
 //   - opcionalmente envia uma cópia para o Google Drive central
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
+const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "*";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Vary": "Origin",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 

@@ -22,6 +22,34 @@ function parseOFXDate(raw: string): string {
   return raw;
 }
 
+// TRNTYPEs que representam saída de dinheiro (débitos) segundo o padrão OFX.
+const OFX_DEBIT_TYPES = new Set([
+  "DEBIT",
+  "PAYMENT",
+  "FEE",
+  "SRVCHG",
+  "ATM",
+  "POS",
+  "CASH",
+  "DIRECTDEBIT",
+  "CHECK",
+  "REPEATPMT",
+]);
+
+/**
+ * Classifica uma transação OFX em Entrada/Saída.
+ *
+ * Regra: um valor negativo é sempre saída (nenhum banco emite crédito
+ * negativo). Quando o valor vem positivo, alguns bancos (especialmente BR)
+ * não sinalizam débitos — então usamos o TRNTYPE para desambiguar. Sem sinal
+ * nem TRNTYPE de débito reconhecido, assume Entrada.
+ */
+function classificarOFX(trntype: string, valor: number): "Entrada" | "Saída" {
+  if (valor < 0) return "Saída";
+  if (OFX_DEBIT_TYPES.has(trntype.toUpperCase().trim())) return "Saída";
+  return "Entrada";
+}
+
 function extractTag(content: string, tag: string): string {
   // SGML style: <TAG>value\n or <TAG>value<
   const sgml = new RegExp(`<${tag}>([^<\\n]+)`, "i");
@@ -61,7 +89,7 @@ export function parseOFX(content: string): ExtractedTransaction[] {
       data: parseOFXDate(dtposted),
       descricao: memo,
       valor: Math.abs(valor),
-      tipo: valor >= 0 ? "Entrada" : "Saída",
+      tipo: classificarOFX(trntype, valor),
       fitId: fitid,
     });
   }

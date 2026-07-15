@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { addIntervalClamped, parseLocalDate } from "./dateUtils";
 
 interface RecurringTransaction {
   id: string;
@@ -18,24 +19,6 @@ interface RecurringTransaction {
   recorrencia_max_ocorrencias: number | null;
   recorrencia_ocorrencias_criadas: number;
   recorrencia_fim: string | null;
-}
-
-function addInterval(date: Date, freq: string): Date {
-  const next = new Date(date);
-  switch (freq) {
-    case "Mensal":
-      next.setMonth(next.getMonth() + 1);
-      break;
-    case "Trimestral":
-      next.setMonth(next.getMonth() + 3);
-      break;
-    case "Anual":
-      next.setFullYear(next.getFullYear() + 1);
-      break;
-    default:
-      next.setMonth(next.getMonth() + 1);
-  }
-  return next;
 }
 
 /**
@@ -65,7 +48,7 @@ export async function processRecurrences(): Promise<number> {
     if (mom.recorrencia_max_ocorrencias && mom.recorrencia_ocorrencias_criadas >= mom.recorrencia_max_ocorrencias) {
       continue;
     }
-    if (mom.recorrencia_fim && new Date(mom.recorrencia_fim) < today) {
+    if (mom.recorrencia_fim && parseLocalDate(mom.recorrencia_fim) < today) {
       // Deactivate expired recurrence
       await supabase.from("obra_transacoes_fluxo").update({ recorrencia_ativa: false }).eq("id", mom.id);
       continue;
@@ -82,12 +65,13 @@ export async function processRecurrences(): Promise<number> {
       .maybeSingle();
 
     const latestRow = latest as unknown as { data_vencimento?: string | null } | null;
-    const lastVencimento = latestRow?.data_vencimento
-      ? new Date(latestRow.data_vencimento)
-      : (mom.data_vencimento ? new Date(mom.data_vencimento) : new Date(mom.data));
+    const lastVencimentoISO = latestRow?.data_vencimento
+      ?? mom.data_vencimento
+      ?? mom.data;
 
-    // Calculate next due date
-    const nextVencimento = addInterval(lastVencimento, freq);
+    // Calculate next due date (clamp de fim de mês, sem drift de timezone)
+    const nextVencimentoISO = addIntervalClamped(lastVencimentoISO, freq);
+    const nextVencimento = parseLocalDate(nextVencimentoISO);
 
     // Only create if next occurrence is within 30 days from now
     const thirtyDaysFromNow = new Date(today);
@@ -99,7 +83,7 @@ export async function processRecurrences(): Promise<number> {
         tipo: mom.tipo,
         valor: mom.valor,
         data: mom.data,
-        data_vencimento: nextVencimento.toISOString().split("T")[0],
+        data_vencimento: nextVencimentoISO,
         categoria: mom.categoria,
         descricao: mom.descricao,
         forma_pagamento: mom.forma_pagamento,

@@ -1,6 +1,8 @@
 // Helper to build payloads for obra_transacoes_fluxo inserts
 // Centralizes Única / Parcelada / Recorrente logic so multiple screens share the same shape.
 
+import { addMonthsClamped } from "./dateUtils";
+
 export type RecorrenciaTipo = "Única" | "Parcelada" | "Recorrente";
 
 export interface BuildLancamentoInput {
@@ -32,14 +34,12 @@ export function buildLancamentos(input: BuildLancamentoInput): Record<string, un
     const valorParcela = Math.round((input.valor / n) * 100) / 100;
     const rows: Record<string, unknown>[] = [];
     for (let i = 0; i < n; i++) {
-      const venc = new Date(input.data_vencimento);
-      venc.setMonth(venc.getMonth() + i);
       rows.push({
         user_id: input.user_id,
         tipo: input.tipo,
         valor: i === n - 1 ? input.valor - valorParcela * (n - 1) : valorParcela,
         data: input.data,
-        data_vencimento: venc.toISOString().split("T")[0],
+        data_vencimento: addMonthsClamped(input.data_vencimento, i),
         categoria: input.categoria,
         descricao: input.descricao,
         forma_pagamento: input.forma_pagamento,

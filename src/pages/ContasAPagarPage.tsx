@@ -164,8 +164,7 @@ export default function ContasAPagarPage() {
   useEffect(() => {
     const onFocus = () => fetchData();
     window.addEventListener("focus", onFocus);
-    const interval = setInterval(fetchData, 30000);
-    return () => { window.removeEventListener("focus", onFocus); clearInterval(interval); };
+    return () => { window.removeEventListener("focus", onFocus); };
   }, [fetchData]);
   useRealtimeSubscription("obra_transacoes_fluxo", fetchData);
   useRealtimeSubscription("obra_compras", fetchData);
