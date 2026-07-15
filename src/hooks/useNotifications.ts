@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useRealtimeSubscription } from "./useRealtimeSubscription";
@@ -16,36 +17,37 @@ export interface Notification {
 
 export function useNotifications() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const queryClient = useQueryClient();
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("obra_notificacoes")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("obra_notificacoes")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data as Notification[]) ?? [];
+    },
+  });
 
-    if (data) {
-      setNotifications(data as Notification[]);
-      setUnreadCount(data.filter((n) => (n as Notification).status === "nao_lida").length);
-    }
-  }, [user]);
+  const unreadCount = notifications.filter((n) => n.status === "nao_lida").length;
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] });
+  }, [queryClient, user?.id]);
 
-  useRealtimeSubscription("obra_notificacoes", fetchNotifications);
+  useRealtimeSubscription("obra_notificacoes", refresh);
 
   const markAsRead = async (id: string) => {
     await supabase
       .from("obra_notificacoes")
       .update({ status: "lida", read_at: new Date().toISOString() } as any)
       .eq("id", id);
-    fetchNotifications();
+    refresh();
   };
 
   const markAllAsRead = async () => {
@@ -55,8 +57,8 @@ export function useNotifications() {
       .update({ status: "lida", read_at: new Date().toISOString() } as any)
       .eq("user_id", user.id)
       .eq("status", "nao_lida");
-    fetchNotifications();
+    refresh();
   };
 
-  return { notifications, unreadCount, markAsRead, markAllAsRead, refresh: fetchNotifications };
+  return { notifications, unreadCount, markAsRead, markAllAsRead, refresh };
 }

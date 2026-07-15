@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
@@ -6,16 +7,18 @@ import { CATEGORIAS_PADRAO } from "@/lib/formatters";
 
 export function useCategorias() {
   const { user } = useAuth();
-  const [categorias, setCategorias] = useState<string[]>(CATEGORIAS_PADRAO);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchCategorias = useCallback(async () => {
-    const { data, error } = await (supabase as any)
-      .from("obra_categorias")
-      .select("nome")
-      .is("deleted_at", null)
-      .order("nome", { ascending: true });
-    if (!error && data) {
+  const { data: categorias = CATEGORIAS_PADRAO, isLoading: loading } = useQuery({
+    queryKey: ["categorias", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("obra_categorias")
+        .select("nome")
+        .is("deleted_at", null)
+        .order("nome", { ascending: true });
+      if (error) throw error;
       const nomes = (data as { nome: string }[]).map((c) => c.nome);
       // merge defaults + custom (dedup, case-insensitive)
       const all = [...CATEGORIAS_PADRAO, ...nomes];
@@ -29,13 +32,15 @@ export function useCategorias() {
         }
       }
       merged.sort((a, b) => a.localeCompare(b, "pt-BR"));
-      setCategorias(merged);
-    }
-    setLoading(false);
-  }, []);
+      return merged;
+    },
+  });
 
-  useEffect(() => { fetchCategorias(); }, [fetchCategorias]);
-  useRealtimeSubscription("obra_categorias", fetchCategorias);
+  const refetch = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["categorias", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useRealtimeSubscription("obra_categorias", refetch);
 
   const addCategoria = useCallback(async (nome: string): Promise<string | null> => {
     const trimmed = nome.trim();
@@ -46,14 +51,10 @@ export function useCategorias() {
     const { error } = await (supabase as any)
       .from("obra_categorias")
       .insert({ user_id: user.id, nome: trimmed });
-    if (error) {
-      // pode ser unique constraint — recarrega e tenta achar
-      await fetchCategorias();
-      return trimmed;
-    }
-    await fetchCategorias();
+    // erro provável = unique constraint; de qualquer forma recarrega e devolve o nome
+    await refetch();
     return trimmed;
-  }, [user, categorias, fetchCategorias]);
+  }, [user, categorias, refetch]);
 
-  return { categorias, loading, addCategoria, refetch: fetchCategorias };
+  return { categorias, loading, addCategoria, refetch };
 }
