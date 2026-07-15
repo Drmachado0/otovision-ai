@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,9 +52,7 @@ const CORES = ["#10B981", "#3B82F6", "#EF4444", "#F59E0B", "#8B5CF6", "#EC4899",
 
 export default function ContasBancariasPage() {
   const { user } = useAuth();
-  const [contas, setContas] = useState<Conta[]>([]);
-  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editConta, setEditConta] = useState<Conta | null>(null);
   const [extratoConta, setExtratoConta] = useState<Conta | null>(null);
@@ -70,17 +69,34 @@ export default function ContasBancariasPage() {
     observacoes: "",
   });
 
-  const fetchData = useCallback(async () => {
-    const [contasRes, transRes] = await Promise.all([
-      supabase.from("obra_contas_financeiras").select("*").order("created_at", { ascending: true }),
-      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, data, descricao, categoria, conta_id" as any).is("deleted_at", null).eq("status" as any, "pago").not("conta_id", "is", null).neq("conta_id", ""),
-    ]);
-    if (contasRes.data) setContas(contasRes.data as Conta[]);
-    if (transRes.data) setTransacoes(transRes.data as unknown as Transacao[]);
-    setLoading(false);
-  }, []);
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["contas-bancarias", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const [contasRes, transRes] = await Promise.all([
+        supabase.from("obra_contas_financeiras").select("*").order("created_at", { ascending: true }),
+        supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, data, descricao, categoria, conta_id" as any).is("deleted_at", null).eq("status" as any, "pago").not("conta_id", "is", null).neq("conta_id", ""),
+      ]);
+      if (contasRes.error) throw contasRes.error;
+      if (transRes.error) throw transRes.error;
+      return {
+        contas: (contasRes.data as Conta[]) ?? [],
+        transacoes: (transRes.data as unknown as Transacao[]) ?? [],
+      };
+    },
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const contas = data?.contas ?? [];
+  const transacoes = data?.transacoes ?? [];
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["contas-bancarias", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar contas bancárias. Tentando novamente...");
+  }, [isError]);
+
   useEffect(() => {
     const onFocus = () => fetchData();
     window.addEventListener("focus", onFocus);

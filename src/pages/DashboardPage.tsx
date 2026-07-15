@@ -1,6 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { formatCurrency, formatPercent, formatDate, todayLocalISO, parseLocalDate } from "@/lib/formatters";
 import {
@@ -55,93 +57,67 @@ interface ContaRow {
 }
 
 export default function DashboardPage() {
-  const [config, setConfig] = useState<ConfigRow>({ orcamento_total: 0, area_construida: 0, data_inicio: "", data_termino: "", nome_obra: "" });
-  const [totalGasto, setTotalGasto] = useState(0);
-  const [totalEntradas, setTotalEntradas] = useState(0);
-  const [transacoes, setTransacoes] = useState<TransacaoRow[]>([]);
-  const [comprasPendentes, setComprasPendentes] = useState(0);
-  const [comprasTotal, setComprasTotal] = useState(0);
-  const [comprasAPagar, setComprasAPagar] = useState(0);
-  const [comissoesPendentes, setComissoesPendentes] = useState(0);
-  const [comissoesPagas, setComissoesPagas] = useState(0);
-  const [contas, setContas] = useState<ContaRow[]>([]);
-  const [allTransForContas, setAllTransForContas] = useState<{ tipo: string; valor: number; conta_id?: string }[]>([]);
-  const [gastosPorCategoria, setGastosPorCategoria] = useState<{ categoria: string; total: number }[]>([]);
-  const [contasPagar, setContasPagar] = useState<{ total: number; count: number; vencidas: number }>({ total: 0, count: 0, vencidas: 0 });
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedTransacao, setSelectedTransacao] = useState<TransacaoFull | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    try {
-    const [configRes, allTransRes, recentTransRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
-      supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
-      // BUG-001/003: Total Gasto = todas as transacoes (pagas + pendentes),
-      // alinhado com Previsao/Curva ABC/Relatorios/Comissao
-      supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id, status" as any).is("deleted_at", null).neq("status" as any, "cancelado"),
-      // Recent 5 for display (all statuses)
-      supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at" as any).is("deleted_at", null).order("data", { ascending: false }).limit(5),
-      supabase.from("obra_compras").select("valor_total, status_entrega, numero_parcelas, parcelas, observacoes").is("deleted_at", null),
-      supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null),
-      supabase.from("obra_contas_financeiras").select("id, nome, tipo, cor, saldo_inicial, ativa").eq("ativa", true),
-      // Contas a pagar (pending)
-      supabase.from("obra_transacoes_fluxo").select("valor, data_vencimento" as any).is("deleted_at", null).eq("status" as any, "pendente").eq("tipo", "Saída"),
-    ]);
+  const CONFIG_DEFAULT: ConfigRow = { orcamento_total: 0, area_construida: 0, data_inicio: "", data_termino: "", nome_obra: "" };
 
-    if (configRes.data) setConfig(configRes.data as ConfigRow);
+  const { data: dash, isLoading: loading, isError } = useQuery({
+    queryKey: ["dashboard", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const [configRes, allTransRes, recentTransRes, comprasRes, comissoesRes, contasRes, pendentesRes] = await Promise.all([
+        supabase.from("obra_config").select("orcamento_total, area_construida, data_inicio, data_termino, nome_obra").limit(1).maybeSingle(),
+        // BUG-001/003: Total Gasto = todas as transacoes (pagas + pendentes),
+        // alinhado com Previsao/Curva ABC/Relatorios/Comissao
+        supabase.from("obra_transacoes_fluxo").select("tipo, valor, categoria, conta_id, status" as any).is("deleted_at", null).neq("status" as any, "cancelado"),
+        // Recent 5 for display (all statuses)
+        supabase.from("obra_transacoes_fluxo").select("id, tipo, valor, categoria, data, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at" as any).is("deleted_at", null).order("data", { ascending: false }).limit(5),
+        supabase.from("obra_compras").select("valor_total, status_entrega, numero_parcelas, parcelas, observacoes").is("deleted_at", null),
+        supabase.from("obra_comissao_pagamentos").select("valor, pago").is("deleted_at", null),
+        supabase.from("obra_contas_financeiras").select("id, nome, tipo, cor, saldo_inicial, ativa").eq("ativa", true),
+        // Contas a pagar (pending)
+        supabase.from("obra_transacoes_fluxo").select("valor, data_vencimento" as any).is("deleted_at", null).eq("status" as any, "pendente").eq("tipo", "Saída"),
+      ]);
 
-    // Saldo inicial total das contas ativas (base de caixa)
-    const saldoInicialTotal = (contasRes.data ?? []).reduce(
-      (s, c: { saldo_inicial: number | string }) => s + Number(c.saldo_inicial || 0),
-      0
-    );
+      const config = (configRes.data as ConfigRow) ?? CONFIG_DEFAULT;
 
-    // Parcelas pendentes de compras (compromissos futuros que ainda não viraram lançamento no fluxo)
-    const parcelasPendentes = flattenParcelasPendentes(((comprasRes.data ?? []) as unknown) as CompraComParcelas[]);
-    const totalParcelasPend = parcelasPendentes.reduce((s, p) => s + Number(p.valor), 0);
+      // Saldo inicial total das contas ativas (base de caixa)
+      const saldoInicialTotal = (contasRes.data ?? []).reduce(
+        (s, c: { saldo_inicial: number | string }) => s + Number(c.saldo_inicial || 0),
+        0
+      );
 
-    if (allTransRes.data) {
-      const rows = allTransRes.data as unknown as { tipo: string; valor: number; categoria: string; conta_id?: string }[];
-      setAllTransForContas(rows);
+      // Parcelas pendentes de compras (compromissos futuros que ainda não viraram lançamento no fluxo)
+      const parcelasPendentes = flattenParcelasPendentes(((comprasRes.data ?? []) as unknown) as CompraComParcelas[]);
+      const totalParcelasPend = parcelasPendentes.reduce((s, p) => s + Number(p.valor), 0);
+
+      const rows = (allTransRes.data ?? []) as unknown as { tipo: string; valor: number; categoria: string; conta_id?: string }[];
       // Ajustes de saldo são meras correções contábeis — não devem entrar em Total Gasto nem Total Entradas
       const semAjuste = rows.filter(t => (t.categoria || "") !== "Ajuste de saldo");
       const saidas = semAjuste.filter(t => t.tipo === "Saída");
       // Total Gasto inclui parcelas pendentes de compras parceladas (compromissos confirmados)
-      setTotalGasto(saidas.reduce((s, t) => s + Number(t.valor), 0) + totalParcelasPend);
+      const totalGasto = saidas.reduce((s, t) => s + Number(t.valor), 0) + totalParcelasPend;
       const entradasOp = semAjuste.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
       // Total Entradas inclui o saldo inicial das contas ativas
-      setTotalEntradas(saldoInicialTotal + entradasOp);
+      const totalEntradas = saldoInicialTotal + entradasOp;
 
       // Top 5 categories by spending (inclui parcelas pendentes)
       const catMap: Record<string, number> = {};
       saidas.forEach(t => { catMap[t.categoria || "Sem categoria"] = (catMap[t.categoria || "Sem categoria"] || 0) + Number(t.valor); });
       parcelasPendentes.forEach(p => { catMap[p.categoria || "Sem categoria"] = (catMap[p.categoria || "Sem categoria"] || 0) + Number(p.valor); });
-      const sorted = Object.entries(catMap).map(([categoria, total]) => ({ categoria, total })).sort((a, b) => b.total - a.total).slice(0, 5);
-      setGastosPorCategoria(sorted);
-    }
+      const gastosPorCategoria = Object.entries(catMap).map(([categoria, total]) => ({ categoria, total })).sort((a, b) => b.total - a.total).slice(0, 5);
 
-    if (recentTransRes.data) setTransacoes(recentTransRes.data as unknown as TransacaoRow[]);
+      const resumo = calcularResumoCompras((comprasRes.data ?? []) as never);
 
-    if (comprasRes.data) {
-      const resumo = calcularResumoCompras(comprasRes.data as never);
-      setComprasTotal(resumo.totalCompromissado);
-      setComprasAPagar(resumo.totalAPagar);
-      setComprasPendentes(resumo.pendentesEntrega);
-    }
-
-    if (comissoesRes.data) {
-      const comRows = comissoesRes.data as { valor: number; pago: boolean }[];
-      const pagas = comRows.filter(x => x.pago).reduce((s, x) => s + Number(x.valor), 0);
-      const pendentes = comRows.filter(x => !x.pago).reduce((s, x) => s + Number(x.valor), 0);
-      setComissoesPagas(pagas);
+      const comRows = (comissoesRes.data ?? []) as { valor: number; pago: boolean }[];
+      const comissoesPagas = comRows.filter(x => x.pago).reduce((s, x) => s + Number(x.valor), 0);
       // Pendente reflete apenas comissões existentes (não excluídas) — exclusão reduz imediatamente.
-      setComissoesPendentes(pendentes);
-    }
+      const comissoesPendentes = comRows.filter(x => !x.pago).reduce((s, x) => s + Number(x.valor), 0);
 
-    if (contasRes.data) setContas(contasRes.data as ContaRow[]);
-
-    if (pendentesRes.data) {
-      const pRows = pendentesRes.data as unknown as { valor: number; data_vencimento: string | null }[];
+      const pRows = (pendentesRes.data ?? []) as unknown as { valor: number; data_vencimento: string | null }[];
       const todayStr = todayLocalISO();
       // Alinhado com a página Contas a Pagar:
       // total = soma de lançamentos pendentes do fluxo + valor TOTAL de todas as compras ativas
@@ -154,21 +130,51 @@ export default function DashboardPage() {
         ...pRows,
         ...parcelasVirtuais.map(p => ({ valor: p.valor, data_vencimento: p.data_vencimento })),
       ];
-      setContasPagar({
+      const contasPagar = {
         total: fluxoPendenteTotal + comprasValorTotal,
         count: pRows.length + comprasAtivas.length,
         vencidas: combinadasParaVenc.filter(r => r.data_vencimento && r.data_vencimento < todayStr).length,
-      });
-    }
+      };
 
-    } catch (err) {
-      console.error("DashboardPage fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return {
+        config,
+        allTransForContas: rows,
+        totalGasto,
+        totalEntradas,
+        gastosPorCategoria,
+        transacoes: (recentTransRes.data as unknown as TransacaoRow[]) ?? [],
+        comprasTotal: resumo.totalCompromissado,
+        comprasAPagar: resumo.totalAPagar,
+        comprasPendentes: resumo.pendentesEntrega,
+        comissoesPagas,
+        comissoesPendentes,
+        contas: (contasRes.data as ContaRow[]) ?? [],
+        contasPagar,
+      };
+    },
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const config = dash?.config ?? CONFIG_DEFAULT;
+  const totalGasto = dash?.totalGasto ?? 0;
+  const totalEntradas = dash?.totalEntradas ?? 0;
+  const transacoes = dash?.transacoes ?? [];
+  const comprasPendentes = dash?.comprasPendentes ?? 0;
+  const comprasTotal = dash?.comprasTotal ?? 0;
+  const comprasAPagar = dash?.comprasAPagar ?? 0;
+  const comissoesPendentes = dash?.comissoesPendentes ?? 0;
+  const comissoesPagas = dash?.comissoesPagas ?? 0;
+  const contas = dash?.contas ?? [];
+  const allTransForContas = dash?.allTransForContas ?? [];
+  const gastosPorCategoria = dash?.gastosPorCategoria ?? [];
+  const contasPagar = dash?.contasPagar ?? { total: 0, count: 0, vencidas: 0 };
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["dashboard", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) console.error("DashboardPage: erro ao carregar dados");
+  }, [isError]);
 
   // Re-fetch when tab/window regains focus (realtime cobre o resto).
   useEffect(() => {

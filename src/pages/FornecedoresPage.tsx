@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -134,9 +135,7 @@ const FornecedorCard = memo(function FornecedorCard({
 
 export default function FornecedoresPage() {
   const { user } = useAuth();
-  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
-  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editFornecedor, setEditFornecedor] = useState<Fornecedor | null>(null);
   const [detalheFornecedor, setDetalheFornecedor] = useState<Fornecedor | null>(null);
@@ -159,32 +158,44 @@ export default function FornecedoresPage() {
     observacoes: "",
   });
 
-  const fetchData = useCallback(async () => {
-    const [fornRes, transRes] = await Promise.all([
-      supabase
-        .from("obra_fornecedores")
-        .select("*")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("obra_transacoes_fluxo")
-        .select("id, tipo, valor, data, descricao, categoria, observacoes")
-        .is("deleted_at", null)
-        .eq("tipo", "Saída"),
-    ]);
-    if (fornRes.data) {
-      const rows = (fornRes.data as unknown as Omit<Fornecedor, "ativo" | "tipo_pix">[]).map(f => ({
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["fornecedores-page", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const [fornRes, transRes] = await Promise.all([
+        supabase
+          .from("obra_fornecedores")
+          .select("*")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("obra_transacoes_fluxo")
+          .select("id, tipo, valor, data, descricao, categoria, observacoes")
+          .is("deleted_at", null)
+          .eq("tipo", "Saída"),
+      ]);
+      if (fornRes.error) throw fornRes.error;
+      if (transRes.error) throw transRes.error;
+      const fornecedores = (fornRes.data as unknown as Omit<Fornecedor, "ativo" | "tipo_pix">[]).map(f => ({
         ...f,
         ativo: !f.deleted_at,
         tipo_pix: "",
       })) as Fornecedor[];
-      setFornecedores(rows);
-    }
-    if (transRes.data) setTransacoes(transRes.data as Transacao[]);
-    setLoading(false);
-  }, []);
+      return { fornecedores, transacoes: (transRes.data as Transacao[]) ?? [] };
+    },
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const fornecedores = data?.fornecedores ?? [];
+  const transacoes = data?.transacoes ?? [];
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["fornecedores-page", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar fornecedores. Tentando novamente...");
+  }, [isError]);
+
   useEffect(() => {
     const onFocus = () => fetchData();
     window.addEventListener("focus", onFocus);

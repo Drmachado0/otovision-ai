@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,8 +75,7 @@ const TransacaoRowItem = memo(function TransacaoRowItem({
 
 export default function FluxoCaixaPage() {
   const { user } = useAuth();
-  const [transacoes, setTransacoes] = useState<TransacaoFull[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -85,13 +85,6 @@ export default function FluxoCaixaPage() {
   const [dateTo, setDateTo] = useState("");
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalEntradas, setTotalEntradas] = useState(0);
-  const [totalSaidas, setTotalSaidas] = useState(0);
-  const [saidasPagas, setSaidasPagas] = useState(0);
-  const [saidasPendentes, setSaidasPendentes] = useState(0);
-  const [saldoInicial, setSaldoInicial] = useState(0);
-  const [entradasOperacionais, setEntradasOperacionais] = useState(0);
 
   const [selectedTransacao, setSelectedTransacao] = useState<TransacaoFull | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -119,54 +112,77 @@ export default function FluxoCaixaPage() {
 
   const [form, setForm] = useState(makeEmptyForm);
 
-  const fetchData = useCallback(async () => {
-    // BUG-006: Totais incluem pagas + pendentes (excluindo canceladas)
-    const totalsQuery = supabase
-      .from("obra_transacoes_fluxo")
-      .select("tipo, valor, status" as any)
-      .is("deleted_at", null)
-      .neq("status" as any, "cancelado");
+  const { data: fluxoData, isLoading: loading, isError } = useQuery({
+    queryKey: ["fluxo-caixa", user?.id, page, filterTipo, filterCategoria, filterStatus, dateFrom, dateTo, debouncedSearch],
+    enabled: !!user,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      // BUG-006: Totais incluem pagas + pendentes (excluindo canceladas)
+      const totalsQuery = supabase
+        .from("obra_transacoes_fluxo")
+        .select("tipo, valor, status" as any)
+        .is("deleted_at", null)
+        .neq("status" as any, "cancelado");
 
-    let query = supabase
-      .from("obra_transacoes_fluxo")
-      .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at, status, parcela_numero, parcela_total" as any, { count: "exact" })
-      .is("deleted_at", null)
-      .order("data", { ascending: false });
+      let query = supabase
+        .from("obra_transacoes_fluxo")
+        .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, origem_tipo, conciliado, recorrencia, conta_id, referencia, created_at, status, parcela_numero, parcela_total" as any, { count: "exact" })
+        .is("deleted_at", null)
+        .order("data", { ascending: false });
 
-    if (filterTipo !== "todos") query = query.eq("tipo", filterTipo);
-    if (filterCategoria !== "todos") query = query.eq("categoria", filterCategoria);
-    if (filterStatus !== "todos") query = query.eq("status" as any, filterStatus);
-    if (dateFrom) query = query.gte("data", dateFrom);
-    if (dateTo) query = query.lte("data", dateTo);
-    if (debouncedSearch) query = query.or(`descricao.ilike.%${debouncedSearch}%,categoria.ilike.%${debouncedSearch}%`);
+      if (filterTipo !== "todos") query = query.eq("tipo", filterTipo);
+      if (filterCategoria !== "todos") query = query.eq("categoria", filterCategoria);
+      if (filterStatus !== "todos") query = query.eq("status" as any, filterStatus);
+      if (dateFrom) query = query.gte("data", dateFrom);
+      if (dateTo) query = query.lte("data", dateTo);
+      if (debouncedSearch) query = query.or(`descricao.ilike.%${debouncedSearch}%,categoria.ilike.%${debouncedSearch}%`);
 
-    const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    query = query.range(from, to);
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      query = query.range(from, to);
 
-    const [{ data, count }, { data: allData }, saldoBase] = await Promise.all([
-      query,
-      totalsQuery,
-      fetchSaldoInicialTotal(),
-    ]);
-    if (data) setTransacoes(data as unknown as TransacaoFull[]);
-    if (count !== null) setTotalCount(count);
-    if (allData) {
-      const rows = allData as unknown as { tipo: string; valor: number; status?: string }[];
+      const [{ data, count, error }, { data: allData, error: totalsError }, saldoBase] = await Promise.all([
+        query,
+        totalsQuery,
+        fetchSaldoInicialTotal(),
+      ]);
+      if (error) throw error;
+      if (totalsError) throw totalsError;
+
+      const rows = (allData ?? []) as unknown as { tipo: string; valor: number; status?: string }[];
       const saidas = rows.filter(t => t.tipo === "Saída");
       const entradasOp = rows.filter(t => t.tipo === "Entrada").reduce((s, t) => s + Number(t.valor), 0);
-      setEntradasOperacionais(entradasOp);
-      setSaldoInicial(saldoBase);
-      // Entradas exibidas = saldo inicial das contas ativas + entradas registradas
-      setTotalEntradas(saldoBase + entradasOp);
-      setTotalSaidas(saidas.reduce((s, t) => s + Number(t.valor), 0));
-      setSaidasPagas(saidas.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.valor), 0));
-      setSaidasPendentes(saidas.filter(t => t.status === "pendente" || !t.status).reduce((s, t) => s + Number(t.valor), 0));
-    }
-    setLoading(false);
-  }, [page, filterTipo, filterCategoria, filterStatus, dateFrom, dateTo, debouncedSearch]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+      return {
+        transacoes: (data as unknown as TransacaoFull[]) ?? [],
+        totalCount: count ?? 0,
+        entradasOperacionais: entradasOp,
+        saldoInicial: saldoBase,
+        // Entradas exibidas = saldo inicial das contas ativas + entradas registradas
+        totalEntradas: saldoBase + entradasOp,
+        totalSaidas: saidas.reduce((s, t) => s + Number(t.valor), 0),
+        saidasPagas: saidas.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.valor), 0),
+        saidasPendentes: saidas.filter(t => t.status === "pendente" || !t.status).reduce((s, t) => s + Number(t.valor), 0),
+      };
+    },
+  });
+
+  const transacoes = fluxoData?.transacoes ?? [];
+  const totalCount = fluxoData?.totalCount ?? 0;
+  const totalEntradas = fluxoData?.totalEntradas ?? 0;
+  const totalSaidas = fluxoData?.totalSaidas ?? 0;
+  const saidasPagas = fluxoData?.saidasPagas ?? 0;
+  const saidasPendentes = fluxoData?.saidasPendentes ?? 0;
+  const saldoInicial = fluxoData?.saldoInicial ?? 0;
+  const entradasOperacionais = fluxoData?.entradasOperacionais ?? 0;
+
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["fluxo-caixa", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar o fluxo de caixa. Tentando novamente...");
+  }, [isError]);
 
   // BUG-001 fix: sync selectedTransacao with fresh data
   useEffect(() => {
