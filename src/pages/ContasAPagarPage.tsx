@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useState, useRef, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,9 +102,7 @@ const ContaRow = memo(function ContaRow({ conta: c, index: i, today, onPagar, on
 
 export default function ContasAPagarPage() {
   const { user } = useAuth();
-  const [allContas, setAllContas] = useState<ContaPagar[]>([]);
-  const [comprasRaw, setComprasRaw] = useState<Array<{ id: string; valor_total: number | string | null; status_entrega: string | null }>>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [filterVencimento, setFilterVencimento] = useState<"todos" | "hoje" | "vencidas" | "semana">("todos");
@@ -118,36 +117,56 @@ export default function ContasAPagarPage() {
 
   const today = todayLocalISO();
 
-  const fetchData = useCallback(async () => {
-    const [fluxoRes, comprasRes] = await Promise.all([
-      supabase
-        .from("obra_transacoes_fluxo")
-        .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, conta_id, status, parcela_numero, parcela_total, recorrencia, recorrencia_grupo_id, created_at" as any)
-        .is("deleted_at", null)
-        .eq("status" as any, "pendente")
-        .eq("tipo", "Saída"),
-      supabase
-        .from("obra_compras")
-        .select("id, fornecedor, descricao, categoria, conta_id, parcelas, status_entrega, valor_total, numero_parcelas")
-        .is("deleted_at", null)
-        .neq("status_entrega", "Cancelado"),
-    ]);
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["contas-a-pagar", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const [fluxoRes, comprasRes] = await Promise.all([
+        supabase
+          .from("obra_transacoes_fluxo")
+          .select("id, tipo, valor, data, data_vencimento, categoria, descricao, forma_pagamento, observacoes, conta_id, status, parcela_numero, parcela_total, recorrencia, recorrencia_grupo_id, created_at" as any)
+          .is("deleted_at", null)
+          .eq("status" as any, "pendente")
+          .eq("tipo", "Saída"),
+        supabase
+          .from("obra_compras")
+          .select("id, fornecedor, descricao, categoria, conta_id, parcelas, status_entrega, valor_total, numero_parcelas")
+          .is("deleted_at", null)
+          .neq("status_entrega", "Cancelado"),
+      ]);
 
-    const fluxoRows: ContaPagar[] = ((fluxoRes.data as any) ?? []).map((r: any) => ({ ...r, origem: "fluxo" as const }));
-    const comprasData = (comprasRes.data ?? []) as any[];
-    const parcelaRows: ContaPagar[] = flattenParcelasPendentes((comprasData as unknown) as CompraComParcelas[])
-      .map((p: ParcelaPendenteRow) => ({ ...p }));
+      if (fluxoRes.error) throw fluxoRes.error;
+      if (comprasRes.error) throw comprasRes.error;
 
-    const merged = [...fluxoRows, ...parcelaRows].sort((a, b) => {
-      const av = a.data_vencimento || "9999-12-31";
-      const bv = b.data_vencimento || "9999-12-31";
-      return av.localeCompare(bv);
-    });
+      const fluxoRows: ContaPagar[] = ((fluxoRes.data as any) ?? []).map((r: any) => ({ ...r, origem: "fluxo" as const }));
+      const comprasData = (comprasRes.data ?? []) as any[];
+      const parcelaRows: ContaPagar[] = flattenParcelasPendentes((comprasData as unknown) as CompraComParcelas[])
+        .map((p: ParcelaPendenteRow) => ({ ...p }));
 
-    setAllContas(merged);
-    setComprasRaw(comprasData.map((c) => ({ id: c.id, valor_total: c.valor_total, status_entrega: c.status_entrega })));
-    setLoading(false);
-  }, []);
+      const merged = [...fluxoRows, ...parcelaRows].sort((a, b) => {
+        const av = a.data_vencimento || "9999-12-31";
+        const bv = b.data_vencimento || "9999-12-31";
+        return av.localeCompare(bv);
+      });
+
+      return {
+        allContas: merged,
+        comprasRaw: comprasData.map((c) => ({ id: c.id, valor_total: c.valor_total, status_entrega: c.status_entrega })),
+      };
+    },
+  });
+
+  const allContas = data?.allContas ?? [];
+  const comprasRaw = data?.comprasRaw ?? [];
+
+  // Refetch = invalidar o cache da query (usado por realtime, foco, mutações).
+  const fetchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["contas-a-pagar", user?.id] });
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar contas a pagar. Tentando novamente...");
+  }, [isError]);
 
   // Process recurring transactions on mount (once)
   const recurrenceRan = useRef(false);
@@ -160,7 +179,6 @@ export default function ContasAPagarPage() {
     }
   }, [fetchData]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
     const onFocus = () => fetchData();
     window.addEventListener("focus", onFocus);

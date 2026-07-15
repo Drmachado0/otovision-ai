@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -66,24 +67,27 @@ async function computeHash(file: File): Promise<string> {
 
 export function useDocumentos() {
   const { user } = useAuth();
-  const [documentos, setDocumentos] = useState<DocumentoProcessado[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
+  const { data: documentos = [], isLoading: loading } = useQuery({
+    queryKey: ["documentos", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("obra_documentos_processados")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data as DocumentoProcessado[]) ?? [];
+    },
+  });
+
+  // Mantém a API pública: força um refetch invalidando o cache da query.
   const fetchDocumentos = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("obra_documentos_processados")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(200);
-    setDocumentos((data as DocumentoProcessado[]) || []);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    fetchDocumentos();
-  }, [fetchDocumentos]);
+    await queryClient.invalidateQueries({ queryKey: ["documentos", user?.id] });
+  }, [queryClient, user?.id]);
 
   const registrarEvento = async (documento_id: string, etapa: string, status: string, mensagem: string, detalhes: Record<string, unknown> = {}) => {
     if (!user) return;
