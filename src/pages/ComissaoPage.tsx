@@ -1,62 +1,29 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatMes, todayLocalISO } from "@/lib/formatters";
-import {
-  Percent, CheckCircle, Clock, DollarSign, TrendingUp, Calendar,
-  Trash2, Download, Search, ChevronDown, ChevronRight, AlertTriangle,
-  ArrowUp, ArrowDown, FileText,
-} from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { printAcertoConstrutorReport, type AcertoMes } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import ComissaoDetailDrawer, { parseObservacoes } from "@/components/ComissaoDetailDrawer";
+import { ComissaoKpis } from "./comissao/ComissaoKpis";
+import { ResumoMensal } from "./comissao/ResumoMensal";
+import { DetalhamentoPagamentos } from "./comissao/DetalhamentoPagamentos";
+import {
+  PERCENTUAL_COMISSAO,
+  type ComissaoRow,
+  type TransacaoRow,
+  type SortField,
+  type SortDir,
+} from "./comissao/types";
 
 // Charts sit below the fold — lazy-load so the `vendor-charts` chunk doesn't
 // block the KPIs, list and filters from rendering.
 const ComissaoCharts = lazy(() => import("@/components/charts/ComissaoCharts"));
-
-const PERCENTUAL_COMISSAO = 8;
-
-interface ComissaoRow {
-  id: string;
-  mes: string;
-  valor: number;
-  pago: boolean;
-  data_pagamento: string;
-  observacoes: string;
-  auto: boolean;
-  categoria: string;
-  fornecedor: string;
-  forma_pagamento: string;
-  transacao_id: string | null;
-  created_at: string;
-}
-
-interface TransacaoRow {
-  data: string;
-  valor: number;
-}
-
-const OrigemBadgeSmall = memo(function OrigemBadgeSmall({ obs }: { obs: string }) {
-  const { tipo } = parseObservacoes(obs);
-  const cls: Record<string, string> = {
-    NF: "badge-info",
-    Orçamento: "badge-warning",
-    Compra: "badge-primary",
-    Manual: "badge-muted",
-  };
-  return <span className={`${cls[tipo] || cls.Manual} text-[10px]`}>{tipo}</span>;
-});
-
-type SortField = "data" | "valor";
-type SortDir = "asc" | "desc";
 
 export default function ComissaoPage() {
   const { user } = useAuth();
@@ -417,6 +384,11 @@ export default function ComissaoPage() {
     else { setSortField(f); setSortDir("desc"); }
   };
 
+  const openDetail = useCallback((c: ComissaoRow) => {
+    setSelected(c);
+    setDrawerOpen(true);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -461,105 +433,8 @@ export default function ComissaoPage() {
         </div>
       </div>
 
-      {/* KPIs principais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="stat-card-primary p-5 animate-fade-in-up">
-          <div className="flex items-center gap-2 mb-2">
-            <Percent className="w-4 h-4 text-primary" />
-            <span className="text-xs text-muted-foreground uppercase">Comissão Total</span>
-          </div>
-          <p className="text-2xl font-bold">{formatCurrency(agg.comissaoTotal)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            8% sobre {formatCurrency(agg.totalGasto)} de gastos
-          </p>
-        </div>
-
-        <div className="stat-card-success p-5 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="w-4 h-4 text-success" />
-            <span className="text-xs text-muted-foreground uppercase">Pago</span>
-          </div>
-          <p className="text-2xl font-bold text-success">{formatCurrency(agg.comissaoPaga)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            {comissoes.filter(c => c.pago).length} lançamento(s) ·{" "}
-            {agg.comissaoTotal > 0 ? `${((agg.comissaoPaga / agg.comissaoTotal) * 100).toFixed(1)}%` : "0%"} do total
-          </p>
-        </div>
-
-        <div className="stat-card-warning p-5 animate-fade-in-up" style={{ animationDelay: "120ms" }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-4 h-4 text-warning" />
-            <span className="text-xs text-muted-foreground uppercase">Pendente</span>
-          </div>
-          <p className="text-2xl font-bold text-warning">{formatCurrency(agg.comissaoPendente)}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-[11px] text-muted-foreground">
-              {comissoes.filter(c => !c.pago).length} lançamento(s)
-            </p>
-            {agg.pendentesAtrasados > 0 && (
-              <span className="badge-danger text-[9px] inline-flex items-center gap-1">
-                <AlertTriangle className="w-2.5 h-2.5" /> {agg.pendentesAtrasados} atrasado(s)
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="stat-card-info p-5 animate-fade-in-up" style={{ animationDelay: "180ms" }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Calendar className="w-4 h-4 text-info" />
-            <span className="text-xs text-muted-foreground uppercase">Este Mês</span>
-          </div>
-          <p className="text-2xl font-bold">{formatCurrency(agg.valorMesAtual)}</p>
-          <p className="text-[11px] mt-1 flex items-center gap-1">
-            {agg.valorMesAnterior > 0 ? (
-              <>
-                <span className={agg.variacaoMes >= 0 ? "text-warning" : "text-success"}>
-                  {agg.variacaoMes >= 0 ? "▲" : "▼"} {Math.abs(agg.variacaoMes).toFixed(1)}%
-                </span>
-                <span className="text-muted-foreground">vs mês anterior ({formatCurrency(agg.valorMesAnterior)})</span>
-              </>
-            ) : (
-              <span className="text-muted-foreground">sem comparativo</span>
-            )}
-          </p>
-        </div>
-      </div>
-
-      {/* KPIs secundários */}
-      <div className="glass-card p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
-        {[
-          { icon: <TrendingUp className="w-3.5 h-3.5" />, label: "Média Mensal", value: formatCurrency(agg.mediaMensal) },
-          { icon: <ArrowUp className="w-3.5 h-3.5 text-success" />, label: "Mês Maior", value: agg.mesMaior ? `${formatMes(agg.mesMaior)} · ${formatCurrency(agg.porMes[agg.mesMaior].total)}` : "—" },
-          { icon: <ArrowDown className="w-3.5 h-3.5 text-warning" />, label: "Mês Menor", value: agg.mesMenor ? `${formatMes(agg.mesMenor)} · ${formatCurrency(agg.porMes[agg.mesMenor].total)}` : "—" },
-          { icon: <DollarSign className="w-3.5 h-3.5" />, label: "Ticket Médio", value: formatCurrency(agg.ticketMedio) },
-          { icon: <Calendar className="w-3.5 h-3.5 text-info" />, label: "Previsão Próx. Mês", value: formatCurrency(agg.previsaoProx) },
-        ].map(k => (
-          <div key={k.label} className="px-2">
-            <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground uppercase mb-1">
-              {k.icon} {k.label}
-            </div>
-            <p className="text-sm font-semibold truncate">{k.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Progress bar de quitação */}
-      <div className="glass-card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium">Quitação da Comissão</span>
-          <span className="text-sm font-bold text-primary">
-            {agg.comissaoTotal > 0 ? `${((agg.comissaoPaga / agg.comissaoTotal) * 100).toFixed(1)}%` : "0%"}
-          </span>
-        </div>
-        <Progress value={agg.comissaoTotal > 0 ? Math.min((agg.comissaoPaga / agg.comissaoTotal) * 100, 100) : 0} className="h-3" />
-        <p className="text-[11px] text-muted-foreground mt-2">
-          Referência teórica ({PERCENTUAL_COMISSAO}% sobre {formatCurrency(agg.totalGasto)}) ={" "}
-          <span className="font-medium text-foreground">{formatCurrency(agg.comissaoTeorica)}</span>
-          {agg.comissaoTotal < agg.comissaoTeorica && (
-            <> · faltam <span className="text-warning font-medium">{formatCurrency(agg.comissaoTeorica - agg.comissaoTotal)}</span> de comissões a registrar</>
-          )}
-        </p>
-      </div>
+      {/* KPIs principais + secundários + progress bar de quitação */}
+      <ComissaoKpis agg={agg} comissoes={comissoes} />
 
       {/* Gráficos (lazy — abaixo da dobra) */}
       <Suspense fallback={<div className="glass-card p-5 h-72 animate-pulse" />}>
@@ -572,228 +447,36 @@ export default function ComissaoPage() {
       </Suspense>
 
       {/* Resumo Mensal (accordion) */}
-      <div className="glass-card p-5">
-        <h2 className="text-sm font-semibold mb-4">Resumo mensal</h2>
-        {agg.serieMensal.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Sem meses para exibir</p>
-        ) : (
-          <div className="space-y-1.5">
-            <div className="grid grid-cols-12 gap-2 text-[10px] uppercase text-muted-foreground px-3 pb-2 border-b border-border/50">
-              <div className="col-span-3">Mês</div>
-              <div className="col-span-1 text-center">Lanç.</div>
-              <div className="col-span-2 text-right">Pago</div>
-              <div className="col-span-2 text-right">Pendente</div>
-              <div className="col-span-2 text-right">Total</div>
-              <div className="col-span-2 text-right">Quitado</div>
-            </div>
-            {[...agg.serieMensal].reverse().map(m => {
-              const isOpen = expandedMonths.has(m.mes);
-              const pct = m.total > 0 ? (m.pago / m.total) * 100 : 0;
-              const lancamentosDoMes = comissoes.filter(c => c.mes === m.mes);
-              return (
-                <div key={m.mes} className="rounded-lg border border-border/40 overflow-hidden">
-                  <button
-                    onClick={() => toggleMonth(m.mes)}
-                    className="w-full grid grid-cols-12 gap-2 items-center px-3 py-2.5 text-sm hover:bg-accent/30 transition-colors"
-                  >
-                    <div className="col-span-3 flex items-center gap-1.5 font-medium">
-                      {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                      {m.mesLabel}
-                    </div>
-                    <div className="col-span-1 text-center text-muted-foreground">{m.count}</div>
-                    <div className="col-span-2 text-right text-success">{formatCurrency(m.pago)}</div>
-                    <div className="col-span-2 text-right text-warning">{formatCurrency(m.pendente)}</div>
-                    <div className="col-span-2 text-right font-bold">{formatCurrency(m.total)}</div>
-                    <div className="col-span-2 text-right text-xs">
-                      <span className={pct >= 100 ? "text-success font-medium" : "text-muted-foreground"}>{pct.toFixed(0)}%</span>
-                    </div>
-                  </button>
-                  {isOpen && (
-                    <div className="bg-background/40 border-t border-border/30 px-3 py-2 space-y-1">
-                      {lancamentosDoMes.length === 0 ? (
-                        <p className="text-xs text-muted-foreground py-2">Sem lançamentos neste mês.</p>
-                      ) : lancamentosDoMes.map(c => {
-                        const parsed = parseObservacoes(c.observacoes);
-                        return (
-                          <div
-                            key={c.id}
-                            onClick={() => { setSelected(c); setDrawerOpen(true); }}
-                            className="flex items-center justify-between text-xs py-1.5 px-2 rounded hover:bg-accent/40 cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              {c.pago
-                                ? <CheckCircle className="w-3 h-3 text-success shrink-0" />
-                                : <Clock className="w-3 h-3 text-warning shrink-0" />}
-                              <span className="truncate">{c.observacoes || c.fornecedor || parsed.fornecedor || "Sem descrição"}</span>
-                            </div>
-                            <span className="font-semibold ml-2">{formatCurrency(Number(c.valor))}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <ResumoMensal
+        serieMensal={agg.serieMensal}
+        comissoes={comissoes}
+        expandedMonths={expandedMonths}
+        onToggleMonth={toggleMonth}
+        onSelect={openDetail}
+      />
 
       {/* Detalhamento + filtros */}
-      <div className="glass-card p-5 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-sm font-semibold">Detalhamento de Pagamentos ({filtered.length})</h2>
-          {selectedPendentes.length > 0 && (
-            <button
-              onClick={() => setConfirmBulkPay(true)}
-              className="px-3 py-1.5 rounded-lg bg-success text-success-foreground text-xs font-medium flex items-center gap-1.5 hover:bg-success/90 transition-colors"
-            >
-              <CheckCircle className="w-3.5 h-3.5" /> Marcar {selectedPendentes.length} como pagas
-            </button>
-          )}
-        </div>
-
-        {/* Filtros */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar fornecedor, descrição..."
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              className="pl-8 h-9 text-sm"
-            />
-          </div>
-          <select
-            value={filtroMes}
-            onChange={e => setFiltroMes(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="todos">Todos os meses</option>
-            {mesesParaFiltro.map(m => <option key={m} value={m}>{formatMes(m)}</option>)}
-          </select>
-          <select
-            value={filtroOrigem}
-            onChange={e => setFiltroOrigem(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="todos">Todas as origens</option>
-            <option value="NF">NF</option>
-            <option value="Orçamento">Orçamento</option>
-            <option value="Compra">Compra</option>
-            <option value="Manual">Manual</option>
-          </select>
-          <div className="flex gap-1">
-            {(["todos", "pago", "pendente"] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setFiltroStatus(f)}
-                className={`flex-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
-                  filtroStatus === f ? "bg-primary text-primary-foreground" : "bg-accent/50 text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                {f === "todos" ? "Todos" : f === "pago" ? "Pagos" : "Pendentes"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sort controls */}
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>Ordenar por:</span>
-          <button
-            onClick={() => toggleSort("data")}
-            className={`px-2 py-0.5 rounded ${sortField === "data" ? "bg-accent text-foreground" : ""}`}
-          >
-            Data {sortField === "data" && (sortDir === "asc" ? "↑" : "↓")}
-          </button>
-          <button
-            onClick={() => toggleSort("valor")}
-            className={`px-2 py-0.5 rounded ${sortField === "valor" ? "bg-accent text-foreground" : ""}`}
-          >
-            Valor {sortField === "valor" && (sortDir === "asc" ? "↑" : "↓")}
-          </button>
-        </div>
-
-        {/* Lista */}
-        {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Nenhum lançamento encontrado</p>
-        ) : (
-          <div className="space-y-1">
-            {filtered.map((c, i) => {
-              const parsed = parseObservacoes(c.observacoes);
-              const displayFornecedor = c.fornecedor || parsed.fornecedor;
-              const valorBase = Number(c.valor) / (PERCENTUAL_COMISSAO / 100);
-              const limite = new Date();
-              limite.setDate(limite.getDate() - 30);
-              const limiteMes = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, "0")}`;
-              const atrasado = !c.pago && c.mes && c.mes < limiteMes;
-              const isSelected = selectedIds.has(c.id);
-
-              return (
-                <div
-                  key={c.id}
-                  className={`flex items-center justify-between py-3 px-3 rounded-lg transition-colors animate-fade-in-up ${
-                    isSelected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent/50"
-                  }`}
-                  style={{ animationDelay: `${Math.min(i * 20, 400)}ms` }}
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleSelect(c.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <div
-                      onClick={() => { setSelected(c); setDrawerOpen(true); }}
-                      className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
-                    >
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${c.pago ? "bg-success/10" : "bg-warning/10"}`}>
-                        {c.pago ? <CheckCircle className="w-4 h-4 text-success" /> : <Clock className="w-4 h-4 text-warning" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-medium truncate">
-                            {c.observacoes || c.mes || "Sem referência"}
-                          </p>
-                          <OrigemBadgeSmall obs={c.observacoes} />
-                          {atrasado && (
-                            <span className="badge-danger text-[9px] inline-flex items-center gap-1">
-                              <AlertTriangle className="w-2.5 h-2.5" /> Atrasado
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          {displayFornecedor && (
-                            <span className="text-[11px] text-muted-foreground truncate max-w-[160px]">{displayFornecedor}</span>
-                          )}
-                          {c.mes && <span className="text-[10px] text-muted-foreground/60">· {formatMes(c.mes)}</span>}
-                          {c.pago
-                            ? <span className="badge-success text-[9px]">Pago</span>
-                            : <span className="badge-warning text-[9px]">Pendente</span>}
-                          {c.auto && <span className="badge-info text-[9px]">Auto</span>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <div className="text-right">
-                      <p className="text-sm font-bold">{formatCurrency(Number(c.valor))}</p>
-                      <p className="text-[10px] text-muted-foreground">de {formatCurrency(valorBase)}</p>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleQuickDelete(c); }}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <DetalhamentoPagamentos
+        filtered={filtered}
+        selectedIds={selectedIds}
+        selectedPendentesCount={selectedPendentes.length}
+        mesesParaFiltro={mesesParaFiltro}
+        busca={busca}
+        onBuscaChange={setBusca}
+        filtroMes={filtroMes}
+        onFiltroMesChange={setFiltroMes}
+        filtroOrigem={filtroOrigem}
+        onFiltroOrigemChange={setFiltroOrigem}
+        filtroStatus={filtroStatus}
+        onFiltroStatusChange={setFiltroStatus}
+        sortField={sortField}
+        sortDir={sortDir}
+        onToggleSort={toggleSort}
+        onBulkPay={() => setConfirmBulkPay(true)}
+        onToggleSelect={toggleSelect}
+        onSelect={openDetail}
+        onQuickDelete={handleQuickDelete}
+      />
 
       <ComissaoDetailDrawer comissao={selected} open={drawerOpen} onOpenChange={setDrawerOpen} onUpdate={fetchData} />
 

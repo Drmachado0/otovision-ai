@@ -3,63 +3,21 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import {
-  Settings, Shield, Download, Trash2, Users, Info, AlertTriangle,
-  Loader2, Check, Building2, Save, Calendar,
-} from "lucide-react";
+import { Settings } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { formatCurrency } from "@/lib/formatters";
-
-interface BackupPrefs {
-  hora_utc: number;
-  retencao_dias: number;
-  enviar_google_drive: boolean;
-  ativo: boolean;
-}
-
-const DEFAULT_PREFS: BackupPrefs = {
-  hora_utc: 3,
-  retencao_dias: 30,
-  enviar_google_drive: false,
-  ativo: true,
-};
-
-interface UserWithRole {
-  id: string;
-  email: string;
-  role: string;
-}
-
-interface ObraConfig {
-  id?: string;
-  nome_obra: string;
-  endereco: string;
-  responsavel: string;
-  contato_responsavel: string;
-  area_construida: number;
-  orcamento_total: number;
-  data_inicio: string;
-  data_termino: string;
-}
-
-const ROLES = ["admin", "financeiro", "construtor", "visualizador"];
-
-const defaultObraConfig: ObraConfig = {
-  nome_obra: "",
-  endereco: "",
-  responsavel: "",
-  contato_responsavel: "",
-  area_construida: 0,
-  orcamento_total: 0,
-  data_inicio: "",
-  data_termino: "",
-};
+import { SistemaInfoSection } from "./configuracoes/SistemaInfoSection";
+import { ObraConfigSection } from "./configuracoes/ObraConfigSection";
+import { PreferenciasSection } from "./configuracoes/PreferenciasSection";
+import { UsuariosSection } from "./configuracoes/UsuariosSection";
+import { BackupSection } from "./configuracoes/BackupSection";
+import { DangerZoneSection } from "./configuracoes/DangerZoneSection";
+import {
+  DEFAULT_PREFS,
+  defaultObraConfig,
+  type BackupPrefs,
+  type UserWithRole,
+  type ObraConfig,
+} from "./configuracoes/types";
 
 export default function ConfiguracoesPage() {
   const { user } = useAuth();
@@ -299,395 +257,54 @@ export default function ConfiguracoesPage() {
       </div>
 
       {/* Info do Sistema */}
-      <section className="glass-card p-6 space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Info className="w-5 h-5 text-primary" /> Informações do Sistema
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-3 rounded-lg bg-secondary/30">
-            <p className="text-xs text-muted-foreground">Versão</p>
-            <p className="text-sm font-medium">OTOVISION v1.0</p>
-          </div>
-          <div className="p-3 rounded-lg bg-secondary/30">
-            <p className="text-xs text-muted-foreground">Seu Perfil</p>
-            <Badge className="text-xs mt-1">{role || "carregando..."}</Badge>
-          </div>
-          <div className="p-3 rounded-lg bg-secondary/30">
-            <p className="text-xs text-muted-foreground">Email</p>
-            <p className="text-sm font-medium truncate">{user?.email || "-"}</p>
-          </div>
-        </div>
-      </section>
+      <SistemaInfoSection role={role} email={user?.email} />
 
       {/* Dados da Obra */}
-      <section className="glass-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-primary" /> Dados da Obra
-          </h2>
-          <Button onClick={handleSaveObra} disabled={savingObra || loadingObra} size="sm" className="gap-2">
-            {savingObra ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Salvar
-          </Button>
-        </div>
-        {loadingObra ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <Label className="text-xs text-muted-foreground">Nome da Obra</Label>
-              <Input
-                value={obraConfig.nome_obra}
-                onChange={e => updateObraField("nome_obra", e.target.value)}
-                placeholder="Ex: Clínica Otovision"
-                className="mt-1"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Label className="text-xs text-muted-foreground">Endereço</Label>
-              <Input
-                value={obraConfig.endereco}
-                onChange={e => updateObraField("endereco", e.target.value)}
-                placeholder="Rua, número, cidade..."
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Responsável</Label>
-              <Input
-                value={obraConfig.responsavel}
-                onChange={e => updateObraField("responsavel", e.target.value)}
-                placeholder="Nome do responsável"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Contato do Responsável</Label>
-              <Input
-                value={obraConfig.contato_responsavel}
-                onChange={e => updateObraField("contato_responsavel", e.target.value)}
-                placeholder="Telefone ou email"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Área Construída (m²)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={obraConfig.area_construida || ""}
-                onChange={e => updateObraField("area_construida", parseFloat(e.target.value) || 0)}
-                placeholder="658"
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Usado no cálculo do KPI Custo/m² no Dashboard (atualização em tempo real)
-              </p>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Orçamento Total (R$)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={obraConfig.orcamento_total || ""}
-                onChange={e => updateObraField("orcamento_total", parseFloat(e.target.value) || 0)}
-                placeholder="1500000"
-                className="mt-1"
-              />
-              {obraConfig.orcamento_total > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatCurrency(obraConfig.orcamento_total)}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Data de Início</Label>
-              <Input
-                type="date"
-                value={obraConfig.data_inicio}
-                onChange={e => updateObraField("data_inicio", e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Data de Término</Label>
-              <Input
-                type="date"
-                value={obraConfig.data_termino}
-                onChange={e => updateObraField("data_termino", e.target.value)}
-                className="mt-1"
-              />
-            </div>
-          </div>
-        )}
-      </section>
+      <ObraConfigSection
+        obraConfig={obraConfig}
+        updateObraField={updateObraField}
+        handleSaveObra={handleSaveObra}
+        savingObra={savingObra}
+        loadingObra={loadingObra}
+      />
 
       {/* Preferências */}
-      <section className="glass-card p-6 space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Settings className="w-5 h-5 text-primary" /> Preferências
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Label className="text-xs text-muted-foreground">Taxa de Comissão (%)</Label>
-            <Input
-              type="number"
-              step="0.5"
-              min="0"
-              max="100"
-              value={comissaoRate}
-              onChange={e => setComissaoRate(e.target.value)}
-              className="mt-1 max-w-[120px]"
-            />
-            <p className="text-xs text-muted-foreground mt-1">Usado no cálculo automático de comissão</p>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Moeda</Label>
-            <Input value="BRL (R$)" disabled className="mt-1 max-w-[160px]" />
-          </div>
-        </div>
-      </section>
+      <PreferenciasSection comissaoRate={comissaoRate} setComissaoRate={setComissaoRate} />
 
       {/* Gerenciamento de Usuários */}
       {role === "admin" && (
-        <section className="glass-card p-6 space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" /> Usuários e Permissões
-          </h2>
-          {loadingUsers ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : users.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum usuário com role atribuída</p>
-          ) : (
-            <div className="space-y-2">
-              {users.map(u => (
-                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors">
-                  <div>
-                    <p className="text-sm truncate max-w-[280px]">{u.email !== u.id ? u.email : u.id.substring(0, 8) + "..."}</p>
-                    {u.id === user?.id && <Badge variant="outline" className="text-[10px] ml-2">Você</Badge>}
-                  </div>
-                  <select
-                    value={u.role}
-                    onChange={e => updateRole(u.id, e.target.value)}
-                    className="px-3 py-1.5 rounded-lg bg-background border border-border text-sm"
-                  >
-                    {ROLES.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        <UsuariosSection
+          users={users}
+          loadingUsers={loadingUsers}
+          currentUserId={user?.id}
+          updateRole={updateRole}
+        />
       )}
 
       {/* Backup */}
-      <section className="glass-card p-6 space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Download className="w-5 h-5 text-primary" /> Backup de Dados
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Exporte todos os seus dados em formato JSON.
-        </p>
-        <div className="flex gap-3 flex-wrap">
-          <Button onClick={handleExportBackup} disabled={exporting} className="gap-2">
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {exporting ? "Exportando..." : "Exportar Backup (JSON)"}
-          </Button>
-          <div>
-            <Input
-              type="file"
-              accept=".json"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  if (file.size > 10 * 1024 * 1024) {
-                    throw new Error("Arquivo muito grande (máx 10MB)");
-                  }
-                  const text = await file.text();
-                  const data = JSON.parse(text);
-                  if (!data || typeof data !== "object") throw new Error("Formato inválido");
-                  // Route through edge function (server-side whitelist + user_id enforcement)
-                  const payload = data.tables ? data : { tables: data };
-                  const { data: result, error } = await supabase.functions.invoke("importar-backup", {
-                    body: payload,
-                  });
-                  if (error) throw error;
-                  const summary = (result as any)?.summary ?? {};
-                  const imported = Object.values(summary).reduce((a: number, b: any) => a + Number(b || 0), 0);
-                  const tableCount = Object.keys(summary).length;
-                  toast.success(`Backup importado! ${imported} registros restaurados de ${tableCount} tabelas.`);
-                  if ((result as any)?.errors?.length) {
-                    console.warn("Import warnings:", (result as any).errors);
-                  }
-                } catch (err) {
-                  toast.error("Erro ao importar: " + (err instanceof Error ? err.message : "Arquivo inválido"));
-                }
-                e.target.value = "";
-              }}
-              className="text-xs max-w-[250px]"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">Importar backup JSON exportado anteriormente</p>
-          </div>
-        </div>
-
-        {/* Preferências de backup automático */}
-        <div className="pt-4 border-t border-border/50 space-y-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Settings className="w-4 h-4 text-primary" /> Preferências de backup automático
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Hora do backup (UTC)</Label>
-              <select
-                value={backupPrefs.hora_utc}
-                onChange={(e) => setBackupPrefs({ ...backupPrefs, hora_utc: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
-              >
-                {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00 UTC</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs">Reter por</Label>
-              <select
-                value={backupPrefs.retencao_dias}
-                onChange={(e) => setBackupPrefs({ ...backupPrefs, retencao_dias: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
-              >
-                {[7, 14, 30, 60, 90].map((d) => (
-                  <option key={d} value={d}>{d} dias</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-            <div className="flex-1 pr-3">
-              <p className="text-xs font-medium">Enviar cópia para o Google Drive</p>
-              <p className="text-[10px] text-muted-foreground">
-                Os backups vão para uma pasta compartilhada do Google Drive da organização (subpasta por usuário).
-              </p>
-            </div>
-            <Switch
-              checked={backupPrefs.enviar_google_drive}
-              onCheckedChange={(v) => setBackupPrefs({ ...backupPrefs, enviar_google_drive: v })}
-            />
-          </div>
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-            <div>
-              <p className="text-xs font-medium">Backup automático ativo</p>
-              <p className="text-[10px] text-muted-foreground">Desative para pausar a geração de backups.</p>
-            </div>
-            <Switch
-              checked={backupPrefs.ativo}
-              onCheckedChange={(v) => setBackupPrefs({ ...backupPrefs, ativo: v })}
-            />
-          </div>
-          <Button onClick={handleSavePrefs} disabled={savingPrefs} size="sm" className="gap-2">
-            {savingPrefs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Salvar preferências
-          </Button>
-        </div>
-
-        {/* Backups disponíveis */}
-        <div className="pt-4 border-t border-border/50">
-          <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
-            <Calendar className="w-4 h-4 text-primary" /> Backups disponíveis
-          </h3>
-          <p className="text-xs text-muted-foreground mb-3">
-            Backup gerado diariamente às {String(backupPrefs.hora_utc).padStart(2, "0")}:00 UTC. Mantidos por {backupPrefs.retencao_dias} dias.
-          </p>
-          {loadingBackups ? (
-            <p className="text-xs text-muted-foreground">Carregando...</p>
-          ) : autoBackups.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum backup automático ainda. O primeiro será gerado na próxima execução.</p>
-          ) : (
-            <div className="space-y-1 max-h-64 overflow-y-auto">
-              {autoBackups.map((b) => (
-                <div key={b.name} className="flex items-center justify-between text-xs p-2 rounded bg-secondary/30 hover:bg-secondary/50">
-                  <span className="font-mono">{b.name.replace(".json", "")}</span>
-                  <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => handleDownloadAutoBackup(b.name)}>
-                    <Download className="w-3 h-3" /> Baixar
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+      <BackupSection
+        exporting={exporting}
+        handleExportBackup={handleExportBackup}
+        backupPrefs={backupPrefs}
+        setBackupPrefs={setBackupPrefs}
+        savingPrefs={savingPrefs}
+        handleSavePrefs={handleSavePrefs}
+        loadingBackups={loadingBackups}
+        autoBackups={autoBackups}
+        handleDownloadAutoBackup={handleDownloadAutoBackup}
+      />
 
       {/* Danger Zone */}
       {role === "admin" && (
-        <section className="rounded-lg border-2 border-destructive/30 p-6 space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2 text-destructive">
-            <AlertTriangle className="w-5 h-5" /> Zona de Perigo
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Ações irreversíveis. Recomendamos exportar um backup antes de prosseguir.
-          </p>
-          <Button
-            variant="destructive"
-            onClick={() => setShowDangerDialog(true)}
-            className="gap-2"
-          >
-            <Trash2 className="w-4 h-4" /> Apagar Todos os Dados
-          </Button>
-        </section>
+        <DangerZoneSection
+          showDangerDialog={showDangerDialog}
+          setShowDangerDialog={setShowDangerDialog}
+          dangerConfirm={dangerConfirm}
+          setDangerConfirm={setDangerConfirm}
+          deleting={deleting}
+          handleDeleteAll={handleDeleteAll}
+        />
       )}
-
-      {/* Danger Confirmation Dialog */}
-      <Dialog open={showDangerDialog} onOpenChange={open => { if (!open) { setShowDangerDialog(false); setDangerConfirm(""); } }}>
-        <DialogContent className="sm:max-w-md bg-card border-destructive/50">
-          <DialogHeader>
-            <DialogTitle className="text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" /> Confirmar Exclusão Total
-            </DialogTitle>
-            <DialogDescription>
-              Esta ação vai apagar <strong>permanentemente</strong> todos os dados financeiros, compras, comissões, documentos e configurações da obra. Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-sm">
-                Digite <span className="font-mono font-bold text-destructive">APAGAR TUDO</span> para confirmar:
-              </Label>
-              <Input
-                value={dangerConfirm}
-                onChange={e => setDangerConfirm(e.target.value)}
-                placeholder="APAGAR TUDO"
-                className="mt-2 border-destructive/50 focus-visible:ring-destructive"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => { setShowDangerDialog(false); setDangerConfirm(""); }}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={dangerConfirm !== "APAGAR TUDO" || deleting}
-                onClick={handleDeleteAll}
-                className="flex-1 gap-2"
-              >
-                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                {deleting ? "Apagando..." : "Apagar Tudo"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
