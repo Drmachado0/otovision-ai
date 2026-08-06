@@ -203,6 +203,7 @@ export async function registrarTransacaoComComissao({
   transacao,
   fornecedor,
   documentoId,
+  origemCompraId,
   gerarComissao = true,
 }: RegistrarTransacaoComComissaoInput): Promise<RegistrarTransacaoComComissaoResult> {
   const reaproveitarTransacaoExistente = async (existente: TransacaoComComissaoInsert & { id: string }) => {
