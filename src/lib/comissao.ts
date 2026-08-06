@@ -145,6 +145,7 @@ export async function registrarComissaoParaTransacaoExistente({
   transacao,
   fornecedor,
   documentoId,
+  origemCompraId,
   gerarComissao = true,
   dataComissao,
 }: RegistrarComissaoTransacaoExistenteInput): Promise<RegistrarComissaoTransacaoExistenteResult> {
