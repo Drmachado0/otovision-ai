@@ -74,6 +74,7 @@ export default function ConfirmarPagamentoDialog({
   }, [open, transacao]);
 
   const comissaoValor = transacao ? Number(transacao.valor) * (PERCENTUAL_COMISSAO_CONSTRUTOR / 100) : 0;
+  const isCompra = !!parcelaCompra;
 
   const handleConfirmar = async () => {
     if (!transacao) return;
@@ -243,8 +244,10 @@ export default function ConfirmarPagamentoDialog({
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Comissão ({PERCENTUAL_COMISSAO_CONSTRUTOR}%)</span>
-              <Badge variant="outline" className="text-xs">{formatCurrency(comissaoValor)}</Badge>
+              <span className="text-muted-foreground">Comissão ({PERCENTUAL_COMISSAO_CONSTRUTOR}% {isCompra ? "Total" : ""})</span>
+              <Badge variant="outline" className="text-xs">
+                {isCompra ? "Calculada sobre Total" : formatCurrency(comissaoValor)}
+              </Badge>
             </div>
           </div>
 
