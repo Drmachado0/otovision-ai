@@ -139,6 +139,7 @@ export default function ConfirmarPagamentoDialog({
         supabase,
         gerarComissao,
         dataComissao: new Date().toISOString().slice(0, 10),
+        origemCompraId: parcelaCompra?.compra_id,
         transacao: {
           id: txIdParaComissao,
           user_id: userId,
