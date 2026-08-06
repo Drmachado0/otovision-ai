@@ -324,13 +324,25 @@ export async function registrarTransacaoComComissao({
     };
   }
 
-  const comissao = buildComissaoPendente({
-    userId: transacao.user_id,
-    transacaoId: inserted.id,
-    data: transacao.data,
-    valorBase: Number(transacao.valor),
-    descricao: typeof transacao.descricao === "string" ? transacao.descricao : "",
-    categoria: typeof transacao.categoria === "string" ? transacao.categoria : undefined,
+  const comissaoResult = await registrarComissaoParaTransacaoExistente({
+    supabase,
+    transacao: { ...transacao, id: inserted.id },
+    fornecedor,
+    documentoId,
+    origemCompraId,
+    gerarComissao,
+  });
+
+  return {
+    transacao: inserted,
+    comissao: comissaoResult.comissao,
+    transacaoError: null,
+    comissaoError: comissaoResult.comissaoError,
+    comissaoDuplicada: comissaoResult.comissaoDuplicada,
+  };
+}
+
+// Keep the rest of the file if any, or remove if this was the end.
     fornecedor,
     formaPagamento: typeof transacao.forma_pagamento === "string" ? transacao.forma_pagamento : undefined,
     documentoId,
