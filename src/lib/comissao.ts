@@ -182,11 +182,13 @@ export async function registrarComissaoParaTransacaoExistente({
   if (origemCompraId) {
     const { data: compra } = await supabase
       .from("obra_compras")
-      .select("valor_total, data")
+      .select("valor_total, data, status_entrega")
       .eq("id", origemCompraId)
       .single();
     
     if (compra) {
+      // Regra: se for compra, sempre calculamos 8% sobre o valor TOTAL da compra,
+      // vinculado ao mês original da compra.
       valorBase = Number(compra.valor_total);
       mesComissao = compra.data.slice(0, 7);
     }
