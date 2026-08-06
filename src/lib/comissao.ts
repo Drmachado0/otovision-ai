@@ -124,7 +124,7 @@ export function buildComissaoPendente(input: BuildComissaoPendenteInput): Comiss
   return {
     user_id: input.userId,
     transacao_id: input.transacaoId,
-    mes: input.data.slice(0, 7),
+    mes: input.data.length === 7 ? input.data : input.data.slice(0, 7),
     valor: roundCurrency(input.valorBase * (PERCENTUAL_COMISSAO_CONSTRUTOR / 100)),
     pago: false,
     auto: true,
