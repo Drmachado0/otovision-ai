@@ -175,11 +175,28 @@ export async function registrarComissaoParaTransacaoExistente({
     return { comissao: null, comissaoError: null, comissaoDuplicada: true };
   }
 
+  let valorBase = Number(transacao.valor);
+  let mesComissao = (dataComissao || transacao.data).slice(0, 7);
+
+  // Se for uma compra parcelada, a comissão é sobre o valor total da compra na data original
+  if (origemCompraId) {
+    const { data: compra } = await supabase
+      .from("obra_compras")
+      .select("valor_total, data")
+      .eq("id", origemCompraId)
+      .single();
+    
+    if (compra) {
+      valorBase = Number(compra.valor_total);
+      mesComissao = compra.data.slice(0, 7);
+    }
+  }
+
   const comissao = buildComissaoPendente({
     userId: transacao.user_id,
     transacaoId: transacao.id,
-    data: dataComissao || transacao.data,
-    valorBase: Number(transacao.valor),
+    data: mesComissao, // Usamos o mês para garantir que o build pegue a data correta
+    valorBase,
     descricao: typeof transacao.descricao === "string" ? transacao.descricao : "",
     categoria: typeof transacao.categoria === "string" ? transacao.categoria : undefined,
     fornecedor,
