@@ -81,6 +81,7 @@ export interface RegistrarComissaoTransacaoExistenteInput {
   transacao: TransacaoComComissaoInsert & { id: string };
   fornecedor?: string;
   documentoId?: string;
+  origemCompraId?: string;
   gerarComissao?: boolean;
   dataComissao?: string;
 }
