@@ -215,6 +215,7 @@ export async function registrarTransacaoComComissao({
       },
       fornecedor,
       documentoId,
+      origemCompraId,
       gerarComissao,
     });
 
