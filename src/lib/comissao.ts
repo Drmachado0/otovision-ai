@@ -153,13 +153,19 @@ export async function registrarComissaoParaTransacaoExistente({
     return { comissao: null, comissaoError: null };
   }
 
-  const { data: existentes, error: consultaError } = await supabase
+  let consulta = supabase
     .from("obra_comissao_pagamentos")
-    .select("id, transacao_id")
+    .select("id, transacao_id, origem_compra_id")
     .eq("user_id", transacao.user_id)
-    .eq("transacao_id", transacao.id)
-    .is("deleted_at", null)
-    .limit(1);
+    .is("deleted_at", null);
+
+  if (origemCompraId) {
+    consulta = consulta.eq("origem_compra_id", origemCompraId);
+  } else {
+    consulta = consulta.eq("transacao_id", transacao.id);
+  }
+
+  const { data: existentes, error: consultaError } = await consulta.limit(1);
 
   if (consultaError) {
     return { comissao: null, comissaoError: consultaError };
