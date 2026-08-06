@@ -2856,6 +2856,7 @@ export type Database = {
           id: string
           mes: string
           observacoes: string
+          origem_compra_id: string | null
           pago: boolean
           transacao_id: string | null
           updated_at: string
@@ -2873,6 +2874,7 @@ export type Database = {
           id?: string
           mes?: string
           observacoes?: string
+          origem_compra_id?: string | null
           pago?: boolean
           transacao_id?: string | null
           updated_at?: string
@@ -2890,6 +2892,7 @@ export type Database = {
           id?: string
           mes?: string
           observacoes?: string
+          origem_compra_id?: string | null
           pago?: boolean
           transacao_id?: string | null
           updated_at?: string
@@ -2897,6 +2900,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "obra_comissao_pagamentos_origem_compra_id_fkey"
+            columns: ["origem_compra_id"]
+            isOneToOne: false
+            referencedRelation: "obra_compras"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "obra_comissao_pagamentos_transacao_id_fkey"
             columns: ["transacao_id"]
