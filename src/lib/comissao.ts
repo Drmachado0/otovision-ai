@@ -10,6 +10,7 @@ export interface BuildComissaoPendenteInput {
   fornecedor?: string;
   formaPagamento?: string;
   documentoId?: string;
+  origemCompraId?: string;
 }
 
 export interface ComissaoPendenteInsert {
@@ -23,6 +24,7 @@ export interface ComissaoPendenteInsert {
   fornecedor: string;
   forma_pagamento: string;
   observacoes: string;
+  origem_compra_id?: string;
 }
 
 export interface TransacaoComComissaoInsert {
