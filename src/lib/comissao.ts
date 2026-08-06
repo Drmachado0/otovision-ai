@@ -132,6 +132,7 @@ export function buildComissaoPendente(input: BuildComissaoPendenteInput): Comiss
     fornecedor: input.fornecedor || "",
     forma_pagamento: input.formaPagamento || "",
     observacoes: `Auto 8% - ${descricao}${documentoRef}`,
+    origem_compra_id: input.origemCompraId,
   };
 }
 
