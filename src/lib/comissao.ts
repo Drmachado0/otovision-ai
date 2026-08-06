@@ -341,22 +341,3 @@ export async function registrarTransacaoComComissao({
     comissaoDuplicada: comissaoResult.comissaoDuplicada,
   };
 }
-
-// Keep the rest of the file if any, or remove if this was the end.
-    fornecedor,
-    formaPagamento: typeof transacao.forma_pagamento === "string" ? transacao.forma_pagamento : undefined,
-    documentoId,
-    origemCompraId,
-  });
-
-  const { error: comissaoError } = await supabase
-    .from("obra_comissao_pagamentos")
-    .insert(comissao);
-
-  return {
-    transacao: inserted,
-    comissao: comissaoError ? null : comissao,
-    transacaoError: null,
-    comissaoError: comissaoError || null,
-  };
-}
