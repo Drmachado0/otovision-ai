@@ -317,6 +317,7 @@ export async function registrarTransacaoComComissao({
     fornecedor,
     formaPagamento: typeof transacao.forma_pagamento === "string" ? transacao.forma_pagamento : undefined,
     documentoId,
+    origemCompraId,
   });
 
   const { error: comissaoError } = await supabase
