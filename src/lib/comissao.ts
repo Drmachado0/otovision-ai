@@ -10,6 +10,7 @@ export interface BuildComissaoPendenteInput {
   fornecedor?: string;
   formaPagamento?: string;
   documentoId?: string;
+  origemCompraId?: string;
 }
 
 export interface ComissaoPendenteInsert {
@@ -23,6 +24,7 @@ export interface ComissaoPendenteInsert {
   fornecedor: string;
   forma_pagamento: string;
   observacoes: string;
+  origem_compra_id?: string;
 }
 
 export interface TransacaoComComissaoInsert {
@@ -60,6 +62,7 @@ export interface RegistrarTransacaoComComissaoInput {
   transacao: TransacaoComComissaoInsert;
   fornecedor?: string;
   documentoId?: string;
+  origemCompraId?: string;
   gerarComissao?: boolean;
 }
 
@@ -78,6 +81,7 @@ export interface RegistrarComissaoTransacaoExistenteInput {
   transacao: TransacaoComComissaoInsert & { id: string };
   fornecedor?: string;
   documentoId?: string;
+  origemCompraId?: string;
   gerarComissao?: boolean;
   dataComissao?: string;
 }
@@ -120,7 +124,7 @@ export function buildComissaoPendente(input: BuildComissaoPendenteInput): Comiss
   return {
     user_id: input.userId,
     transacao_id: input.transacaoId,
-    mes: input.data.slice(0, 7),
+    mes: input.data.length === 7 ? input.data : input.data.slice(0, 7),
     valor: roundCurrency(input.valorBase * (PERCENTUAL_COMISSAO_CONSTRUTOR / 100)),
     pago: false,
     auto: true,
@@ -128,6 +132,7 @@ export function buildComissaoPendente(input: BuildComissaoPendenteInput): Comiss
     fornecedor: input.fornecedor || "",
     forma_pagamento: input.formaPagamento || "",
     observacoes: `Auto 8% - ${descricao}${documentoRef}`,
+    origem_compra_id: input.origemCompraId,
   };
 }
 
@@ -140,6 +145,7 @@ export async function registrarComissaoParaTransacaoExistente({
   transacao,
   fornecedor,
   documentoId,
+  origemCompraId,
   gerarComissao = true,
   dataComissao,
 }: RegistrarComissaoTransacaoExistenteInput): Promise<RegistrarComissaoTransacaoExistenteResult> {
@@ -147,13 +153,19 @@ export async function registrarComissaoParaTransacaoExistente({
     return { comissao: null, comissaoError: null };
   }
 
-  const { data: existentes, error: consultaError } = await supabase
+  let consulta = supabase
     .from("obra_comissao_pagamentos")
-    .select("id, transacao_id")
+    .select("id, transacao_id, origem_compra_id")
     .eq("user_id", transacao.user_id)
-    .eq("transacao_id", transacao.id)
-    .is("deleted_at", null)
-    .limit(1);
+    .is("deleted_at", null);
+
+  if (origemCompraId) {
+    consulta = consulta.eq("origem_compra_id", origemCompraId);
+  } else {
+    consulta = consulta.eq("transacao_id", transacao.id);
+  }
+
+  const { data: existentes, error: consultaError } = await consulta.limit(1);
 
   if (consultaError) {
     return { comissao: null, comissaoError: consultaError };
@@ -163,16 +175,34 @@ export async function registrarComissaoParaTransacaoExistente({
     return { comissao: null, comissaoError: null, comissaoDuplicada: true };
   }
 
+  let valorBase = Number(transacao.valor);
+  let mesComissao = (dataComissao || transacao.data).slice(0, 7);
+
+  // Se for uma compra parcelada, a comissão é sobre o valor total da compra na data original
+  if (origemCompraId) {
+    const { data: compra } = await supabase
+      .from("obra_compras")
+      .select("valor_total, data")
+      .eq("id", origemCompraId)
+      .single();
+    
+    if (compra) {
+      valorBase = Number(compra.valor_total);
+      mesComissao = compra.data.slice(0, 7);
+    }
+  }
+
   const comissao = buildComissaoPendente({
     userId: transacao.user_id,
     transacaoId: transacao.id,
-    data: dataComissao || transacao.data,
-    valorBase: Number(transacao.valor),
+    data: mesComissao, // Usamos o mês para garantir que o build pegue a data correta
+    valorBase,
     descricao: typeof transacao.descricao === "string" ? transacao.descricao : "",
     categoria: typeof transacao.categoria === "string" ? transacao.categoria : undefined,
     fornecedor,
     formaPagamento: typeof transacao.forma_pagamento === "string" ? transacao.forma_pagamento : undefined,
     documentoId,
+    origemCompraId,
   });
 
   const { error: comissaoError } = await supabase
@@ -190,6 +220,7 @@ export async function registrarTransacaoComComissao({
   transacao,
   fornecedor,
   documentoId,
+  origemCompraId,
   gerarComissao = true,
 }: RegistrarTransacaoComComissaoInput): Promise<RegistrarTransacaoComComissaoResult> {
   const reaproveitarTransacaoExistente = async (existente: TransacaoComComissaoInsert & { id: string }) => {
@@ -202,6 +233,7 @@ export async function registrarTransacaoComComissao({
       },
       fornecedor,
       documentoId,
+      origemCompraId,
       gerarComissao,
     });
 
@@ -292,26 +324,20 @@ export async function registrarTransacaoComComissao({
     };
   }
 
-  const comissao = buildComissaoPendente({
-    userId: transacao.user_id,
-    transacaoId: inserted.id,
-    data: transacao.data,
-    valorBase: Number(transacao.valor),
-    descricao: typeof transacao.descricao === "string" ? transacao.descricao : "",
-    categoria: typeof transacao.categoria === "string" ? transacao.categoria : undefined,
+  const comissaoResult = await registrarComissaoParaTransacaoExistente({
+    supabase,
+    transacao: { ...transacao, id: inserted.id },
     fornecedor,
-    formaPagamento: typeof transacao.forma_pagamento === "string" ? transacao.forma_pagamento : undefined,
     documentoId,
+    origemCompraId,
+    gerarComissao,
   });
-
-  const { error: comissaoError } = await supabase
-    .from("obra_comissao_pagamentos")
-    .insert(comissao);
 
   return {
     transacao: inserted,
-    comissao: comissaoError ? null : comissao,
+    comissao: comissaoResult.comissao,
     transacaoError: null,
-    comissaoError: comissaoError || null,
+    comissaoError: comissaoResult.comissaoError,
+    comissaoDuplicada: comissaoResult.comissaoDuplicada,
   };
 }

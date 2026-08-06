@@ -88,6 +88,7 @@ export default function CompraDetailDrawer({ compra, open, onClose, onRefresh, u
       supabase,
       fornecedor: compra.fornecedor,
       gerarComissao,
+      origemCompraId: compra.id,
       transacao: {
         user_id: userId,
         tipo: "Saída",

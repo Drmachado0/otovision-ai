@@ -145,6 +145,7 @@ export default function PagamentoDialog({
           supabase,
           fornecedor,
           gerarComissao,
+          origemCompraId: id,
           transacao: {
             user_id: userId,
             tipo: "Saída",
