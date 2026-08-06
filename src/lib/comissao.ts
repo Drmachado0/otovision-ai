@@ -62,6 +62,7 @@ export interface RegistrarTransacaoComComissaoInput {
   transacao: TransacaoComComissaoInsert;
   fornecedor?: string;
   documentoId?: string;
+  origemCompraId?: string;
   gerarComissao?: boolean;
 }
 
