@@ -1,4 +1,3 @@
-
 -- 1) Lock down social_accounts: do not expose access_token via RLS SELECT to authenticated users.
 DROP POLICY IF EXISTS "Users view own social accounts" ON public.social_accounts;
 -- (INSERT/UPDATE/DELETE policies remain so users can manage their connections;
@@ -43,8 +42,8 @@ SELECT cron.schedule(
     url := 'https://ebyruchdswmkuynthiqi.supabase.co/functions/v1/backup-diario-automatico',
     headers := jsonb_build_object(
       'Content-Type','application/json',
-      'apikey','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVieXJ1Y2hkc3dta3V5bnRoaXFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NDQyMzYsImV4cCI6MjA4NjEyMDIzNn0.fKuLCySRNC_YJzO4gNM5Um4WISneTiSyhhhJsW3Ho18',
-      'X-Cron-Secret','d6309b1523d17a93d5c84db8aa80ce4a3f27216289b037311c35e718be545180'
+      'apikey', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_anon_key'),
+      'X-Cron-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'backup_cron_secret')
     ),
     body := jsonb_build_object('triggered_at', now())
   ) AS request_id;
