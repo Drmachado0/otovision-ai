@@ -66,9 +66,17 @@ Deno.serve(async (req) => {
 
   if (error) {
     const forbidden = error.code === "42501";
+    const disabled = error.code === "0A000";
     return jsonResponse(
-      { error: forbidden ? "Forbidden" : "Backup restore failed", details: error.message },
-      forbidden ? 403 : 400,
+      {
+        error: forbidden
+          ? "Forbidden"
+          : disabled
+            ? "Backup restore temporarily unavailable"
+            : "Backup restore failed",
+        details: error.message,
+      },
+      forbidden ? 403 : disabled ? 503 : 400,
     );
   }
 

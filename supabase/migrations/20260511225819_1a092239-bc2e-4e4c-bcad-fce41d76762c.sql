@@ -1,4 +1,3 @@
-
 -- 1) Lock down social_accounts: do not expose access_token via RLS SELECT to authenticated users.
 DROP POLICY IF EXISTS "Users view own social accounts" ON public.social_accounts;
 -- (INSERT/UPDATE/DELETE policies remain so users can manage their connections;
@@ -32,8 +31,7 @@ ON public.n8n_mensagens_processadas
 FOR ALL TO anon, authenticated
 USING (false) WITH CHECK (false);
 
--- 4) Re-schedule the backup cron using secrets fetched at execution time from Vault.
--- The previous literal cron secret was compromised and must be rotated externally.
+-- 4) Re-schedule the backup cron with an Authorization header carrying the cron secret.
 SELECT cron.unschedule('backup-diario-automatico') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'backup-diario-automatico');
 
 SELECT cron.schedule(

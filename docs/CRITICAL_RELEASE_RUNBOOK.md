@@ -26,8 +26,8 @@ Novos cadastros recebem `financeiro`, que é o perfil mínimo atualmente capaz d
 
 ## Observações sobre restauração
 
-- Somente `admin` pode restaurar.
+- A restauração permanece **temporariamente desabilitada** e retorna erro de forma segura.
 - A Edge Function usa o JWT do chamador, nunca `service_role`.
-- A restauração preserva IDs e é atômica no banco.
-- `obra_audit_log` não é importada; os eventos são gerados por triggers.
+- O bloqueio só deve ser removido após baseline canônica, validação de todas as FKs por tenant e testes de integração com dois usuários.
+- `obra_audit_log` e tabelas de eventos não devem ser importadas como dados fornecidos pelo cliente.
 - Arquivos do Supabase Storage ainda exigem uma fase própria de backup/restauração.
