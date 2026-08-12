@@ -32,7 +32,8 @@ ON public.n8n_mensagens_processadas
 FOR ALL TO anon, authenticated
 USING (false) WITH CHECK (false);
 
--- 4) Re-schedule the backup cron with an Authorization header carrying the cron secret.
+-- 4) Re-schedule the backup cron using secrets fetched at execution time from Vault.
+-- The previous literal cron secret was compromised and must be rotated externally.
 SELECT cron.unschedule('backup-diario-automatico') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'backup-diario-automatico');
 
 SELECT cron.schedule(
@@ -43,8 +44,8 @@ SELECT cron.schedule(
     url := 'https://ebyruchdswmkuynthiqi.supabase.co/functions/v1/backup-diario-automatico',
     headers := jsonb_build_object(
       'Content-Type','application/json',
-      'apikey','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVieXJ1Y2hkc3dta3V5bnRoaXFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NDQyMzYsImV4cCI6MjA4NjEyMDIzNn0.fKuLCySRNC_YJzO4gNM5Um4WISneTiSyhhhJsW3Ho18',
-      'X-Cron-Secret','d6309b1523d17a93d5c84db8aa80ce4a3f27216289b037311c35e718be545180'
+      'apikey', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_anon_key'),
+      'X-Cron-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'backup_cron_secret')
     ),
     body := jsonb_build_object('triggered_at', now())
   ) AS request_id;

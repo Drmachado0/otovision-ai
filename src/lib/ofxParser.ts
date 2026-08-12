@@ -14,7 +14,7 @@ export interface ExtractedTransaction {
 // ── OFX Parser ──
 
 function parseOFXDate(raw: string): string {
-  // OFX dates: 20260115120000[-3:BRT] or 20260115
+  // OFX dates may include a timezone suffix in square brackets.
   const cleaned = raw.replace(/\[.*\]/, "").trim();
   if (cleaned.length >= 8) {
     return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;

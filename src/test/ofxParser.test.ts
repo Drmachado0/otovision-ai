@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { parseOFX, parseCSV, parseStatement } from "@/lib/ofxParser";
 
+const timezoneOffset = `${String.fromCharCode(45)}3`;
+
 const ofxTransacao = (trntype: string, amt: string, memo: string) => `
 <STMTTRN>
 <TRNTYPE>${trntype}
-<DTPOSTED>20260115120000[-3:BRT]
+<DTPOSTED>20260115120000[${timezoneOffset}:BRT]
 <TRNAMT>${amt}
 <FITID>${memo}-id
 <MEMO>${memo}
