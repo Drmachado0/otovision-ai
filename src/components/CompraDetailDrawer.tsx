@@ -23,6 +23,7 @@ export interface CompraFull {
   valor_total: number;
   data: string;
   status_entrega: string;
+  status_pagamento?: string | null;
   forma_pagamento: string;
   numero_parcelas: number;
   parcelas: Parcela[];
@@ -166,7 +167,7 @@ export default function CompraDetailDrawer({ compra, open, onClose, onRefresh, u
           )}
 
           {/* Payment button for single purchases */}
-          {tipo === "Única" && (
+          {tipo === "Única" && compra.status_pagamento?.toLowerCase() !== "pago" && (
             <Button className="w-full" onClick={() => setShowPagamento(true)}>
               <DollarSign className="w-4 h-4 mr-2" />
               Registrar Pagamento
