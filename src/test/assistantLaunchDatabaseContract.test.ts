@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync("supabase/migrations/20260812040000_assistant_delegated_access.sql", "utf8");
+const canonicalCategoriesMigration = readFileSync("supabase/migrations/20260812050000_seed_canonical_financial_categories.sql", "utf8");
 const edge = readFileSync("supabase/functions/assistente-lancamentos/index.ts", "utf8");
 
 describe("contrato transacional do assistente", () => {
@@ -17,6 +18,15 @@ describe("contrato transacional do assistente", () => {
     expect(migration).toContain("validate_assistant_delegation_account");
     expect(migration).toContain("validate_assistant_operation_tenant");
     expect(migration).not.toContain("ALTER TABLE public.obra_contas_financeiras");
+  });
+
+  it("materializa as categorias canônicas da interface sem duplicar registros", () => {
+    expect(canonicalCategoriesMigration).toContain("Material");
+    expect(canonicalCategoriesMigration).toContain("Mão de Obra");
+    expect(canonicalCategoriesMigration).toContain("Administrativo");
+    expect(canonicalCategoriesMigration).toContain("ON CONFLICT DO NOTHING");
+    expect(canonicalCategoriesMigration).toMatch(/INSERT INTO public\.obra_categorias[\s\S]*FROM public\.obra_assistant_delegations/);
+    expect(edge).toContain("Categoria não cadastrada");
   });
 
   it("propaga falhas de rotação e revogação em vez de confirmar falsamente", () => {
