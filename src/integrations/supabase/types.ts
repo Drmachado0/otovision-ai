@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_invitations: {
@@ -2727,6 +2752,148 @@ export type Database = {
         }
         Relationships: []
       }
+      obra_assistant_delegations: {
+        Row: {
+          created_at: string
+          default_account_id: string
+          enabled: boolean
+          expires_at: string | null
+          id: string
+          label: string
+          last_used_at: string | null
+          revoked_at: string | null
+          scopes: string[]
+          token_hash: string
+          token_prefix: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_account_id: string
+          enabled?: boolean
+          expires_at?: string | null
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          scopes?: string[]
+          token_hash: string
+          token_prefix: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_account_id?: string
+          enabled?: boolean
+          expires_at?: string | null
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          scopes?: string[]
+          token_hash?: string
+          token_prefix?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      obra_assistant_operations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          delegation_id: string
+          document_hash: string
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json | null
+          result_id: string | null
+          result_table: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          delegation_id: string
+          document_hash: string
+          error_message?: string | null
+          id?: string
+          idempotency_key: string
+          request_payload?: Json
+          response_payload?: Json | null
+          result_id?: string | null
+          result_table?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          delegation_id?: string
+          document_hash?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          request_payload?: Json
+          response_payload?: Json | null
+          result_id?: string | null
+          result_table?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obra_assistant_operations_delegation_id_fkey"
+            columns: ["delegation_id"]
+            isOneToOne: false
+            referencedRelation: "obra_assistant_delegations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      obra_assistant_security_events: {
+        Row: {
+          created_at: string
+          delegation_id: string
+          document_hash: string | null
+          id: string
+          idempotency_key: string | null
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delegation_id: string
+          document_hash?: string | null
+          id?: string
+          idempotency_key?: string | null
+          reason: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delegation_id?: string
+          document_hash?: string | null
+          id?: string
+          idempotency_key?: string | null
+          reason?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obra_assistant_security_events_delegation_id_fkey"
+            columns: ["delegation_id"]
+            isOneToOne: false
+            referencedRelation: "obra_assistant_delegations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       obra_audit_log: {
         Row: {
           acao: string
@@ -2850,6 +3017,7 @@ export type Database = {
           categoria: string
           created_at: string
           data_pagamento: string
+          dedup_key: string | null
           deleted_at: string | null
           forma_pagamento: string
           fornecedor: string
@@ -2868,6 +3036,7 @@ export type Database = {
           categoria?: string
           created_at?: string
           data_pagamento?: string
+          dedup_key?: string | null
           deleted_at?: string | null
           forma_pagamento?: string
           fornecedor?: string
@@ -2886,6 +3055,7 @@ export type Database = {
           categoria?: string
           created_at?: string
           data_pagamento?: string
+          dedup_key?: string | null
           deleted_at?: string | null
           forma_pagamento?: string
           fornecedor?: string
@@ -2974,6 +3144,7 @@ export type Database = {
           orcamento_vinculado_id: string
           parcelas: Json
           status_entrega: string
+          status_pagamento: string | null
           updated_at: string
           user_id: string
           valor_total: number
@@ -2999,6 +3170,7 @@ export type Database = {
           orcamento_vinculado_id?: string
           parcelas?: Json
           status_entrega?: string
+          status_pagamento?: string | null
           updated_at?: string
           user_id: string
           valor_total?: number
@@ -3024,6 +3196,7 @@ export type Database = {
           orcamento_vinculado_id?: string
           parcelas?: Json
           status_entrega?: string
+          status_pagamento?: string | null
           updated_at?: string
           user_id?: string
           valor_total?: number
@@ -3458,6 +3631,63 @@ export type Database = {
             columns: ["documento_id"]
             isOneToOne: false
             referencedRelation: "obra_documentos_processados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      obra_financial_payment_operations: {
+        Row: {
+          commission_id: string | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          installment_number: number | null
+          obligation_id: string
+          obligation_type: string
+          request_fingerprint: string
+          result: Json
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          commission_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          installment_number?: number | null
+          obligation_id: string
+          obligation_type: string
+          request_fingerprint: string
+          result?: Json
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          commission_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          installment_number?: number | null
+          obligation_id?: string
+          obligation_type?: string
+          request_fingerprint?: string
+          result?: Json
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obra_financial_payment_operations_commission_id_fkey"
+            columns: ["commission_id"]
+            isOneToOne: false
+            referencedRelation: "obra_comissao_pagamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "obra_financial_payment_operations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "obra_transacoes_fluxo"
             referencedColumns: ["id"]
           },
         ]
@@ -4119,10 +4349,13 @@ export type Database = {
       obra_movimentacoes_extraidas: {
         Row: {
           categoria_sugerida: string
+          conta_id: string | null
           created_at: string
           data_movimentacao: string
           descricao: string
           documento_id: string
+          extrato_arquivo: string | null
+          extrato_fit_id: string | null
           id: string
           saldo: number | null
           score_confianca: number
@@ -4135,10 +4368,13 @@ export type Database = {
         }
         Insert: {
           categoria_sugerida?: string
+          conta_id?: string | null
           created_at?: string
           data_movimentacao?: string
           descricao?: string
           documento_id: string
+          extrato_arquivo?: string | null
+          extrato_fit_id?: string | null
           id?: string
           saldo?: number | null
           score_confianca?: number
@@ -4151,10 +4387,13 @@ export type Database = {
         }
         Update: {
           categoria_sugerida?: string
+          conta_id?: string | null
           created_at?: string
           data_movimentacao?: string
           descricao?: string
           documento_id?: string
+          extrato_arquivo?: string | null
+          extrato_fit_id?: string | null
           id?: string
           saldo?: number | null
           score_confianca?: number
@@ -6840,12 +7079,28 @@ export type Database = {
         }
         Returns: number
       }
+      approve_extracted_movement: {
+        Args: {
+          p_account_id?: string
+          p_category: string
+          p_date: string
+          p_description: string
+          p_movement_id: string
+          p_type: string
+          p_value: number
+        }
+        Returns: Json
+      }
       auto_provision_ig_account: {
         Args: { p_device_id: string; p_ig_username: string }
         Returns: string
       }
       award_xp: {
         Args: { _amount: number; _metadata?: Json; _reason: string }
+        Returns: Json
+      }
+      cancel_assistant_recurring_payables: {
+        Args: { p_confirm: string; p_delegation_id: string; p_user_id: string }
         Returns: Json
       }
       cleanup_growth_stats: { Args: never; Returns: number }
@@ -6855,6 +7110,18 @@ export type Database = {
       }
       compute_level: { Args: { _xp: number }; Returns: number }
       compute_tier: { Args: { _level: number }; Returns: string }
+      create_assistant_launch: {
+        Args: {
+          p_delegation_id: string
+          p_document_hash: string
+          p_idempotency_key: string
+          p_request_payload: Json
+          p_result_table: string
+          p_row: Json
+          p_user_id: string
+        }
+        Returns: Json
+      }
       create_compra_atomica: {
         Args: { p_comissao?: Json; p_compra: Json; p_transacao?: Json }
         Returns: Json
@@ -6899,6 +7166,9 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      fin_can_write: { Args: never; Returns: boolean }
+      fin_can_write_comissao: { Args: never; Returns: boolean }
+      financial_consistency_report: { Args: never; Returns: Json }
       generate_bridge_token: {
         Args: { p_ig_account_id: string }
         Returns: string
@@ -6934,6 +7204,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      import_bank_statement: {
+        Args: {
+          p_account_id: string
+          p_document_id: string
+          p_source_file: string
+          p_transactions: Json
+        }
+        Returns: Json
       }
       increment_flow_execution_count: {
         Args: { p_flow_id: string }
@@ -6977,9 +7256,40 @@ export type Database = {
         }
         Returns: string
       }
+      pay_financial_obligation: {
+        Args: {
+          p_account_id: string
+          p_generate_commission: boolean
+          p_idempotency_key: string
+          p_installment_number?: number
+          p_method: string
+          p_obligation_id: string
+          p_obligation_type: string
+          p_paid_at: string
+          p_receipt_path?: string
+        }
+        Returns: Json
+      }
       peek_invitation: { Args: { p_token_hash: string }; Returns: Json }
       reabrir_folha: { Args: { p_folha_id: string }; Returns: Json }
+      read_assistant_context: {
+        Args: {
+          p_delegation_id: string
+          p_limit?: number
+          p_resource: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       recompute_broadcast_counts: { Args: { bid: string }; Returns: undefined }
+      reconcile_bank_movement: {
+        Args: {
+          p_generate_commission?: boolean
+          p_movement_id: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
       redeem_invitation: { Args: { p_token_hash: string }; Returns: string }
       refund_credits: {
         Args: { p_amount: number; p_user_id: string }
@@ -7006,6 +7316,21 @@ export type Database = {
       remove_duplicate_targets: {
         Args: { p_ig_account_id: string }
         Returns: number
+      }
+      revoke_assistant_delegation: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      rotate_assistant_delegation: {
+        Args: {
+          p_default_account_id: string
+          p_expires_at: string
+          p_label: string
+          p_token_hash: string
+          p_token_prefix: string
+          p_user_id: string
+        }
+        Returns: string
       }
       send_bot_command: {
         Args: { p_command: string; p_ig_account_id: string; p_params: Json }
@@ -7176,6 +7501,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       account_role_enum: ["owner", "admin", "agent", "viewer"],

@@ -1,4 +1,4 @@
-import { FileText, Check, X, AlertTriangle, ShoppingCart, Trash2, CreditCard } from "lucide-react";
+import { FileText, Check, X, AlertTriangle, ShoppingCart, Trash2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ interface OrcamentoDetailSheetProps {
   onClose: () => void;
   onApprove: (o: Orcamento) => void;
   onReject: (o: Orcamento) => void;
-  onPagar: (o: Orcamento) => void;
   onConvertToCompra: (o: Orcamento) => void;
   onDelete: (id: string) => void;
 }
@@ -26,7 +25,6 @@ export function OrcamentoDetailSheet({
   onClose,
   onApprove,
   onReject,
-  onPagar,
   onConvertToCompra,
   onDelete,
 }: OrcamentoDetailSheetProps) {
@@ -162,14 +160,9 @@ export function OrcamentoDetailSheet({
                     </div>
                   )}
                   {orcamento.status === "Aprovado" && (
-                    <>
-                      <Button className="gap-2" onClick={() => { onPagar(orcamento); }}>
-                        <CreditCard className="w-4 h-4" /> Pagar Orçamento
-                      </Button>
-                      <Button variant="outline" className="gap-2" onClick={() => onConvertToCompra(orcamento)}>
-                        <ShoppingCart className="w-4 h-4" /> Converter em Compra
-                      </Button>
-                    </>
+                    <Button className="gap-2" onClick={() => onConvertToCompra(orcamento)}>
+                      <ShoppingCart className="w-4 h-4" /> Converter em Compra
+                    </Button>
                   )}
                   {orcamento.status === "Pago" && (
                     <Badge className="badge-success self-start">✓ Pago</Badge>

@@ -1,11 +1,10 @@
-import { memo, useCallback, useEffect, useState, useRef, useMemo } from "react";
+import { memo, useCallback, useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatDate, todayLocalISO } from "@/lib/formatters";
-import { processRecurrences } from "@/lib/recurrenceEngine";
 import { flattenParcelasPendentes, type CompraComParcelas, type ParcelaPendenteRow } from "@/lib/contasAPagarParcelas";
 import {
   Clock, AlertTriangle, DollarSign, CalendarCheck, Search,
@@ -167,17 +166,6 @@ export default function ContasAPagarPage() {
   useEffect(() => {
     if (isError) toast.error("Erro ao carregar contas a pagar. Tentando novamente...");
   }, [isError]);
-
-  // Process recurring transactions on mount (once)
-  const recurrenceRan = useRef(false);
-  useEffect(() => {
-    if (!recurrenceRan.current) {
-      recurrenceRan.current = true;
-      processRecurrences().then((n) => {
-        if (n > 0) fetchData();
-      });
-    }
-  }, [fetchData]);
 
   useEffect(() => {
     const onFocus = () => fetchData();

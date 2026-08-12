@@ -14,7 +14,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { toast } from "sonner";
 import { Upload, Loader2, CreditCard, Wallet, Receipt, Calendar, Tag } from "lucide-react";
-import { PERCENTUAL_COMISSAO_CONSTRUTOR, registrarComissaoParaTransacaoExistente } from "@/lib/comissao";
+import { PERCENTUAL_COMISSAO_CONSTRUTOR } from "@/lib/comissao";
+import { buildPaymentIdempotencyKey, payFinancialObligation } from "@/lib/financialPayments";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface ContaFinanceira {
   id: string;
@@ -49,15 +51,17 @@ interface ConfirmarPagamentoDialogProps {
 export default function ConfirmarPagamentoDialog({
   open, onClose, onSuccess, transacao, parcelaCompra, userId,
 }: ConfirmarPagamentoDialogProps) {
+  const { permissions } = useUserRole();
   const [contas, setContas] = useState<ContaFinanceira[]>([]);
   const [contaId, setContaId] = useState("");
   const [metodo, setMetodo] = useState("PIX");
   const [arquivo, setArquivo] = useState<File | null>(null);
-  const [gerarComissao, setGerarComissao] = useState(true);
+  const [gerarComissao, setGerarComissao] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setGerarComissao(permissions.canEditComissao);
     supabase
       .from("obra_contas_financeiras")
       .select("id, nome, tipo, cor")
@@ -71,7 +75,7 @@ export default function ConfirmarPagamentoDialog({
     // Pre-fill from transacao
     if (transacao?.conta_id) setContaId(transacao.conta_id);
     if (transacao?.forma_pagamento) setMetodo(transacao.forma_pagamento);
-  }, [open, transacao]);
+  }, [open, transacao, permissions.canEditComissao]);
 
   const comissaoValor = transacao ? Number(transacao.valor) * (PERCENTUAL_COMISSAO_CONSTRUTOR / 100) : 0;
   const isCompra = !!parcelaCompra;
@@ -85,86 +89,45 @@ export default function ConfirmarPagamentoDialog({
     setLoading(true);
     try {
       let storagePath = "";
+      const obligationType = parcelaCompra ? "purchase_installment" : "transaction";
+      const obligationId = parcelaCompra?.compra_id || transacao.id;
+      const operationKey = buildPaymentIdempotencyKey(
+        obligationType,
+        obligationId,
+        parcelaCompra?.numero_parcela,
+      );
 
-      // Upload comprovante if provided
       if (arquivo) {
-        const ext = arquivo.name.split(".").pop();
-        const path = `${userId}/comprovantes/${transacao.id}/${Date.now()}.${ext}`;
+        const ext = arquivo.name.split(".").pop() || "bin";
+        const path = `${userId}/comprovantes/${obligationId}/${operationKey.replace(/:/g, "-")}.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from("documentos")
-          .upload(path, arquivo);
+          .upload(path, arquivo, { upsert: true });
         if (uploadErr) throw new Error("Erro ao enviar comprovante: " + uploadErr.message);
         storagePath = path;
       }
 
-      let txIdParaComissao = transacao.id;
-
-      if (parcelaCompra) {
-        // Parcela de obra_compras → usa RPC atômica que marca parcela como Paga e cria transação no fluxo
-        const { data: rpcData, error: rpcErr } = await supabase.rpc("pagar_parcela_atomica" as any, {
-          p_compra_id: parcelaCompra.compra_id,
-          p_numero_parcela: parcelaCompra.numero_parcela,
-          p_transacao: {
-            descricao: transacao.descricao,
-            categoria: transacao.categoria,
-            valor: Number(transacao.valor),
-            data: new Date().toISOString(),
-            forma_pagamento: metodo,
-            conta_id: contaId,
-            observacoes: storagePath ? `Comprovante: ${storagePath}` : "",
-            metodo_pagamento: metodo,
-          },
-        } as any);
-        if (rpcErr) throw rpcErr;
-        if (rpcData) txIdParaComissao = String(rpcData);
-      } else {
-        // Update transaction to paid
-        const updateData: Record<string, unknown> = {
-          status: "pago",
-          data_pagamento: new Date().toISOString(),
-          conta_id: contaId,
-          forma_pagamento: metodo,
-        };
-        if (storagePath) updateData.comprovante_path = storagePath;
-
-        const { error } = await supabase
-          .from("obra_transacoes_fluxo")
-          .update(updateData as any)
-          .eq("id", transacao.id);
-        if (error) throw error;
-      }
-
-      // Create or reuse linked commission. This prevents duplicate commissions if the
-      // payment confirmation is retried or the dialog is submitted again.
-      const { comissaoError } = await registrarComissaoParaTransacaoExistente({
-        supabase,
-        gerarComissao,
-        dataComissao: new Date().toISOString().slice(0, 10),
-        origemCompraId: parcelaCompra?.compra_id,
-        transacao: {
-          id: txIdParaComissao,
-          user_id: userId,
-          tipo: "Saída",
-          valor: Number(transacao.valor),
-          data: new Date().toISOString().slice(0, 10),
-          categoria: transacao.categoria,
-          descricao: transacao.descricao,
-          forma_pagamento: metodo,
-        },
+      await payFinancialObligation(supabase, {
+        obligationType,
+        obligationId,
+        installmentNumber: parcelaCompra?.numero_parcela,
+        accountId: contaId,
+        method: metodo,
+        paidAt: new Date().toISOString(),
+        generateCommission: gerarComissao,
+        receiptPath: storagePath || undefined,
+        idempotencyKey: operationKey,
       });
-      if (gerarComissao && comissaoError) {
-        toast.warning("Pagamento confirmado, mas houve erro ao criar comissão automática");
-      }
 
       // Register comprovante as document
       if (storagePath && arquivo) {
-        await supabase.from("obra_documentos_processados").insert({
+        const { error: documentError } = await supabase.from("obra_documentos_processados").insert({
           user_id: userId,
           nome_arquivo: arquivo.name,
           tipo_arquivo: arquivo.type || "application/pdf",
           storage_path: storagePath,
           caminho_origem: storagePath,
-          hash_arquivo: `${transacao.id}-${Date.now()}`,
+          hash_arquivo: operationKey,
           status_processamento: "processado",
           tipo_documento: "comprovante",
           confianca_extracao: 100,
@@ -178,13 +141,16 @@ export default function ConfirmarPagamentoDialog({
             metodo_pagamento: metodo,
           },
         } as any);
+        if (documentError) {
+          toast.warning("Pagamento confirmado, mas o comprovante não foi indexado na Pasta Sync.");
+        }
       }
 
       toast.success("Pagamento confirmado!");
       setArquivo(null);
       setContaId("");
       setMetodo("PIX");
-      setGerarComissao(true);
+      setGerarComissao(false);
       onSuccess();
       onClose();
     } catch (err) {
@@ -256,6 +222,7 @@ export default function ConfirmarPagamentoDialog({
               <Checkbox
                 checked={gerarComissao}
                 onCheckedChange={(checked) => setGerarComissao(checked === true)}
+                disabled={!permissions.canEditComissao}
                 className="mt-0.5"
               />
               <span>

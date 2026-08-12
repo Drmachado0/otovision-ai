@@ -4,10 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { Check, RefreshCw, CreditCard, AlertCircle, DollarSign } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import PagamentoDialog from "@/components/PagamentoDialog";
-import { registrarTransacaoComComissao } from "@/lib/comissao";
+import ConfirmarPagamentoDialog from "@/components/ConfirmarPagamentoDialog";
 
 interface Parcela {
   numero: number;
@@ -25,6 +23,7 @@ export interface CompraFull {
   valor_total: number;
   data: string;
   status_entrega: string;
+  status_pagamento?: string | null;
   forma_pagamento: string;
   numero_parcelas: number;
   parcelas: Parcela[];
@@ -48,91 +47,30 @@ export function getCompraType(c: { numero_parcelas: number; observacoes: string;
 }
 
 export function parseParcelas(raw: unknown): Parcela[] {
-  if (!raw || !Array.isArray(raw)) return [];
-  return raw as Parcela[];
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is Parcela => {
+    if (!item || typeof item !== "object") return false;
+    const parcela = item as Record<string, unknown>;
+    return Number.isInteger(parcela.numero)
+      && Number(parcela.numero) > 0
+      && typeof parcela.valor === "number"
+      && Number.isFinite(parcela.valor)
+      && parcela.valor > 0
+      && typeof parcela.data_vencimento === "string"
+      && /^\d{4}-\d{2}-\d{2}$/.test(parcela.data_vencimento)
+      && typeof parcela.status === "string"
+      && parcela.status.trim().length > 0;
+  });
 }
 
 export default function CompraDetailDrawer({ compra, open, onClose, onRefresh, userId }: Props) {
   const [showPagamento, setShowPagamento] = useState(false);
+  const [parcelaPagamento, setParcelaPagamento] = useState<Parcela | null>(null);
   if (!compra) return null;
 
   const parcelas = parseParcelas(compra.parcelas);
   const tipo = compra.tipo_compra;
   const pagas = parcelas.filter(p => p.status === "Paga").length;
-
-  const handlePagarParcela = async (parcela: Parcela) => {
-    if (parcela.status === "Paga") {
-      toast.info("Esta parcela já está marcada como paga");
-      return;
-    }
-
-    const gerarComissao = window.confirm(
-      "Gerar comissão automática de 8% para esta parcela?\n\nOK = gerar comissão\nCancelar = registrar apenas nos gastos"
-    );
-
-    const referencia = `COMPRA-${compra.id}-PARCELA-${parcela.numero}`;
-    const { data: existente } = await supabase
-      .from("obra_transacoes_fluxo")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("referencia", referencia)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (existente?.id) {
-      toast.error("Esta parcela já possui lançamento no fluxo de caixa");
-      return;
-    }
-
-    const { transacao, transacaoError, comissaoError } = await registrarTransacaoComComissao({
-      supabase,
-      fornecedor: compra.fornecedor,
-      gerarComissao,
-      origemCompraId: compra.id,
-      transacao: {
-        user_id: userId,
-        tipo: "Saída",
-        valor: parcela.valor,
-        data: parcela.data_vencimento,
-        categoria: compra.categoria,
-        descricao: `Parcela ${parcela.numero}/${compra.numero_parcelas} - ${compra.descricao || compra.fornecedor}`,
-        forma_pagamento: compra.forma_pagamento,
-        recorrencia: "Única",
-        referencia,
-        conta_id: "",
-        observacoes: `Fornecedor: ${compra.fornecedor}${gerarComissao ? "" : " | Sem comissão por opção do usuário"}`,
-        origem_tipo: "compra_parcela",
-        origem_id: compra.id,
-      },
-    });
-
-    if (transacaoError) {
-      toast.error("Erro ao criar transação da parcela; nada foi marcado como pago");
-      return;
-    }
-
-    const updatedParcelas = parcelas.map(p =>
-      p.numero === parcela.numero ? { ...p, status: "Paga", transacao_id: transacao?.id } : p
-    );
-    const todasPagas = updatedParcelas.every(p => p.status === "Paga");
-
-    const { error: errCompra } = await supabase
-      .from("obra_compras")
-      .update({
-        parcelas: updatedParcelas as any,
-        status_entrega: todasPagas ? "Entregue" : "Pedido",
-      })
-      .eq("id", compra.id);
-
-    if (errCompra) {
-      toast.warning("Transação criada, mas houve erro ao atualizar a parcela. Revise a compra.");
-      return;
-    }
-
-    if (gerarComissao && comissaoError) toast.warning(`Parcela ${parcela.numero} paga, mas houve erro ao criar comissão automática`);
-    else toast.success(gerarComissao ? `Parcela ${parcela.numero} paga com comissão!` : `Parcela ${parcela.numero} paga sem comissão!`);
-    onRefresh();
-  };
 
   const recorrenteInfo = tipo === "Recorrente"
     ? compra.observacoes.replace("[RECORRENTE] ", "")
@@ -203,12 +141,12 @@ export default function CompraDetailDrawer({ compra, open, onClose, onRefresh, u
                         ) : isVencida ? (
                           <>
                             <Badge variant="destructive" className="text-xs"><AlertCircle className="w-3 h-3 mr-1" />Vencida</Badge>
-                            <Button size="sm" variant="outline" className="h-10 text-xs flex-1 sm:flex-none" onClick={() => handlePagarParcela(p)}>
+                            <Button size="sm" variant="outline" className="h-10 text-xs flex-1 sm:flex-none" onClick={() => setParcelaPagamento(p)}>
                               <CreditCard className="w-3 h-3 mr-1" />Pagar
                             </Button>
                           </>
                         ) : (
-                          <Button size="sm" variant="outline" className="h-10 text-xs flex-1 sm:flex-none" onClick={() => handlePagarParcela(p)}>
+                          <Button size="sm" variant="outline" className="h-10 text-xs flex-1 sm:flex-none" onClick={() => setParcelaPagamento(p)}>
                             <CreditCard className="w-3 h-3 mr-1" />Pagar
                           </Button>
                         )}
@@ -229,7 +167,7 @@ export default function CompraDetailDrawer({ compra, open, onClose, onRefresh, u
           )}
 
           {/* Payment button for single purchases */}
-          {tipo === "Única" && compra.status_entrega !== "Entregue" && (
+          {tipo === "Única" && compra.status_pagamento?.toLowerCase() !== "pago" && (
             <Button className="w-full" onClick={() => setShowPagamento(true)}>
               <DollarSign className="w-4 h-4 mr-2" />
               Registrar Pagamento
@@ -238,6 +176,27 @@ export default function CompraDetailDrawer({ compra, open, onClose, onRefresh, u
         </div>
 
         {/* Payment dialog */}
+        <ConfirmarPagamentoDialog
+          open={!!parcelaPagamento}
+          onClose={() => setParcelaPagamento(null)}
+          onSuccess={() => { setParcelaPagamento(null); onRefresh(); }}
+          transacao={parcelaPagamento ? {
+            id: `${compra.id}:${parcelaPagamento.numero}`,
+            descricao: `Parcela ${parcelaPagamento.numero}/${compra.numero_parcelas} - ${compra.descricao || compra.fornecedor}`,
+            valor: parcelaPagamento.valor,
+            categoria: compra.categoria,
+            data_vencimento: parcelaPagamento.data_vencimento,
+            forma_pagamento: compra.forma_pagamento,
+            parcela_numero: parcelaPagamento.numero,
+            parcela_total: compra.numero_parcelas,
+          } : null}
+          parcelaCompra={parcelaPagamento ? {
+            compra_id: compra.id,
+            numero_parcela: parcelaPagamento.numero,
+          } : undefined}
+          userId={userId}
+        />
+
         <PagamentoDialog
           open={showPagamento}
           onClose={() => setShowPagamento(false)}

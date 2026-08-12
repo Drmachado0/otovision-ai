@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync("supabase/migrations/20260812040000_assistant_delegated_access.sql", "utf8");
+const canonicalCategoriesMigration = readFileSync("supabase/migrations/20260812050000_seed_canonical_financial_categories.sql", "utf8");
+const cancelRecurrencesMigration = readFileSync("supabase/migrations/20260812060000_cancel_assistant_recurring_payables.sql", "utf8");
+const cancelRecurrencesRuntimeFix = readFileSync("supabase/migrations/20260812070000_fix_cancel_recurring_payables_runtime.sql", "utf8");
 const edge = readFileSync("supabase/functions/assistente-lancamentos/index.ts", "utf8");
 
 describe("contrato transacional do assistente", () => {
@@ -17,6 +20,30 @@ describe("contrato transacional do assistente", () => {
     expect(migration).toContain("validate_assistant_delegation_account");
     expect(migration).toContain("validate_assistant_operation_tenant");
     expect(migration).not.toContain("ALTER TABLE public.obra_contas_financeiras");
+  });
+
+  it("materializa as categorias canônicas da interface sem duplicar registros", () => {
+    expect(canonicalCategoriesMigration).toContain("Material");
+    expect(canonicalCategoriesMigration).toContain("Mão de Obra");
+    expect(canonicalCategoriesMigration).toContain("Administrativo");
+    expect(canonicalCategoriesMigration).toContain("ON CONFLICT DO NOTHING");
+    expect(canonicalCategoriesMigration).toMatch(/INSERT INTO public\.obra_categorias[\s\S]*FROM public\.obra_assistant_delegations/);
+    expect(edge).toContain("Categoria não cadastrada");
+  });
+
+  it("cancela recorrências de forma tenant-safe sem tocar em pagos", () => {
+    expect(cancelRecurrencesMigration).toContain("CREATE OR REPLACE FUNCTION public.cancel_assistant_recurring_payables");
+    expect(cancelRecurrencesMigration).toContain("recorrencia_mae = true");
+    expect(cancelRecurrencesMigration).toContain("recorrencia_ativa = false");
+    expect(cancelRecurrencesMigration).toContain("status = 'pendente'");
+    expect(cancelRecurrencesMigration).toContain("deleted_at = now()");
+    expect(cancelRecurrencesMigration).toContain("p_confirm IS DISTINCT FROM 'CANCELAR_TODAS_RECORRENCIAS'");
+    expect(cancelRecurrencesMigration).toContain("GRANT EXECUTE ON FUNCTION public.cancel_assistant_recurring_payables");
+    expect(edge).toContain('action === "cancel-recurrences"');
+    expect(edge).toContain('.rpc("cancel_assistant_recurring_payables"');
+    expect(cancelRecurrencesRuntimeFix).toContain("mother.recorrencia_grupo_id = occurrence.recorrencia_grupo_id");
+    expect(cancelRecurrencesRuntimeFix).not.toContain("recorrencia_grupo_id = ANY");
+    expect(cancelRecurrencesRuntimeFix).not.toContain("v_groups UUID[]");
   });
 
   it("propaga falhas de rotação e revogação em vez de confirmar falsamente", () => {
