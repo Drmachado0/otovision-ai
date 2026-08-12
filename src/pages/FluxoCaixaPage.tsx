@@ -14,6 +14,7 @@ import { TransacaoRowItem } from "./fluxoCaixa/TransacaoRowItem";
 import { FluxoCaixaKPIs } from "./fluxoCaixa/FluxoCaixaKPIs";
 import { FluxoCaixaFilters } from "./fluxoCaixa/FluxoCaixaFilters";
 import { NovaTransacaoDialog } from "./fluxoCaixa/NovaTransacaoDialog";
+import BankStatementImportCard from "@/components/BankStatementImportCard";
 
 export default function FluxoCaixaPage() {
   const { user } = useAuth();
@@ -255,6 +256,8 @@ export default function FluxoCaixaPage() {
           <Plus className="w-4 h-4" /> Nova Transação
         </Button>
       </div>
+
+      <BankStatementImportCard contas={contas} onImported={fetchData} />
 
       {/* Summary */}
       <FluxoCaixaKPIs

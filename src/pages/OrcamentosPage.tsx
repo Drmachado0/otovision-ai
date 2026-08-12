@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatDate, todayLocalISO } from "@/lib/formatters";
 import { Plus, FileText, Check, X, Clock, ShoppingCart, Search } from "lucide-react";
-import PagamentoDialog from "@/components/PagamentoDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +30,6 @@ export default function OrcamentosPage() {
   const [saving, setSaving] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<StatusFilter>("Todos");
   const [selectedOrcamento, setSelectedOrcamento] = useState<Orcamento | null>(null);
-  const [pagamentoOrcamento, setPagamentoOrcamento] = useState<Orcamento | null>(null);
 
   const [form, setForm] = useState({
     fornecedor: "",
@@ -294,7 +292,6 @@ export default function OrcamentosPage() {
         onClose={() => setSelectedOrcamento(null)}
         onApprove={handleApprove}
         onReject={handleReject}
-        onPagar={(o) => { setPagamentoOrcamento(o); }}
         onConvertToCompra={handleConvertToCompra}
         onDelete={handleDelete}
       />
@@ -313,29 +310,6 @@ export default function OrcamentosPage() {
         onUpdateItem={updateItem}
       />
 
-      {/* Pagamento do Orçamento */}
-      {pagamentoOrcamento && user && (
-        <PagamentoDialog
-          open={!!pagamentoOrcamento}
-          onClose={() => setPagamentoOrcamento(null)}
-          onSuccess={async () => {
-            await supabase
-              .from("obra_orcamentos")
-              .update({ status: "Pago" } as any)
-              .eq("id", pagamentoOrcamento.id);
-            setPagamentoOrcamento(null);
-            setSelectedOrcamento(null);
-            fetchData();
-          }}
-          tipo="compra"
-          id={pagamentoOrcamento.id}
-          fornecedor={pagamentoOrcamento.fornecedor}
-          valor={Number(pagamentoOrcamento.valor_total)}
-          categoria={pagamentoOrcamento.categoria}
-          descricao={pagamentoOrcamento.descricao}
-          userId={user.id}
-        />
-      )}
     </div>
   );
 }

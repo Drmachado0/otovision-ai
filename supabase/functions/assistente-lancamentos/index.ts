@@ -37,7 +37,7 @@ const READ_RESOURCES: Record<string, { table: string; select: string; order?: st
   contas: { table: "obra_contas_financeiras", select: "id,nome,tipo,ativa,saldo_inicial,observacoes", order: "nome" },
   categorias: { table: "obra_categorias", select: "id,nome", order: "nome" },
   fornecedores: { table: "obra_fornecedores", select: "id,nome,cnpj,especialidade,status,avaliacao,observacoes", order: "nome" },
-  transacoes: { table: "obra_transacoes_fluxo", select: "id,tipo,valor,data,data_vencimento,data_pagamento,categoria,descricao,forma_pagamento,conta_id,status,referencia,origem_tipo,origem_id,created_at", order: "created_at" },
+  transacoes: { table: "obra_transacoes_fluxo", select: "id,tipo,valor,data,data_vencimento,data_pagamento,categoria,descricao,forma_pagamento,conta_id,status,referencia,origem_tipo,origem_id,recorrencia_mae,recorrencia_ativa,recorrencia_grupo_id,deleted_at,created_at", order: "created_at" },
   compras: { table: "obra_compras", select: "id,fornecedor,fornecedor_id,descricao,categoria,valor_total,data,forma_pagamento,numero_parcelas,parcelas,status_entrega,conta_id,nf_vinculada,created_at", order: "created_at" },
   documentos: { table: "obra_documentos_processados", select: "id,nome_arquivo,tipo_documento,status_processamento,confianca_extracao,duplicidade_status,duplicidade_score,motivo_revisao,hash_arquivo,created_at", order: "created_at" },
   auditoria: { table: "obra_audit_log", select: "id,acao,tabela,registro_id,dados_novos,created_at", order: "created_at" },
@@ -230,6 +230,29 @@ async function context(req: Request) {
   return json(data);
 }
 
+async function cancelRecurrences(req: Request) {
+  const delegation = await delegatedAccess(req, "launch");
+  if (!delegation) return json({ error: "Delegação inválida, expirada ou sem escopo de lançamento" }, 401);
+  const body = await readJsonLimited(req).catch((error) => {
+    if (error instanceof BodyTooLargeError) throw error;
+    return null;
+  }) as Record<string, unknown> | null;
+  if (!body || body.confirm !== "CANCELAR_TODAS_RECORRENCIAS") {
+    return json({ error: "Confirmação de cancelamento inválida" }, 400);
+  }
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+  const { data, error } = await admin.rpc("cancel_assistant_recurring_payables", {
+    p_delegation_id: delegation.id,
+    p_user_id: delegation.user_id,
+    p_confirm: body.confirm,
+  });
+  if (error) {
+    console.error("cancel recurring payables failed", error.code, error.details, error.hint);
+    return json({ error: "Não foi possível cancelar as recorrências", diagnostic_code: error.code || "unknown" }, 500);
+  }
+  return json(data);
+}
+
 async function launch(req: Request) {
   const delegation = await delegatedAccess(req, "launch");
   if (!delegation) return json({ error: "Delegação inválida, expirada ou sem escopo de lançamento" }, 401);
@@ -299,6 +322,7 @@ Deno.serve(async (req) => {
     if (req.method === "POST" && (url.pathname.endsWith("/activate") || action === "activate")) response = await activate(req);
     else if (req.method === "POST" && (url.pathname.endsWith("/revoke") || action === "revoke")) response = await revoke(req);
     else if (req.method === "POST" && action === "status") response = await status(req);
+    else if (req.method === "POST" && action === "cancel-recurrences") response = await cancelRecurrences(req);
     else if (req.method === "GET") response = await context(req);
     else if (req.method === "POST") response = await launch(req);
     else response = json({ error: "Método não permitido" }, 405);

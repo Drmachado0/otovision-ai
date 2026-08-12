@@ -13,7 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
 import { Upload, Loader2, CreditCard, Wallet, Receipt } from "lucide-react";
-import { PERCENTUAL_COMISSAO_CONSTRUTOR, registrarTransacaoComComissao } from "@/lib/comissao";
+import { PERCENTUAL_COMISSAO_CONSTRUTOR } from "@/lib/comissao";
+import { buildPaymentIdempotencyKey, payFinancialObligation } from "@/lib/financialPayments";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface PagamentoDialogProps {
   open: boolean;
@@ -38,15 +40,17 @@ interface ContaFinanceira {
 export default function PagamentoDialog({
   open, onClose, onSuccess, tipo, id, fornecedor, valor, categoria, descricao, userId,
 }: PagamentoDialogProps) {
+  const { permissions } = useUserRole();
   const [contas, setContas] = useState<ContaFinanceira[]>([]);
   const [contaId, setContaId] = useState("");
   const [metodo, setMetodo] = useState("PIX");
   const [arquivo, setArquivo] = useState<File | null>(null);
-  const [gerarComissao, setGerarComissao] = useState(true);
+  const [gerarComissao, setGerarComissao] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setGerarComissao(permissions.canEditComissao);
     supabase
       .from("obra_contas_financeiras")
       .select("id, nome, tipo, cor")
@@ -58,7 +62,7 @@ export default function PagamentoDialog({
           if (data.length === 1) setContaId(data[0].id);
         }
       });
-  }, [open, userId]);
+  }, [open, userId, permissions.canEditComissao]);
 
   const comissaoValor = Number(valor) * (PERCENTUAL_COMISSAO_CONSTRUTOR / 100);
 
@@ -70,121 +74,40 @@ export default function PagamentoDialog({
     setLoading(true);
     try {
       let storagePath = "";
+      const obligationType = tipo === "nf" ? "invoice" : "purchase";
+      const operationKey = buildPaymentIdempotencyKey(obligationType, id);
 
-      // Upload receipt if provided
+      // O caminho determinístico permite repetir a mesma operação após timeout.
       if (arquivo) {
-        const ext = arquivo.name.split(".").pop();
-        const path = `${userId}/recibos/${id}/${Date.now()}.${ext}`;
+        const ext = arquivo.name.split(".").pop() || "bin";
+        const path = `${userId}/recibos/${id}/${operationKey.replace(/:/g, "-")}.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from("documentos")
-          .upload(path, arquivo);
+          .upload(path, arquivo, { upsert: true });
         if (uploadErr) throw new Error("Erro ao enviar recibo: " + uploadErr.message);
         storagePath = path;
       }
 
-      if (tipo === "nf") {
-        if (gerarComissao) {
-          // Use the atomic RPC when commission should be created together with the payment.
-          const mes = new Date().toISOString().slice(0, 7);
-          const { error } = await supabase.rpc("pagar_nf_atomica", {
-            p_nf_id: id,
-            p_conta_id: contaId,
-            p_metodo: metodo,
-            p_transacao: {
-              descricao: `NF ${descricao || fornecedor}`,
-              categoria,
-              valor,
-              forma_pagamento: metodo,
-              metodo_pagamento: metodo,
-              observacoes: `Fornecedor: ${fornecedor}`,
-              status: "pago",
-              data_pagamento: new Date().toISOString(),
-            },
-            p_comissao: {
-              mes,
-              valor: comissaoValor,
-              pago: false,
-              observacoes: `Comissão automática NF - ${fornecedor}`,
-            },
-          });
-          if (error) throw error;
-        } else {
-          const { transacaoError } = await registrarTransacaoComComissao({
-            supabase,
-            fornecedor,
-            gerarComissao: false,
-            transacao: {
-              user_id: userId,
-              tipo: "Saída",
-              valor,
-              data: new Date().toISOString(),
-              categoria,
-              descricao: `NF ${descricao || fornecedor}`,
-              forma_pagamento: metodo,
-              conta_id: contaId,
-              recorrencia: "Única",
-              referencia: `NF-${id}`,
-              metodo_pagamento: metodo,
-              observacoes: `Fornecedor: ${fornecedor} | Sem comissão por opção do usuário`,
-              origem_tipo: "nf",
-              origem_id: id,
-              status: "pago",
-              data_pagamento: new Date().toISOString(),
-            },
-          });
-          if (transacaoError) throw transacaoError;
-          const { error } = await supabase
-            .from("obra_notas_fiscais")
-            .update({ status: "paga", forma_pagamento: metodo })
-            .eq("id", id);
-          if (error) throw error;
-        }
-      } else {
-        // For compras: payment creates the real cash-flow expense and optional commission.
-        const { transacaoError, comissaoError } = await registrarTransacaoComComissao({
-          supabase,
-          fornecedor,
-          gerarComissao,
-          origemCompraId: id,
-          transacao: {
-            user_id: userId,
-            tipo: "Saída",
-            valor,
-            data: new Date().toISOString(),
-            categoria,
-            descricao: `Compra - ${descricao || fornecedor}`,
-            forma_pagamento: metodo,
-            conta_id: contaId,
-            recorrencia: "Única",
-            referencia: `COMPRA-${id}`,
-            metodo_pagamento: metodo,
-            observacoes: `Fornecedor: ${fornecedor}${gerarComissao ? "" : " | Sem comissão por opção do usuário"}`,
-            origem_tipo: "compra",
-            origem_id: id,
-            status: "pago",
-            data_pagamento: new Date().toISOString(),
-          },
-        });
-        if (transacaoError) throw transacaoError;
-        if (gerarComissao && comissaoError) toast.warning("Pagamento registrado, mas houve erro ao criar comissão automática");
-
-        // Update compra status
-        const { error } = await supabase
-          .from("obra_compras")
-          .update({ status_entrega: "Entregue" })
-          .eq("id", id);
-        if (error) throw error;
-      }
+      await payFinancialObligation(supabase, {
+        obligationType,
+        obligationId: id,
+        accountId: contaId,
+        method: metodo,
+        paidAt: new Date().toISOString(),
+        generateCommission: gerarComissao,
+        receiptPath: storagePath || undefined,
+        idempotencyKey: operationKey,
+      });
 
       // Register receipt as processed document in Pasta Sync
       if (storagePath && arquivo) {
-        await supabase.from("obra_documentos_processados").insert({
+        const { error: documentError } = await supabase.from("obra_documentos_processados").insert({
           user_id: userId,
           nome_arquivo: arquivo.name,
           tipo_arquivo: arquivo.type || "application/pdf",
           storage_path: storagePath,
           caminho_origem: storagePath,
-          hash_arquivo: `${id}-${Date.now()}`,
+          hash_arquivo: operationKey,
           status_processamento: "processado",
           tipo_documento: "recibo",
           confianca_extracao: 100,
@@ -199,13 +122,16 @@ export default function PagamentoDialog({
             metodo_pagamento: metodo,
           },
         } as any);
+        if (documentError) {
+          toast.warning("Pagamento confirmado, mas o recibo não foi indexado na Pasta Sync.");
+        }
       }
 
       toast.success("Pagamento registrado com sucesso!");
       setArquivo(null);
       setContaId("");
       setMetodo("PIX");
-      setGerarComissao(true);
+      setGerarComissao(false);
       onSuccess();
       onClose();
     } catch (err) {
@@ -293,6 +219,7 @@ export default function PagamentoDialog({
               type="checkbox"
               checked={gerarComissao}
               onChange={(e) => setGerarComissao(e.target.checked)}
+              disabled={!permissions.canEditComissao}
               className="mt-1 h-4 w-4 accent-primary"
             />
             <span>
