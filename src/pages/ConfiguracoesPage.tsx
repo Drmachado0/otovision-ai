@@ -11,6 +11,7 @@ import { PreferenciasSection } from "./configuracoes/PreferenciasSection";
 import { UsuariosSection } from "./configuracoes/UsuariosSection";
 import { BackupSection } from "./configuracoes/BackupSection";
 import { DangerZoneSection } from "./configuracoes/DangerZoneSection";
+import { AssistantAccessSection } from "./configuracoes/AssistantAccessSection";
 import {
   DEFAULT_PREFS,
   defaultObraConfig,
@@ -280,6 +281,9 @@ export default function ConfiguracoesPage() {
           updateRole={updateRole}
         />
       )}
+
+      {/* Acesso delegado do assistente */}
+      {role === "admin" && <AssistantAccessSection />}
 
       {/* Backup */}
       <BackupSection
