@@ -2,3 +2,7 @@ project_id = "ebyruchdswmkuynthiqi"
 
 [functions.backup-diario-automatico]
 verify_jwt = false
+
+# A função valida internamente JWT de administrador ou token delegado `ova_`.
+[functions.assistente-lancamentos]
+verify_jwt = false
