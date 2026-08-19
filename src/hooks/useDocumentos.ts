@@ -218,7 +218,7 @@ export function useDocumentos() {
     return docId;
   };
 
-  const checkContentDuplicates = async (docId: string, aiData: Record<string, unknown>, userId: string) => {
+  const _checkContentDuplicates = async (docId: string, aiData: Record<string, unknown>, userId: string) => {
     const valorTotal = typeof aiData.valor_total === "number" ? aiData.valor_total : null;
     const dataDocumento = typeof aiData.data_documento === "string" ? aiData.data_documento : null;
 

@@ -60,7 +60,7 @@ interface Props {
   onUpdated: () => void;
 }
 
-const CATEGORIAS = CATEGORIAS_PADRAO;
+const _CATEGORIAS = CATEGORIAS_PADRAO;
 
 const FORMAS_PAGAMENTO = ["PIX", "Cartão", "Boleto", "Dinheiro", "Transferência"];
 

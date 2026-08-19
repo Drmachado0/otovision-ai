@@ -159,7 +159,7 @@ export default function ContasAPagarPage() {
   const comprasRaw = data?.comprasRaw ?? [];
 
   // Refetch = invalidar o cache da query (usado por realtime, foco, mutações).
-  const fetchData = useCallback(() => {
+  const _fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["contas-a-pagar", user?.id] });
   }, [queryClient, user?.id]);
 

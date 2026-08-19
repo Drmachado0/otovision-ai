@@ -77,7 +77,7 @@ export default function ComissaoPage() {
   const transacoes = data?.transacoes ?? [];
   const comissoes = data?.comissoes ?? [];
 
-  const fetchData = useCallback(() => {
+  const _fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["comissao", user?.id] });
   }, [queryClient, user?.id]);
 

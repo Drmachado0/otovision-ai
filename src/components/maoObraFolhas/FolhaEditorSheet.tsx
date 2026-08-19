@@ -127,7 +127,7 @@ export function FolhaEditorSheet({
 
       toast.success("Folha salva");
       fetchAll();
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast.error("Erro ao salvar: " + e.message);
     } finally {
       setSaving(false);
@@ -408,7 +408,7 @@ export function FolhaEditorSheet({
                         await recalcularFolhaDB(folha.id);
                         toast.success("Totais recalculados");
                         await fetchAll();
-                      } catch (e: any) {
+                      } catch (e: unknown) {
                         toast.error("Erro ao recalcular: " + e.message);
                       } finally {
                         setSaving(false);

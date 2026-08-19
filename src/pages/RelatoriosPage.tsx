@@ -60,7 +60,7 @@ export default function RelatoriosPage() {
   const comissoes = data?.comissoes ?? [];
   const orcamento = data?.orcamento ?? 0;
 
-  const fetchData = useCallback(() => {
+  const _fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["relatorios", user?.id] });
   }, [queryClient, user?.id]);
 

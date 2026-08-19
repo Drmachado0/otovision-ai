@@ -59,12 +59,12 @@ export default function MaoObraFolhaTab({
     enabled: !!userId && !!mesRef,
     queryFn: async () => {
       const [itemRes, folhaRes] = await Promise.all([
-        (supabase as any)
+        supabase
           .from("obra_mao_obra_folha_item")
           .select("*")
           .eq("mes_ref", mesRef)
           .is("deleted_at", null),
-        (supabase as any)
+        supabase
           .from("obra_mao_obra_folha")
           .select("custos_engenharia,exames")
           .eq("mes_ref", mesRef)
@@ -72,7 +72,7 @@ export default function MaoObraFolhaTab({
       ]);
       if (itemRes.error) throw itemRes.error;
       const map: Record<string, FolhaItemExtras> = {};
-      (itemRes.data ?? []).forEach((r: any) => {
+      (itemRes.data ?? []).forEach((r) => {
         map[r.trabalhador_id] = {
           fgts: Number(r.fgts) || 0,
           inss: Number(r.inss) || 0,
@@ -252,7 +252,7 @@ export default function MaoObraFolhaTab({
       toast.success("Encargos lançados em Contas a Pagar");
       setShowDialog(false);
       onChange();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Erro ao lançar: " + (err?.message ?? "desconhecido"));
     } finally {
       setSaving(false);

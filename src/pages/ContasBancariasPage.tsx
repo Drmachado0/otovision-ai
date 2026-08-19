@@ -89,7 +89,7 @@ export default function ContasBancariasPage() {
   const contas = data?.contas ?? [];
   const transacoes = data?.transacoes ?? [];
 
-  const fetchData = useCallback(() => {
+  const _fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["contas-bancarias", user?.id] });
   }, [queryClient, user?.id]);
 

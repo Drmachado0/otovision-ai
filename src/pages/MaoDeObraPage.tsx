@@ -146,7 +146,7 @@ export default function MaoDeObraPage() {
   });
   const contas = contasData ?? [];
 
-  const fetchContas = useCallback(() => {
+  const _fetchContas = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["mao-obra-contas", user?.id] });
   }, [queryClient, user?.id]);
 

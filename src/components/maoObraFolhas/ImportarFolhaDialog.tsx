@@ -23,7 +23,7 @@ export function ImportarFolhaDialog({
       const parsed = parseFolhaJson(json);
       onParsed(parsed);
       setText("");
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(e?.message ?? "JSON inválido");
     }
   };

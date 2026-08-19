@@ -46,7 +46,7 @@ function getPageLabel(pathname: string): string {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const location = useLocation();
+  const _location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { role } = useUserRole();

@@ -26,7 +26,7 @@ const navItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
+  const _location = useLocation();
   const { user } = useAuth();
   const signOut = () => supabase.auth.signOut();
 

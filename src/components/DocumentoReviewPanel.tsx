@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDocumentos, type DocumentoProcessado, type MovimentacaoExtraida, type EventoProcessamento } from "@/hooks/useDocumentos";
 import { formatCurrency } from "@/lib/formatters";
 import {
-  ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Clock, FileText,
+  ArrowLeft, CheckCircle2, FileText,
   Check, X, Edit, Loader2, History, ChevronDown, ChevronUp
 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,7 +31,7 @@ export default function DocumentoReviewPanel({ documento, onBack }: Props) {
     fetchData();
   }, [documento.id]);
 
-  const fetchData = async () => {
+  const _fetchData = async () => {
     const [movsRes, eventsRes] = await Promise.all([
       supabase.from("obra_movimentacoes_extraidas").select("*").eq("documento_id", documento.id).order("data_movimentacao"),
       supabase.from("obra_eventos_processamento").select("*").eq("documento_id", documento.id).order("created_at", { ascending: false }),
@@ -131,7 +131,7 @@ export default function DocumentoReviewPanel({ documento, onBack }: Props) {
   const confiancaBg = confianca >= 70 ? "bg-emerald-500/10" : confianca >= 40 ? "bg-amber-500/10" : "bg-red-500/10";
 
   const pendentes = movimentacoes.filter((m) => m.status_revisao === "pendente");
-  const aprovadas = movimentacoes.filter((m) => m.status_revisao === "aprovado");
+  const _aprovadas = movimentacoes.filter((m) => m.status_revisao === "aprovado");
 
   return (
     <div className="space-y-6 animate-slide-in">

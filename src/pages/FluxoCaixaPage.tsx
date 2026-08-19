@@ -104,7 +104,7 @@ export default function FluxoCaixaPage() {
   const saldoInicial = fluxoData?.saldoInicial ?? 0;
   const entradasOperacionais = fluxoData?.entradasOperacionais ?? 0;
 
-  const fetchData = useCallback(() => {
+  const _fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["fluxo-caixa", user?.id] });
   }, [queryClient, user?.id]);
 
@@ -232,7 +232,7 @@ export default function FluxoCaixaPage() {
       setShowForm(false);
       setForm(makeEmptyForm());
       fetchData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Erro ao salvar: " + (err?.message || "Erro desconhecido"));
     }
     setSaving(false);
