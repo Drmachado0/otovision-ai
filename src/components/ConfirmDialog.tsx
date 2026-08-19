@@ -1,4 +1,5 @@
 import { AlertTriangle, X } from "lucide-react";
+import { memo } from "react";
 
 interface Props {
   open: boolean;
@@ -10,7 +11,7 @@ interface Props {
   variant?: "danger" | "warning";
 }
 
-export default function ConfirmDialog({ open, title, message, confirmLabel = "Confirmar", onConfirm, onCancel, variant = "danger" }: Props) {
+const ConfirmDialog = memo(function ConfirmDialog({ open, title, message, confirmLabel = "Confirmar", onConfirm, onCancel, variant = "danger" }: Props) {
   if (!open) return null;
 
   return (
@@ -51,4 +52,6 @@ export default function ConfirmDialog({ open, title, message, confirmLabel = "Co
       </div>
     </div>
   );
-}
+});
+
+export default ConfirmDialog;
