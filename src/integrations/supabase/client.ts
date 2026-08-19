@@ -2,8 +2,27 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Valores públicos do projeto (URL e anon key são projetados para ficar expostos
+// no frontend — não são segredos). Servem de fallback quando as variáveis de
+// ambiente não são injetadas no build (ex.: build da Lovable sem env configurada),
+// evitando que o app quebre com "supabaseUrl is required" e mostre tela preta.
+const FALLBACK_SUPABASE_URL = "https://ebyruchdswmkuynthiqi.supabase.co";
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVieXJ1Y2hkc3dta3V5bnRoaXFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NDQyMzYsImV4cCI6MjA4NjEyMDIzNn0.fKuLCySRNC_YJzO4gNM5Um4WISneTiSyhhhJsW3Ho18";
+
+const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string | undefined) || FALLBACK_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY =
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ||
+  FALLBACK_SUPABASE_PUBLISHABLE_KEY;
+
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+  // Aviso visível no console para quem for diagnosticar o ambiente de deploy.
+  console.warn(
+    "[supabase] Variáveis VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY ausentes no build. " +
+      "Usando fallback embutido. Configure-as no painel de deploy (Lovable) para o build oficial."
+  );
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
