@@ -1,9 +1,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "*";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-  "Vary": "Origin",
+const ALLOWED_ORIGINS = new Set(
+  (Deno.env.get("ALLOWED_ORIGINS") || "https://otovisioncontrole.lovable.app")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  return {
+    ...(origin && ALLOWED_ORIGINS.has(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    "Vary": "Origin",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -11,12 +19,12 @@ const corsHeaders = {
 function jsonResponse(payload: unknown, status: number) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeadersFor(req), "Content-Type": "application/json" },
   });
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeadersFor(req) });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
 
   const authHeader = req.headers.get("Authorization");

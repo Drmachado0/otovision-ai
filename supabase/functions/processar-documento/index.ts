@@ -1,17 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "*";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-  "Vary": "Origin",
+const ALLOWED_ORIGINS = new Set(
+  (Deno.env.get("ALLOWED_ORIGINS") || "https://otovisioncontrole.lovable.app")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  return {
+    ...(origin && ALLOWED_ORIGINS.has(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    "Vary": "Origin",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeadersFor(req) });
   }
 
   // Require authenticated user
@@ -19,7 +27,7 @@ serve(async (req) => {
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeadersFor(req), "Content-Type": "application/json" },
     });
   }
   const supabaseAuth = createClient(
@@ -33,7 +41,7 @@ serve(async (req) => {
   if (claimsErr || !claims?.claims) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeadersFor(req), "Content-Type": "application/json" },
     });
   }
 
@@ -43,7 +51,7 @@ serve(async (req) => {
     if (!texto || typeof texto !== "string" || texto.trim().length < 5) {
       return new Response(
         JSON.stringify({ error: "Texto do documento é obrigatório (mínimo 5 caracteres)" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeadersFor(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -132,13 +140,13 @@ serve(async (req) => {
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 429, headers: { ...corsHeadersFor(req), "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos em Settings > Workspace > Usage." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 402, headers: { ...corsHeadersFor(req), "Content-Type": "application/json" } }
         );
       }
       const errorText = await response.text();
@@ -156,13 +164,13 @@ serve(async (req) => {
     const dados = JSON.parse(toolCall.function.arguments);
 
     return new Response(JSON.stringify(dados), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeadersFor(req), "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("processar-documento error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeadersFor(req), "Content-Type": "application/json" } }
     );
   }
 });

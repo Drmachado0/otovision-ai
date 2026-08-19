@@ -1,23 +1,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "*";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-  "Vary": "Origin",
+const ALLOWED_ORIGINS = new Set(
+  (Deno.env.get("ALLOWED_ORIGINS") || "https://otovisioncontrole.lovable.app")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  return {
+    ...(origin && ALLOWED_ORIGINS.has(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    "Vary": "Origin",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 function ok(data: unknown) {
   return new Response(JSON.stringify(data), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeadersFor(req), "Content-Type": "application/json" },
   });
 }
 function err(msg: string, status = 500) {
   return new Response(JSON.stringify({ error: msg }), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeadersFor(req), "Content-Type": "application/json" },
   });
 }
 
@@ -158,7 +166,7 @@ Regras:
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeadersFor(req) });
   }
 
   // Require authenticated user — derive user_id from JWT (never trust client)
