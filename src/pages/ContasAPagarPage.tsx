@@ -196,10 +196,13 @@ export default function ContasAPagarPage() {
     const fluxoPendente = allContas
       .filter((r) => r.origem !== "compra-parcela")
       .reduce((s, r) => s + Number(r.valor), 0);
-    const comprasTotal = comprasRaw.reduce((s, c) => s + Number(c.valor_total || 0), 0);
-    const totalPendente = fluxoPendente + comprasTotal;
+    // CORREÇÃO: somar apenas parcelas pendentes, não o valor_total de todas as compras
+    const comprasPendente = allContas
+      .filter((r) => r.origem === "compra-parcela")
+      .reduce((s, r) => s + Number(r.valor), 0);
+    const totalPendente = fluxoPendente + comprasPendente;
     const countFluxo = allContas.filter((r) => r.origem !== "compra-parcela").length;
-    const countCompras = comprasRaw.length;
+    const countCompras = allContas.filter((r) => r.origem === "compra-parcela").length;
 
     const vencidas = allContas.filter(r => r.data_vencimento && r.data_vencimento < today);
     const totalVencidas = vencidas.reduce((s, r) => s + Number(r.valor), 0);
