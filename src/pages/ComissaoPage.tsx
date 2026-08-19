@@ -5,11 +5,12 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatCurrency, formatMes, todayLocalISO } from "@/lib/formatters";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Scale } from "lucide-react";
 import { printAcertoConstrutorReport, type AcertoMes } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ComissaoDetailDrawer, { parseObservacoes } from "@/components/ComissaoDetailDrawer";
+import AjusteComissaoDialog from "@/components/AjusteComissaoDialog";
 import { ComissaoKpis } from "./comissao/ComissaoKpis";
 import { ResumoMensal } from "./comissao/ResumoMensal";
 import { DetalhamentoPagamentos } from "./comissao/DetalhamentoPagamentos";
@@ -49,6 +50,7 @@ export default function ComissaoPage() {
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
   const [deleteTarget, setDeleteTarget] = useState<ComissaoRow | null>(null);
+  const [ajusteOpen, setAjusteOpen] = useState(false);
 
   const { data, isLoading: loading, isError } = useQuery({
     queryKey: ["comissao", user?.id],
@@ -77,7 +79,7 @@ export default function ComissaoPage() {
   const transacoes = data?.transacoes ?? [];
   const comissoes = data?.comissoes ?? [];
 
-  const _fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["comissao", user?.id] });
   }, [queryClient, user?.id]);
 
@@ -199,7 +201,7 @@ export default function ComissaoPage() {
 
     return {
       totalGasto, comissaoPaga, comissaoPendente, comissaoTotal, comissaoTeorica,
-      porMes, mesesOrdenados, serieMensal,
+      porMes, mesesOrdenados, serieMensal, gastosPorMes,
       mediaMensal, mesMaior, mesMenor, ticketMedio,
       valorMesAtual, valorMesAnterior, variacaoMes,
       previsaoProx, topFornecedores, pendentesAtrasados, donut,
@@ -411,6 +413,13 @@ export default function ComissaoPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
+            onClick={() => setAjusteOpen(true)}
+            className="px-3 py-2 rounded-lg bg-secondary/60 hover:bg-secondary text-secondary-foreground text-sm font-medium flex items-center gap-2 transition-colors border border-border"
+            title="Ajustar comissão manualmente: novo lançamento, corrigir valor ou acerto do mês"
+          >
+            <Scale className="w-4 h-4" /> Ajuste de comissão
+          </button>
+          <button
             onClick={() => gerarRelatorioAcerto(true)}
             className="px-3 py-2 rounded-lg bg-warning/15 hover:bg-warning/25 text-warning text-sm font-medium flex items-center gap-2 transition-colors border border-warning/30"
             title="Gera relatório PDF apenas com as comissões pendentes do filtro atual"
@@ -498,6 +507,15 @@ export default function ComissaoPage() {
         variant="warning"
         onConfirm={handleBulkPay}
         onCancel={() => setConfirmBulkPay(false)}
+      />
+
+      <AjusteComissaoDialog
+        open={ajusteOpen}
+        onOpenChange={setAjusteOpen}
+        onUpdate={fetchData}
+        comissoes={comissoes}
+        gastosPorMes={agg.gastosPorMes}
+        mesesDisponiveis={mesesParaFiltro}
       />
     </div>
   );

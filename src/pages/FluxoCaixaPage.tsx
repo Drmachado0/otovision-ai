@@ -104,7 +104,7 @@ export default function FluxoCaixaPage() {
   const saldoInicial = fluxoData?.saldoInicial ?? 0;
   const entradasOperacionais = fluxoData?.entradasOperacionais ?? 0;
 
-  const _fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["fluxo-caixa", user?.id] });
   }, [queryClient, user?.id]);
 

@@ -79,7 +79,7 @@ export default function EquipePage() {
 
   const funcionarios = data?.funcionarios ?? [];
 
-  const _fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["equipe", user?.id] });
   }, [queryClient, user?.id]);
 

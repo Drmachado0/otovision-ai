@@ -73,7 +73,7 @@ export default function OrcamentosPage() {
 
   const orcamentos = data?.orcamentos ?? [];
 
-  const _fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["orcamentos", user?.id] });
   }, [queryClient, user?.id]);
 

@@ -31,7 +31,7 @@ export default function DocumentoReviewPanel({ documento, onBack }: Props) {
     fetchData();
   }, [documento.id]);
 
-  const _fetchData = async () => {
+  const fetchData = async () => {
     const [movsRes, eventsRes] = await Promise.all([
       supabase.from("obra_movimentacoes_extraidas").select("*").eq("documento_id", documento.id).order("data_movimentacao"),
       supabase.from("obra_eventos_processamento").select("*").eq("documento_id", documento.id).order("created_at", { ascending: false }),

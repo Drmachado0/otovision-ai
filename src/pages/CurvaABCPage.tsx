@@ -79,7 +79,7 @@ export default function CurvaABCPage() {
 
   const transacoes = data?.transacoes ?? [];
 
-  const _fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["curva-abc", user?.id] });
   }, [queryClient, user?.id]);
 

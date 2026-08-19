@@ -113,7 +113,7 @@ export default function ResumoMensalPage() {
   const meses = queryData?.meses ?? [];
   const saldoInicialBase = queryData?.saldoInicialBase ?? 0;
 
-  const _fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["resumo-mensal", user?.id] });
   }, [queryClient, user?.id]);
 

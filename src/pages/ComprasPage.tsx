@@ -53,7 +53,7 @@ export default function ComprasPage() {
 
   const [contasFinanceiras, setContasFinanceiras] = useState<{ id: string; nome: string }[]>([]);
 
-  const _fetchData = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     const { data } = await supabase
       .from("obra_compras")
       .select("id, fornecedor, descricao, categoria, valor_total, data, status_entrega, forma_pagamento, numero_parcelas, parcelas, observacoes, nf_vinculada")

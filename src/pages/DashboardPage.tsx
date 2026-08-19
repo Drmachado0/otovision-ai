@@ -130,7 +130,7 @@ export default function DashboardPage() {
   const gastosPorCategoria = dash?.gastosPorCategoria ?? [];
   const contasPagar = dash?.contasPagar ?? { total: 0, count: 0, vencidas: 0 };
 
-  const _fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["dashboard", user?.id] });
   }, [queryClient, user?.id]);
 

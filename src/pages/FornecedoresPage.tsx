@@ -56,7 +56,7 @@ export default function FornecedoresPage() {
   const fornecedores = data?.fornecedores ?? [];
   const transacoes = data?.transacoes ?? [];
 
-  const _fetchData = useCallback(() => {
+  const fetchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["fornecedores-page", user?.id] });
   }, [queryClient, user?.id]);
 
