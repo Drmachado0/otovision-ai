@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText,
-  Percent, Shield, Settings, LogOut, Building2
+  Percent, Shield, Settings, LogOut, Building2, ScanLine
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -20,6 +20,7 @@ const navItems = [
   { title: "Documentos IA", url: "/documentos", icon: FileText },
   { title: "Comissões", url: "/comissoes", icon: Percent },
   { title: "Auditoria", url: "/auditoria", icon: Shield },
+  { title: "Meu Raio-X Financeiro", url: "/relatorios", icon: ScanLine },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText, Percent,
   Menu, X, Building2, History,
   BarChart3, FolderSync, ChevronRight, Wallet, Settings,
-  Users, PieChart, Receipt,
+  Users, PieChart, Receipt, ScanLine,
 } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import NotificationBell from "@/components/NotificationBell";
@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
   { path: "/comissao", label: "Comissão", icon: Percent, allowedRoles: ["admin", "construtor"] },
   { path: "/curva-abc", label: "Curva ABC", icon: PieChart, allowedRoles: ["admin", "financeiro"] },
   { path: "/relatorios", label: "Relatórios", icon: BarChart3, allowedRoles: ["admin", "financeiro"] },
+  { path: "/relatorios", label: "Meu Raio-X Financeiro", icon: ScanLine, allowedRoles: ["admin", "financeiro"] },
   { path: "/auditoria", label: "Auditoria", icon: History, allowedRoles: ["admin"] },
   { path: "/configuracoes", label: "Configurações", icon: Settings, allowedRoles: ["admin"] },
 ];
