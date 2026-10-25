@@ -1,6 +1,6 @@
 import {
-  LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText,
-  Percent, Shield, Settings, LogOut, Building2, ScanLine
+  Gauge, ArrowRightLeft, ShoppingBag, ScanText,
+  BadgePercent, ShieldCheck, Activity, SlidersHorizontal, LogOut, Building2
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -14,14 +14,14 @@ import {
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Fluxo de Caixa", url: "/fluxo-caixa", icon: ArrowLeftRight },
-  { title: "Compras", url: "/compras", icon: ShoppingCart },
-  { title: "Documentos IA", url: "/documentos", icon: FileText },
-  { title: "Comissões", url: "/comissoes", icon: Percent },
-  { title: "Auditoria", url: "/auditoria", icon: Shield },
-  { title: "Meu Raio-X Financeiro", url: "/relatorios", icon: ScanLine },
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
+  { title: "Dashboard", url: "/", icon: Gauge },
+  { title: "Fluxo de Caixa", url: "/fluxo-caixa", icon: ArrowRightLeft },
+  { title: "Compras", url: "/compras", icon: ShoppingBag },
+  { title: "Documentos IA", url: "/documentos", icon: ScanText },
+  { title: "Comissões", url: "/comissoes", icon: BadgePercent },
+  { title: "Auditoria", url: "/auditoria", icon: ShieldCheck },
+  { title: "Meu Raio-X Financeiro", url: "/relatorios", icon: Activity },
+  { title: "Configurações", url: "/configuracoes", icon: SlidersHorizontal },
 ];
 
 export function AppSidebar() {
@@ -61,7 +61,7 @@ export function AppSidebar() {
                       className="hover:bg-sidebar-accent/50"
                       activeClassName="bg-sidebar-accent text-primary font-medium"
                     >
-                      <item.icon className="mr-2 h-4 w-4" />
+                      <item.icon className="mr-2 h-6 w-6 shrink-0" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -77,7 +77,7 @@ export function AppSidebar() {
           <p className="text-xs text-muted-foreground truncate mb-2 px-2">{user.email}</p>
         )}
         <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={signOut}>
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-6 w-6 mr-2 shrink-0" />
           {!collapsed && "Sair"}
         </Button>
       </SidebarFooter>

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, ArrowLeftRight, ShoppingCart, FileText, Percent,
-  Menu, X, Building2, History,
-  BarChart3, FolderSync, ChevronRight, Wallet, Settings,
-  Users, PieChart, Receipt, ScanLine,
+  Gauge, ArrowRightLeft, ShoppingBag, ScanText, BadgePercent,
+  Menu, X, Building2, ShieldCheck,
+  ChartColumnBig, FolderSync, ChevronRight, Wallet, SlidersHorizontal,
+  Users, ChartPie, Receipt, Activity,
 } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import NotificationBell from "@/components/NotificationBell";
@@ -19,26 +19,26 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/", label: "Dashboard", icon: Gauge },
   { path: "/equipe", label: "Equipe", icon: Users },
   { path: "/mao-de-obra", label: "Mão de Obra", icon: Users, allowedRoles: ["admin", "construtor"] },
-  { path: "/fluxo", label: "Fluxo de Caixa", icon: ArrowLeftRight, allowedRoles: ["admin", "financeiro"] },
+  { path: "/fluxo", label: "Fluxo de Caixa", icon: ArrowRightLeft, allowedRoles: ["admin", "financeiro"] },
   { path: "/contas-pagar", label: "Contas a Pagar", icon: Receipt, allowedRoles: ["admin", "financeiro"] },
   { path: "/contas", label: "Contas", icon: Wallet, allowedRoles: ["admin", "financeiro"] },
-  { path: "/compras", label: "Compras", icon: ShoppingCart, allowedRoles: ["admin", "financeiro"] },
+  { path: "/compras", label: "Compras", icon: ShoppingBag, allowedRoles: ["admin", "financeiro"] },
   { path: "/fornecedores", label: "Fornecedores", icon: Building2, allowedRoles: ["admin", "financeiro"] },
-  { path: "/orcamentos", label: "Orçamentos", icon: FileText, allowedRoles: ["admin", "financeiro"] },
-  { path: "/notas-fiscais", label: "Notas Fiscais", icon: FileText, allowedRoles: ["admin", "financeiro"] },
+  { path: "/orcamentos", label: "Orçamentos", icon: ScanText, allowedRoles: ["admin", "financeiro"] },
+  { path: "/notas-fiscais", label: "Notas Fiscais", icon: ScanText, allowedRoles: ["admin", "financeiro"] },
   
-  { path: "/resumo-mensal", label: "Resumo Mensal", icon: BarChart3, allowedRoles: ["admin", "financeiro"] },
-  { path: "/leitor-ia", label: "Leitor IA", icon: FileText, allowedRoles: ["admin", "financeiro"] },
+  { path: "/resumo-mensal", label: "Resumo Mensal", icon: ChartColumnBig, allowedRoles: ["admin", "financeiro"] },
+  { path: "/leitor-ia", label: "Leitor IA", icon: ScanText, allowedRoles: ["admin", "financeiro"] },
   { path: "/pasta-sync", label: "Pasta Sync", icon: FolderSync, allowedRoles: ["admin", "financeiro"] },
-  { path: "/comissao", label: "Comissão", icon: Percent, allowedRoles: ["admin", "construtor"] },
-  { path: "/curva-abc", label: "Curva ABC", icon: PieChart, allowedRoles: ["admin", "financeiro"] },
-  { path: "/relatorios", label: "Relatórios", icon: BarChart3, allowedRoles: ["admin", "financeiro"] },
-  { path: "/relatorios", label: "Meu Raio-X Financeiro", icon: ScanLine, allowedRoles: ["admin", "financeiro"] },
-  { path: "/auditoria", label: "Auditoria", icon: History, allowedRoles: ["admin"] },
-  { path: "/configuracoes", label: "Configurações", icon: Settings, allowedRoles: ["admin"] },
+  { path: "/comissao", label: "Comissão", icon: BadgePercent, allowedRoles: ["admin", "construtor"] },
+  { path: "/curva-abc", label: "Curva ABC", icon: ChartPie, allowedRoles: ["admin", "financeiro"] },
+  { path: "/relatorios", label: "Relatórios", icon: ChartColumnBig, allowedRoles: ["admin", "financeiro"] },
+  { path: "/relatorios", label: "Meu Raio-X Financeiro", icon: Activity, allowedRoles: ["admin", "financeiro"] },
+  { path: "/auditoria", label: "Auditoria", icon: ShieldCheck, allowedRoles: ["admin"] },
+  { path: "/configuracoes", label: "Configurações", icon: SlidersHorizontal, allowedRoles: ["admin"] },
 ];
 
 function getPageLabel(pathname: string): string {
@@ -92,7 +92,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {active && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-primary" />
                 )}
-                <item.icon className="w-4 h-4" />
+                <item.icon className="w-6 h-6 shrink-0" />
                 {item.label}
               </Link>
             );
@@ -148,7 +148,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     }`}
                     style={{ animationDelay: `${i * 40}ms` }}
                   >
-                    <item.icon className="w-5 h-5" />
+                    <item.icon className="w-6 h-6 shrink-0" />
                     {item.label}
                   </Link>
                 );
